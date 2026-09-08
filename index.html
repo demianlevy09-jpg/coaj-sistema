@@ -375,7 +375,6 @@ function pintarInicio(){
     <button class="btn chico" id="qcobrar">Cobrar a un cliente</button>
     <button class="btn chico sec" id="qcaja">Movimiento de caja</button>
   </div></div>
-  ${esAdmin()?`<div class="card"><b>Usuarios del sistema</b><div class="mini" style="margin:4px 0 6px">Solo vos podés crear, bloquear o borrar usuarios.</div><button class="btn chico sec" id="qusuarios">Administrar usuarios</button></div>`:''}
   <h2>Últimas cargas en el sistema</h2>
   <div class="card">${ult.length?ult.map(r=>`<div class="mov"><span class="f">${fecha(r.f)}</span><span class="t">${r._t==='mov'?(r.tipo+' · '+nomCli(r.cli)):((r.c||'')+(r.d?' · '+r.d:''))}</span><span class="m">${fmt(r.imp!=null?r.imp:((r.ing||0)-(r.egr||0)))}</span></div>`).join(''):'<div class="mini" style="padding:6px 0">Todavía no cargaste nada acá. Los datos migrados de NewsPaper ya están adentro.</div>'}</div>
   ${(()=>{const sp=new Set();C.forEach(c=>sinPrecio(c).forEach(x=>sp.add(x[0])));return sp.size?`<div class="aviso">⚠ Publicaciones sin precio cargado (no devengan): ${[...sp].slice(0,6).join(', ')}${sp.size>6?'…':''} — cargalos en Precios.</div>`:'';})()}
