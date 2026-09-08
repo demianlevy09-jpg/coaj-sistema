@@ -117,7 +117,7 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v15</div></header>
+<header><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v16</div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -213,6 +213,7 @@ document.addEventListener('click',async e=>{
 <script>
 
 let db=null, C=[], PRECIOS=[], CAJAH=[], LISTAS={medios:[],conceptos:[],tipos:[]};
+const CONCEPTOS_CAJA=['Cobro a cliente','Venta mostrador','Cobro distribuidora','Pago a distribuidora','Pago a empleado','Gasto','Retiro','Cambio inicial','Transferencia entre cuentas','Otro'];
 let LIVE={movs:[],caja:[],precios:[],novedades:[],dist:[]};
 let DISTH=[];
 const $=id=>document.getElementById(id);
@@ -543,7 +544,7 @@ function pintarCaja(){
   $('v-caja').innerHTML=`
   <div class="stats">${Object.keys(porMedio).length?Object.entries(porMedio).map(([m,v])=>`<div class="stat"><b class="${v<0?'debe':''}">${fmt(v)}</b><i>${m}</i></div>`).join(''):'<div class="stat"><b>—</b><i>sin movimientos aún</i></div>'}</div>
   <div class="card"><b>Cargar movimiento de caja</b>
-    <label>Concepto</label><select id="cc">${LISTAS.conceptos.map(c=>`<option>${c}</option>`).join('')}</select>
+    <label>Concepto</label><select id="cc">${CONCEPTOS_CAJA.map(c=>`<option>${c}</option>`).join('')}</select>
     <div class="grid2"><div><label>Ingreso $</label><input id="cing" type="number" inputmode="decimal" placeholder="0"></div>
     <div><label>Egreso $</label><input id="cegr" type="number" inputmode="decimal" placeholder="0"></div></div>
     <label>Medio</label><select id="cm">${LISTAS.medios.map(m=>`<option>${m}</option>`).join('')}</select>
@@ -551,7 +552,7 @@ function pintarCaja(){
     <label>Fecha</label><input id="cf" type="date" value="${hoyISO()}">
     <button class="btn" id="cok">Guardar</button></div>
   <h2>Movimientos cargados</h2>
-  <div class="filtros"><select id="fcc"><option value="">Concepto: todos</option>${LISTAS.conceptos.map(c=>`<option>${c}</option>`).join('')}</select>
+  <div class="filtros"><select id="fcc"><option value="">Concepto: todos</option>${[...new Set([...CONCEPTOS_CAJA,...rows.map(r=>r.c).filter(Boolean)])].map(c=>`<option>${c}</option>`).join('')}</select>
   <select id="fcm"><option value="">Medio: todos</option>${LISTAS.medios.map(m=>`<option>${m}</option>`).join('')}</select></div>
   <input id="fct" type="search" placeholder="Buscar en detalle…" style="margin-bottom:8px">
   <div class="card" id="clist"></div>
