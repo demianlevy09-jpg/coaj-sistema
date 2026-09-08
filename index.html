@@ -117,7 +117,7 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v13</div></header>
+<header><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v14</div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -167,9 +167,13 @@ function traducirAuth(m){
   return 'Error: '+m;
 }
 async function gate(){
-  const{data:{session}}=await sb.auth.getSession();
+  let{data:{session}}=await sb.auth.getSession();
+  if(session){
+    const{data:{user},error}=await sb.auth.getUser();
+    if(error||!user){ try{const r=await sb.auth.refreshSession();session=r.data.session;}catch(_){session=null;} }
+  }
   if(session){USUARIO=session.user;$('login').hidden=true;$('appwrap').hidden=false;iniciarApp();}
-  else{$('login').hidden=false;$('cargando').hidden=true;}
+  else{try{await sb.auth.signOut();}catch(_){}$('login').hidden=false;$('cargando').hidden=true;}
 }
 document.addEventListener('click',async e=>{
   if(e.target.id==='lentrar'){
@@ -243,7 +247,13 @@ async function boot(){
     $('cargando').innerHTML='Error cargando datos: '+((e&&e.message)||e);
     return;
   }
-  if(!C.length){ $('cargando').hidden=true; $('importbox').hidden=false; return; }
+  if(!C.length){
+    let vacia=false;
+    try{ const{count,error}=await sb.from('kv').select('k',{count:'exact',head:true}); vacia=!error&&count===0; }catch(_){}
+    if(vacia){ $('cargando').hidden=true; $('importbox').hidden=false; }
+    else { $('cargando').innerHTML='No pude leer los datos (la sesión venció o no hay conexión).<br><br><button class="btn" onclick="location.reload()">Recargar</button> <button class="btn sec" id="lsalir">Volver a entrar</button>'; }
+    return;
+  }
   C.forEach(c=>{c.k=norm(c.d+' '+c.n+' '+c.id+' '+c.subs.map(x=>x[0]).join(' '));});
   armarPIDX();
   $('cargando').hidden=true; $('app').hidden=false; $('tabs').hidden=false;
@@ -883,7 +893,7 @@ document.addEventListener('change',function(e){
 async function iniciarApp(){
   try{
     await boot();
-    if(!C.length){$('cargando').hidden=true;$('importbox').hidden=false;return;}
+    if(!C.length)return;
     const hdrEl=document.querySelector('header');
     if(hdrEl&&!document.getElementById('lsalir')){
       if(esAdmin()){const u=document.createElement('button');u.id='qusuarios';u.className='btn chico sec';u.style.marginLeft='auto';u.textContent='Usuarios';hdrEl.appendChild(u);}
