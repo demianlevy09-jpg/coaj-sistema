@@ -117,7 +117,7 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v11</div></header>
+<header><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v12</div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -342,12 +342,14 @@ function pintarInicio(){
   const cajaHoy=LIVE.caja.filter(r=>(r.f||'').startsWith(hoy));
   const ing=cajaHoy.reduce((n,r)=>n+(r.ing||0),0), egr=cajaHoy.reduce((n,r)=>n+(r.egr||0),0);
   const ult=[...LIVE.movs.map(r=>({...r,_t:'mov'})),...LIVE.caja.map(r=>({...r,_t:'caja'}))].sort((a,b)=>(b.ts||'').localeCompare(a.ts||'')).slice(0,8);
+  const sd=LIVE.dist.reduce((n,r)=>n+(r.imp||0),0);
   $('v-inicio').innerHTML=`
   <div class="stats">
     <div class="stat"><b>${act.length}</b><i>clientes activos</i></div>
     <div class="stat"><b>${vig}</b><i>susc. vigentes</i></div>
     <div class="stat"><b class="debe">${fmt(tot)}</b><i>te deben (${deud.length})</i></div>
     <div class="stat"><b>${cajaHoy.length?fmt(ing-egr):'—'}</b><i>caja de hoy</i></div>
+    <div class="stat" style="cursor:pointer" onclick="document.querySelector('.tab[data-v=dist]').click()"><b class="${sd>0?'debe':(sd<0?'favor':'aldia')}">${fmt(sd)}</b><i>CC distribuidora · ${sd>0?'le debés':(sd<0?'te debe':'al día')} →</i></div>
   </div>
   <div class="card"><b>Carga rápida</b><div class="grid2">
     <button class="btn chico" id="qcobrar">Cobrar a un cliente</button>
