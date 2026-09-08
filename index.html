@@ -117,7 +117,7 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v14</div></header>
+<header><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v15</div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -653,7 +653,7 @@ function pintarDist(){
   const rows=[...LIVE.dist].sort((a,b)=>(b.ts||'').localeCompare(a.ts||''));
   $('v-dist').innerHTML=`
   <div class="stats">
-    <div class="stat"><b class="${saldoNuevo>0?'debe':(saldoNuevo<0?'favor':'')}">${fmt(saldoNuevo)}</b><i>${saldoNuevo>=0?'le debés (cargado acá)':'te debe (cargado acá)'}</i></div>
+    <div class="stat"><b class="${saldoNuevo>0?'debe':(saldoNuevo<0?'favor':'')}">${fmt(saldoNuevo)}</b><i>${saldoNuevo>=0?'le debés':'te debe'}</i></div>
     <div class="stat"><b>${fmt(repTot)}</b><i>valor tapa repartido a suscriptores desde el 01/09</i></div>
   </div>
   <div class="aviso">Lo que repartís a los suscriptores lo cobra la distribuidora: a vos te corresponde una comisión por el reparto que todavía está SIN DEFINIR. Cuando la sepas, la cargamos y esto se convierte en plata a tu favor.</div>
@@ -663,16 +663,19 @@ function pintarDist(){
     <label>Detalle</label><input id="ddet" placeholder="ej: liquidación semana 37">
     <label>Fecha</label><input id="dfec" type="date" value="${hoyISO()}">
     <button class="btn" id="dok">Guardar</button></div>
-  <h2>Movimientos cargados</h2>
-  <div class="card" id="dlist">${rows.length?rows.map(r=>`<div class="mov"><span class="f">${fecha(r.f)}</span><span class="t">${r.d||''}</span><span class="m ${r.imp>0?'debe':'favor'}">${r.imp<0?'−':''}${fmt(r.imp)}</span><button class="del" data-did="${r.id}">✕</button></div>`).join(''):'<div class="mini">Nada cargado todavía. El saldo con la distribuidora arranca de cero desde hoy.</div>'}</div>
-  <h2>Histórico NewsPaper 2024–2026 <span class="mini" style="text-transform:none">(solo consulta; la semántica de estos importes hay que confirmarla con Beba)</span></h2>
-  <input id="dfil" type="search" placeholder="Buscar…" style="margin-bottom:8px">
-  <div class="card" id="dhlist"></div>`;
+  <h2>Movimientos</h2>
+  <input id="dfil" type="search" placeholder="Buscar por número, detalle o fecha…" style="margin-bottom:8px">
+  <div class="card" id="dhlist"></div>
+  <div style="text-align:center"><button class="btn chico sec" id="dmas">Ver más</button></div>`;
+  let DMOSTR=40;
   window.pintaDH=function(){
     const q=norm($('dfil').value);
-    const rs=DISTH.filter(r=>!q||norm((r.d||'')+' '+r.f).includes(q));
-    $('dhlist').innerHTML=rs.slice(-30).reverse().map(r=>`<div class="mov"><span class="f">${fecha(r.f)}</span><span class="t">${r.d||''}</span><span class="m">${fmt(r.imp)}</span></div>`).join('')||'<div class="mini">Nada con ese filtro.</div>';
+    const todos=[...DISTH.map(r=>({...r,_h:1})),...LIVE.dist].filter(r=>!q||norm((r.d||'')+' '+r.f+' '+fecha(r.f)).includes(q)).sort((a,b)=>(b.f||'').localeCompare(a.f||'')||(b.ts||'').localeCompare(a.ts||''));
+    const rs=todos.slice(0,DMOSTR);
+    $('dhlist').innerHTML=rs.map(r=>`<div class="mov"><span class="f">${fecha(r.f)}</span><span class="t">${r.d||''}</span><span class="m ${r.imp>0?'debe':(r.imp<0?'favor':'')}">${r.imp<0?'−':''}${fmt(r.imp)}</span>${r._h?'':`<button class="del" data-did="${r.id}">✕</button>`}</div>`).join('')||'<div class="mini">Nada con ese filtro.</div>';
+    $('dmas').hidden=todos.length<=DMOSTR;
   }
+  window.masDist=function(){DMOSTR+=40;pintaDH();};
   pintaDH();
 }
 async function addDist(){
@@ -857,6 +860,7 @@ document.addEventListener('click',function(e){
     case 'qcobrar': ver('clientes');setTimeout(()=>$('bq')&&$('bq').focus(),50);break;
     case 'qcaja': ver('caja');pintarCaja();break;
     case 'qusuarios': ver('usuarios');pintarUsuarios();break;
+    case 'dmas': masDist();break;
     case 'uvolver': ver('inicio');pintarInicio();break;
     case 'uok': crearUsuario();break;
     case 'uclave': cambiarClave(b.dataset.uid,b.dataset.email);break;
