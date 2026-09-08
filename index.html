@@ -1,0 +1,820 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#15171B">
+<title>COAJ Sistema</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;900&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --papel:#F6F4EE; --tarjeta:#FFFFFF; --tinta:#1C1B17; --tinta2:#5C594F;
+  --linea:#E2DED2; --azul:#23538F; --azulsuave:#E8EEF7;
+  --ok:#1F7A3D; --oksuave:#E4F1E7; --rojo:#B3261E; --rojosuave:#F9E9E7;
+  --ambar:#8A6100; --ambarsuave:#F6EED9;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --papel:#15171B; --tarjeta:#1E2126; --tinta:#EDEAE2; --tinta2:#A5A198;
+    --linea:#31353C; --azul:#7FA8DC; --azulsuave:#22314A;
+    --ok:#6FC48C; --oksuave:#1D3326; --rojo:#E58B84; --rojosuave:#42221F;
+    --ambar:#D9B45C; --ambarsuave:#3A3120;
+  }
+}
+:root[data-theme="dark"]{
+  --papel:#15171B; --tarjeta:#1E2126; --tinta:#EDEAE2; --tinta2:#A5A198;
+  --linea:#31353C; --azul:#7FA8DC; --azulsuave:#22314A;
+  --ok:#6FC48C; --oksuave:#1D3326; --rojo:#E58B84; --rojosuave:#42221F;
+  --ambar:#D9B45C; --ambarsuave:#3A3120;
+}
+*{box-sizing:border-box}
+body{background:var(--papel);color:var(--tinta);font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:16px;margin:0;padding:0 0 86px}
+.wrap{max-width:640px;margin:0 auto;padding:0 14px}
+header{padding:16px 0 8px;display:flex;align-items:baseline;gap:8px}
+.marca{font-family:'Archivo',sans-serif;font-weight:900;font-size:24px;letter-spacing:-.5px}
+.marca span{color:var(--azul)}
+.mini{font-size:12px;color:var(--tinta2)}
+.tabs{position:fixed;bottom:0;left:0;right:0;background:var(--tarjeta);border-top:1px solid var(--linea);display:flex;z-index:20;padding-bottom:env(safe-area-inset-bottom)}
+.tab{flex:1;text-align:center;padding:10px 2px 12px;font-size:12.5px;font-weight:600;color:var(--tinta2);cursor:pointer;border:none;background:none;font-family:inherit}
+.tab .ic{display:block;font-size:20px;margin-bottom:1px}
+.tab.on{color:var(--azul)}
+.card{background:var(--tarjeta);border:1px solid var(--linea);border-radius:10px;padding:14px;margin-bottom:10px}
+h2{font-family:'Archivo',sans-serif;font-weight:700;font-size:13.5px;text-transform:uppercase;letter-spacing:.8px;color:var(--tinta2);margin:20px 0 8px}
+.stats{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 4px}
+.stat{background:var(--tarjeta);border:1px solid var(--linea);border-radius:8px;padding:8px 12px;flex:1;min-width:88px}
+.stat b{display:block;font-family:'Archivo',sans-serif;font-weight:700;font-size:18px;font-variant-numeric:tabular-nums}
+.stat i{font-style:normal;font-size:11px;color:var(--tinta2);text-transform:uppercase;letter-spacing:.4px}
+.debe{color:var(--rojo)} .favor{color:var(--ok)} .aldia{color:var(--tinta2)}
+input,select{width:100%;font-size:16px;font-family:inherit;padding:12px;border:1.5px solid var(--linea);border-radius:9px;background:var(--tarjeta);color:var(--tinta);outline:none;margin-top:4px}
+input:focus,select:focus{border-color:var(--azul)}
+label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-top:12px}
+.btn{display:inline-block;background:var(--azul);color:#fff;border:none;border-radius:9px;font-family:inherit;font-weight:700;font-size:16px;padding:13px 22px;cursor:pointer;margin-top:14px}
+.btn.sec{background:var(--tarjeta);color:var(--azul);border:1.5px solid var(--azul)}
+.btn.chico{font-size:14px;padding:9px 14px;margin-top:8px}
+.fila{background:var(--tarjeta);border:1px solid var(--linea);border-radius:10px;padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.fila .dom{font-weight:600;font-size:16px}
+.fila .nom{color:var(--tinta2);font-size:14px}
+.fila .der{margin-left:auto;text-align:right;flex-shrink:0}
+.monto{font-family:'Archivo',sans-serif;font-weight:700;font-variant-numeric:tabular-nums;font-size:15.5px}
+.pill{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 9px;border-radius:99px}
+.p-susc{background:var(--azulsuave);color:var(--azul)}
+.p-cli{background:var(--oksuave);color:var(--ok)}
+.p-mix{background:var(--ambarsuave);color:var(--ambar)}
+.p-inact{background:var(--linea);color:var(--tinta2)}
+.p-warn{background:var(--ambarsuave);color:var(--ambar)}
+.mov{display:flex;align-items:baseline;gap:10px;padding:9px 2px;border-bottom:1px solid var(--linea);font-size:14.5px}
+.mov:last-child{border-bottom:none}
+.mov .f{color:var(--tinta2);font-size:12.5px;flex-shrink:0;width:76px;font-variant-numeric:tabular-nums}
+.mov .t{flex:1;min-width:0}
+.mov .m{font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap}
+.mov .del{color:var(--rojo);border:none;background:none;font-size:15px;cursor:pointer;padding:0 4px}
+.dias{display:flex;gap:4px;margin-top:8px}
+.dia{width:29px;height:25px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;border-radius:6px;background:var(--papel);color:var(--tinta2);border:1px solid var(--linea)}
+.dia.on{background:var(--azul);color:#fff;border-color:var(--azul)}
+.cabecera .dom{font-family:'Archivo',sans-serif;font-weight:900;font-size:23px;line-height:1.15;text-wrap:balance}
+.saldonum{font-family:'Archivo',sans-serif;font-weight:900;font-size:32px;font-variant-numeric:tabular-nums;margin-top:10px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.aviso{background:var(--ambarsuave);color:var(--ambar);border-radius:8px;padding:9px 12px;font-size:13.5px;margin-top:10px}
+.volver{background:none;border:none;color:var(--azul);font-size:16px;font-weight:600;font-family:inherit;padding:10px 0;cursor:pointer}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:88px;background:var(--tinta);color:var(--papel);padding:11px 20px;border-radius:99px;font-weight:600;font-size:14.5px;z-index:50;opacity:0;transition:opacity .25s;pointer-events:none}
+.toast.ver{opacity:1}
+.tag-susp{color:var(--rojo);font-size:12px;font-weight:600}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#cargando{text-align:center;padding:60px 20px;color:var(--tinta2)}
+.subrow{padding:10px 0;border-bottom:1px solid var(--linea)}
+.subrow:last-child{border-bottom:none}
+.fchips{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 10px}
+.fch{border:1px solid var(--linea);background:var(--tarjeta);color:var(--tinta2);border-radius:99px;padding:6px 12px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+.fch.on{background:var(--azul);border-color:var(--azul);color:#fff}
+.filtros{display:flex;gap:8px;margin:8px 0}
+.filtros select,.filtros input{margin-top:0;padding:9px 10px;font-size:14px}
+.liqrow{cursor:pointer}
+.liqrow .t::after{content:' ▾';color:var(--azul);font-size:12px}
+.desglose{background:var(--papel);border:1px dashed var(--linea);border-radius:8px;padding:10px 12px;margin:4px 0 8px;font-size:13.5px}
+.desglose .dl{display:flex;justify-content:space-between;padding:3px 0}
+.desglose .tot{border-top:1px solid var(--linea);margin-top:6px;padding-top:6px;font-weight:700}
+.diasel .dia{cursor:pointer;width:38px;height:34px;font-size:13px}
+</style>
+</head>
+<body>
+<div id="login" hidden style="max-width:420px;margin:60px auto;padding:0 16px">
+  <div class="marca" style="font-family:Archivo,sans-serif;font-weight:900;font-size:28px">COAJ <span style="color:var(--azul)">· Sistema</span></div>
+  <div class="card" style="margin-top:16px">
+    <label>Email</label><input id="lemail" type="email" autocomplete="username">
+    <label>Contraseña</label><input id="lpass" type="password" autocomplete="current-password">
+    <button class="btn" id="lentrar" style="width:100%">Entrar</button>
+    <button class="btn sec" id="lcrear" style="width:100%">Crear usuario nuevo</button>
+    <div class="mini" id="lmsg" style="margin-top:10px"></div>
+  </div>
+</div>
+<div id="importbox" hidden style="max-width:520px;margin:40px auto;padding:0 16px">
+  <div class="card"><b>Carga inicial de datos</b>
+  <div class="mini" style="margin:8px 0">La base está vacía. Seleccioná los archivos JSON de la carpeta <b>app_coaj</b> (los 8 juntos) y se cargan solos.</div>
+  <input id="impfiles" type="file" multiple accept=".json">
+  <button class="btn" id="impok" style="width:100%">Importar</button>
+  <div class="mini" id="impmsg" style="margin-top:8px"></div></div>
+</div>
+
+
+<div class="wrap">
+<header><div class="marca">COAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v9</div></header>
+<div id="cargando">Cargando los datos del puesto…</div>
+<div id="app" hidden>
+  <div id="v-inicio"></div>
+  <div id="v-clientes" hidden></div>
+  <div id="v-caja" hidden></div>
+  <div id="v-precios" hidden></div>
+  <div id="v-novedades" hidden></div>
+  <div id="v-dist" hidden></div>
+  <div id="v-ficha" hidden></div>
+</div>
+</div>
+<nav class="tabs" id="tabs" hidden>
+  <button class="tab on" data-v="inicio"><span class="ic">▦</span>Inicio</button>
+  <button class="tab" data-v="clientes"><span class="ic">⌂</span>Clientes</button>
+  <button class="tab" data-v="caja"><span class="ic">$</span>Caja</button>
+  <button class="tab" data-v="precios"><span class="ic">%</span>Precios</button>
+  <button class="tab" data-v="novedades"><span class="ic">✎</span>Noved.</button>
+  <button class="tab" data-v="dist"><span class="ic">⇄</span>Distrib.</button>
+</nav>
+<div class="toast" id="toast"></div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.min.js"></script>
+<script>
+const SB_URL='https://bqujsvrfcyqazzjysijn.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJxdWpzdnJmY3lxYXp6anlzaWpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4MjAzMTAsImV4cCI6MjEwNDM5NjMxMH0.Y4gXrZFqG4Q6u9B5UK-9vPJe8OxdMUcyJ8ROrXGol9c';
+const sb=window.supabase.createClient(SB_URL,SB_KEY);
+window.claude={use:async n=>{
+  if(n!=='db')return null;
+  return {doc:p=>({
+    get:async()=>{const{data,error}=await sb.from('kv').select('v').eq('k',p).maybeSingle();if(error)throw error;return data?data.v:null;},
+    set:async v=>{const{error}=await sb.from('kv').upsert({k:p,v});if(error)throw error;}
+  })};
+}};
+async function gate(){
+  const{data:{session}}=await sb.auth.getSession();
+  if(session){$('login').hidden=true;iniciarApp();}
+  else{$('login').hidden=false;$('cargando').hidden=true;}
+}
+document.addEventListener('click',async e=>{
+  if(e.target.id==='lentrar'||e.target.id==='lcrear'){
+    const email=$('lemail').value.trim(),pass=$('lpass').value;
+    if(!email||!pass){$('lmsg').textContent='Completá email y contraseña';return;}
+    $('lmsg').textContent='...';
+    try{
+      if(e.target.id==='lcrear'){
+        const{error}=await sb.auth.signUp({email,password:pass});
+        if(error)throw error;
+        $('lmsg').textContent='Usuario creado. Ya podés entrar.';
+      }
+      const{error}=await sb.auth.signInWithPassword({email,password:pass});
+      if(error)throw error;
+      $('login').hidden=true;$('cargando').hidden=false;iniciarApp();
+    }catch(err){$('lmsg').textContent='Error: '+(err.message||err);}
+  }
+  if(e.target.id==='lsalir'){await sb.auth.signOut();location.reload();}
+  if(e.target.id==='impok'){
+    const files=[...$('impfiles').files];
+    if(!files.length){$('impmsg').textContent='Elegí los archivos';return;}
+    $('impmsg').textContent='Importando...';
+    try{
+      for(const f of files){
+        const v=JSON.parse(await f.text());
+        const base=f.name.replace('.json','');
+        const k=(base==='dist'?'seed/dist':(base.startsWith('clientes_')||['precios','caja_hist','listas'].includes(base))?'seed/'+base:'seed/'+base);
+        await (await claude.use('db')).doc(k).set(v);
+        $('impmsg').textContent='✓ '+f.name;
+      }
+      for(const l of ['movs','caja','precios','novedades','dist']){
+        const d=(await claude.use('db')).doc('live/'+l);
+        if(!(await d.get())) await d.set({rows:[]});
+      }
+      $('impmsg').textContent='Listo. Recargando...';
+      setTimeout(()=>location.reload(),800);
+    }catch(err){$('impmsg').textContent='Error: '+(err.message||err);}
+  }
+});
+</script>
+<script>
+
+let db=null, C=[], PRECIOS=[], CAJAH=[], LISTAS={medios:[],conceptos:[],tipos:[]};
+let LIVE={movs:[],caja:[],precios:[],novedades:[],dist:[]};
+let DISTH=[];
+const $=id=>document.getElementById(id);
+const fmt=n=>'$'+Math.abs(n).toLocaleString('es-AR',{maximumFractionDigits:0});
+const norm=s=>(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+const hoyISO=()=>new Date().toISOString().slice(0,10);
+const fecha=s=>{if(!s)return'';const[a,m,d]=s.slice(0,10).split('-');return d+'/'+m+'/'+a.slice(2);};
+const DIAS=['Lu','Ma','Mi','Ju','Vi','Sa','Do'];
+const FDIAS={'lunes':[0],'martes':[1],'miercoles':[2],'jueves':[3],'viernes':[4],'sabado':[5],'domingo':[6],'todos los dias':[0,1,2,3,4,5,6],'de lunes a viernes':[0,1,2,3,4],'lunes a viernes':[0,1,2,3,4],'de lunes a sabado':[0,1,2,3,4,5],'lunes a sabado':[0,1,2,3,4,5],'sabado y domingo':[5,6],'lunes y jueves':[0,3],'lunes, miercoles y viernes':[0,2,4],'martes y viernes':[1,4],'martes y jueves':[1,3],'jueves y sabado':[3,5]};
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('ver');setTimeout(()=>t.classList.remove('ver'),2200);}
+const dget=snap=>(snap&&typeof snap.data==='function')?snap.data():snap;
+
+async function boot(){
+  try{ db=await claude.use('db'); }catch(e){ db=null; }
+  if(!db){
+    $('cargando').innerHTML='No pude conectar con la base de datos.<br>Abrí esta página desde claude.ai con tu cuenta y recargá.';
+    return;
+  }
+  try{
+    const lecturas=await Promise.all([
+      db.doc('seed/clientes_1').get(),db.doc('seed/clientes_2').get(),db.doc('seed/clientes_3').get(),
+      db.doc('seed/precios').get(),db.doc('seed/caja_hist').get(),db.doc('seed/listas').get(),
+      db.doc('live/movs').get(),db.doc('live/caja').get(),db.doc('live/precios').get(),db.doc('live/novedades').get(),
+      db.doc('seed/dist').get(),db.doc('live/dist').get()
+    ]);
+    const [c1,c2,c3,pr,ch,ls,m1,m2,m3,m4,dh,dl]=lecturas.map(dget);
+    C=[...(c1?.rows||[]),...(c2?.rows||[]),...(c3?.rows||[])].map(r=>({...r}));
+    PRECIOS=pr?.rows||[]; CAJAH=ch?.rows||[]; if(ls) LISTAS=ls;
+    LIVE.movs=m1?.rows||[]; LIVE.caja=m2?.rows||[]; LIVE.precios=m3?.rows||[]; LIVE.novedades=m4?.rows||[];
+    DISTH=dh?.rows||[]; LIVE.dist=dl?.rows||[];
+  }catch(e){
+    $('cargando').innerHTML='Error cargando datos: '+((e&&e.message)||e);
+    return;
+  }
+  if(!C.length){ $('cargando').hidden=true; $('importbox').hidden=false; return; }
+  C.forEach(c=>{c.k=norm(c.d+' '+c.n+' '+c.id+' '+c.subs.map(x=>x[0]).join(' '));});
+  armarPIDX();
+  $('cargando').hidden=true; $('app').hidden=false; $('tabs').hidden=false;
+  $('estado-db').textContent='guardado en la nube ✓';
+  pintarInicio(); pintarClientes(); pintarCaja(); pintarPrecios(); pintarNovedades(); pintarDist();
+}
+async function guardar(col,rows){
+  await db.doc('live/'+col).set({rows});
+  LIVE[col]=rows;
+  SCACHE={};
+  if(col==='precios') armarPIDX();
+}
+function nid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+
+/* ------- precios ------- */
+let PIDX={};
+function armarPIDX(){
+  PIDX={};
+  [...PRECIOS,...LIVE.precios].forEach(p=>{
+    const k=norm(p.pub)+'|'+(p.dia==null?'x':p.dia);
+    (PIDX[k]=PIDX[k]||[]).push(p);
+  });
+  Object.values(PIDX).forEach(v=>v.sort((a,b)=>(a.desde||'').localeCompare(b.desde||'')));
+  SCACHE={};
+}
+function precioDe(pub,wd,dia){
+  for(const k of [norm(pub)+'|'+wd,norm(pub)+'|x']){
+    const v=PIDX[k]; if(!v) continue;
+    let best=null;
+    for(const p of v){ if(p.desde<=dia) best=p.precio; else break; }
+    if(best) return best;
+  }
+  return null;
+}
+/* ------- devengo diario (desde 01/09/2026; la liquidación del 02/09 cubrió agosto) ------- */
+const DEV0='2026-09-01';
+function suspendida(cli,titulo,dia){
+  let sus=false;
+  const nvs=LIVE.novedades.filter(n=>n.cli===cli&&(!n.pub||norm(titulo).includes(norm(n.pub))||norm(n.pub).includes(norm(titulo)))).sort((a,b)=>(a.desde||'').localeCompare(b.desde||''));
+  for(const n of nvs){
+    if((n.desde||'')<=dia){
+      if(n.tipo==='Suspensión'||n.tipo==='Baja'){ if(!n.hasta||n.hasta>=dia) sus=true; else sus=false; }
+      if(n.tipo==='Reanudación'||n.tipo==='Alta') sus=false;
+    }
+  }
+  return sus;
+}
+let SCACHE={};
+function devengoDe(c,tipo){
+  tipo=tipo||'C';
+  const ck='d'+tipo+c.id;
+  if(SCACHE[ck]!=null) return SCACHE[ck];
+  let tot=0;
+  const items=c.subs.filter(x=>x[3]==='V'&&x[2]===tipo).map(x=>({t:x[0],days:FDIAS[norm(x[1])],desde:(x[4]||'').slice(0,10),q:x[5]||1}));
+  LIVE.novedades.filter(n=>n.cli===c.id&&n.tipo==='Alta'&&n.dias&&((n.via||'C')===tipo)).forEach(n=>items.push({t:n.pub,days:n.dias,desde:(n.desde||'').slice(0,10),q:n.qty||1}));
+  if(items.length){
+    const hoy=hoyISO();
+    let d=new Date(DEV0+'T12:00:00');
+    while(d.toISOString().slice(0,10)<=hoy){
+      const dia=d.toISOString().slice(0,10);
+      const wd=(d.getDay()+6)%7;
+      for(const x of items){
+        if(!x.days||!x.days.includes(wd)) continue;
+        if(x.desde&&x.desde>dia) continue;
+        if(suspendida(c.id,x.t,dia)) continue;
+        const p=precioDe(x.t,wd,dia);
+        if(p) tot+=p*x.q;
+      }
+      d.setDate(d.getDate()+1);
+    }
+  }
+  SCACHE[ck]=tot;
+  return tot;
+}
+/* ------- saldos ------- */
+function saldoDe(c){
+  let s=c.sal+devengoDe(c);
+  for(const m of LIVE.movs) if(m.cli===c.id) s+=(m.tipo==='Cobro'?-m.imp:m.imp);
+  return s;
+}
+function sinPrecio(c){
+  return c.subs.filter(x=>x[3]==='V'&&x[2]==='C'&&FDIAS[norm(x[1])]&&!precioDe(x[0],(FDIAS[norm(x[1])]||[0])[0],hoyISO()));
+}
+function saldoHTML(s){
+  if(s>0.5)return`<span class="monto debe">${fmt(s)}</span>`;
+  if(s<-0.5)return`<span class="monto favor">${fmt(s)}</span>`;
+  return`<span class="monto aldia">al día</span>`;
+}
+
+/* ------- navegación ------- */
+const VISTAS=['inicio','clientes','caja','precios','novedades','dist','ficha'];
+function ver(v){
+  VISTAS.forEach(x=>$('v-'+x).hidden=(x!==v));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.v===v));
+  window.scrollTo(0,0);
+}
+
+
+/* ------- INICIO ------- */
+function pintarInicio(){
+  const act=C.filter(c=>c.act);
+  const deud=C.map(c=>({c,s:saldoDe(c)})).filter(x=>x.s>0.5);
+  const tot=deud.reduce((n,x)=>n+x.s,0);
+  const vig=C.reduce((n,c)=>n+c.subs.filter(s=>s[3]==='V').length,0);
+  const hoy=hoyISO();
+  const cajaHoy=LIVE.caja.filter(r=>(r.f||'').startsWith(hoy));
+  const ing=cajaHoy.reduce((n,r)=>n+(r.ing||0),0), egr=cajaHoy.reduce((n,r)=>n+(r.egr||0),0);
+  const ult=[...LIVE.movs.map(r=>({...r,_t:'mov'})),...LIVE.caja.map(r=>({...r,_t:'caja'}))].sort((a,b)=>(b.ts||'').localeCompare(a.ts||'')).slice(0,8);
+  $('v-inicio').innerHTML=`
+  <div class="stats">
+    <div class="stat"><b>${act.length}</b><i>clientes activos</i></div>
+    <div class="stat"><b>${vig}</b><i>susc. vigentes</i></div>
+    <div class="stat"><b class="debe">${fmt(tot)}</b><i>te deben (${deud.length})</i></div>
+    <div class="stat"><b>${cajaHoy.length?fmt(ing-egr):'—'}</b><i>caja de hoy</i></div>
+  </div>
+  <div class="card"><b>Carga rápida</b><div class="grid2">
+    <button class="btn chico" id="qcobrar">Cobrar a un cliente</button>
+    <button class="btn chico sec" id="qcaja">Movimiento de caja</button>
+  </div></div>
+  <h2>Últimas cargas en el sistema</h2>
+  <div class="card">${ult.length?ult.map(r=>`<div class="mov"><span class="f">${fecha(r.f)}</span><span class="t">${r._t==='mov'?(r.tipo+' · '+nomCli(r.cli)):((r.c||'')+(r.d?' · '+r.d:''))}</span><span class="m">${fmt(r.imp!=null?r.imp:((r.ing||0)-(r.egr||0)))}</span></div>`).join(''):'<div class="mini" style="padding:6px 0">Todavía no cargaste nada acá. Los datos migrados de NewsPaper ya están adentro.</div>'}</div>
+  ${(()=>{const sp=new Set();C.forEach(c=>sinPrecio(c).forEach(x=>sp.add(x[0])));return sp.size?`<div class="aviso">⚠ Publicaciones sin precio cargado (no devengan): ${[...sp].slice(0,6).join(', ')}${sp.size>6?'…':''} — cargalos en Precios.</div>`:'';})()}
+  <div class="aviso">El saldo de cada cliente se mueve solo: sube con cada entrega (según suscripciones y precios) y baja con los cobros. Pendiente: cargar el cuaderno del 12/08 en adelante.</div>`;
+}
+function nomCli(id){const c=C.find(x=>x.id===id);return c?(c.d||('Nº '+id)):('Nº '+id);}
+
+/* ------- CLIENTES ------- */
+let RES=[],MOSTR=30,FCLI='todos';
+function setF(f){FCLI=f;document.querySelectorAll('.fch').forEach(x=>x.classList.toggle('on',x.dataset.f===FCLI));buscar();}
+const FDEFS=[['todos','Todos'],['puesto','Del puesto'],['distrib','De la distribuidora'],['mixto','Mixtos'],['deudores','Deudores'],['favor','A favor'],['inactivos','Inactivos'],['recup','Ficha recuperada'],['dudoso','Signo dudoso']];
+function pintarClientes(){
+  $('v-clientes').innerHTML=`<div style="position:sticky;top:0;background:var(--papel);padding:8px 0;z-index:5">
+  <input id="bq" type="search" placeholder="Dirección, nombre, Nº o publicación (ej: ole)…" autocomplete="off" oninput="buscar()">
+  <div class="fchips">${FDEFS.map(f=>`<button class="fch${FCLI===f[0]?' on':''}" data-f="${f[0]}" onclick="setF('${f[0]}')">${f[1]}</button>`).join('')}</div></div>
+  <div class="mini" id="bres" style="margin-bottom:6px"></div>
+  <div id="blist"></div><button class="btn sec" id="bmas" hidden style="width:100%">Mostrar más</button>`;
+  buscar();
+}
+function pasaFiltro(c,s){
+  switch(FCLI){
+    case 'puesto': return c.act&&(c.cat==='Cliente'||c.cat==='Mixto');
+    case 'distrib': return c.act&&(c.cat==='Suscriptor'||c.cat==='Mixto');
+    case 'mixto': return c.cat==='Mixto';
+    case 'deudores': return s>0.5;
+    case 'favor': return s<-0.5;
+    case 'inactivos': return !c.act;
+    case 'recup': return c.fic==='recuperado';
+    case 'dudoso': return !!c.dud;
+    default: return true;
+  }
+}
+function buscar(){
+ try{
+  const el=$('bq');
+  const q=norm(((el||{}).value||'').trim());
+  window.__dbg='q=«'+q+'»';
+  let base=C.map(c=>({c,s:saldoDe(c)}));
+  if(q){const p=q.split(/\s+/);base=base.filter(x=>p.every(t=>(x.c.k||'').includes(t)));}
+  else if(FCLI==='todos') base=base.filter(x=>x.c.act);
+  base=base.filter(x=>pasaFiltro(x.c,x.s));
+  RES=base.sort((a,b)=>(b.c.act-a.c.act)||Math.abs(b.s)-Math.abs(a.s));
+  MOSTR=30;pintarLista();
+  const tot=RES.reduce((n,x)=>n+x.s,0);
+  $('bres').textContent=RES.length+' clientes · saldo neto '+(tot>=0?'debe ':'a favor ')+fmt(tot);
+  window.__dbg+=' → '+RES.length+' result.';
+ }catch(e){
+  window.__dbg='ERROR buscar: '+(e&&e.message);
+  const b=$('bres'); if(b) b.textContent='ERROR: '+(e&&e.message);
+ }
+}
+function pintarLista(){
+  const l=$('blist');l.innerHTML='';
+  RES.slice(0,MOSTR).forEach(x=>{
+    const c=x.c,s=x.s;
+    const vig=c.subs.filter(y=>y[3]==='V').length;
+    const div=document.createElement('div');div.className='fila';div.dataset.cli=c.id;div.setAttribute('onclick','ficha('+c.id+')');
+    div.innerHTML=`<div><div class="dom">${c.d||'(sin domicilio)'} <span class="mini">Nº ${c.id}</span></div><div class="nom">${c.n||''}</div></div>
+    <div class="der">${saldoHTML(s)}<div class="mini">${vig?vig+' susc.':(c.act?'sin reparto':'inactivo')}</div></div>`;
+    l.appendChild(div);
+  });
+  if(!RES.length) l.innerHTML='<div class="mini" style="text-align:center;padding:24px">Sin resultados. Probá con menos letras, o solo el número de puerta.</div>';
+  $('bmas').hidden=RES.length<=MOSTR;
+}
+function pillCat(c){
+  if(!c.act)return'<span class="pill p-inact">Inactivo</span>';
+  if(c.cat==='Suscriptor')return'<span class="pill p-susc">Suscriptor</span>';
+  if(c.cat==='Mixto')return'<span class="pill p-mix">Mixto</span>';
+  if(c.cat==='Cliente')return'<span class="pill p-cli">Cliente</span>';
+  return'<span class="pill p-inact">Sin reparto</span>';
+}
+function diasHTML(fr){
+  const dd=FDIAS[norm(fr)];
+  if(!dd)return fr?`<div class="mini" style="margin-top:6px">${fr}</div>`:'';
+  return '<div class="dias">'+DIAS.map((d,i)=>`<div class="dia${dd.includes(i)?' on':''}">${d}</div>`).join('')+'</div>';
+}
+function ficha(id){
+  const c=C.find(x=>x.id===id); if(!c)return;
+  const s=saldoDe(c);
+  const hoy0=hoyISO();
+  const vig=[],susp=[];
+  c.subs.forEach(x=>{
+    if(x[3]==='V'&&!suspendida(c.id,x[0],hoy0)) vig.push(x);
+    else susp.push(x);
+  });
+  susp.sort((a,b)=>(b[3]||'').localeCompare(a[3]||''));
+  const movLive=LIVE.movs.filter(m=>m.cli===id).map(m=>({f:m.f,tipo:m.tipo,imp:(m.tipo==='Cobro'?-m.imp:m.imp),medio:m.medio,id:m.id}));
+  const movs=[...c.movs.map(m=>({f:m[0],tipo:m[1],imp:m[2],medio:m[3]})),...movLive].sort((a,b)=>(b.f||'').localeCompare(a.f||''));
+  const novs=LIVE.novedades.filter(n=>n.cli===id);
+  let h=`<button class="volver" id="fvolver">← Volver</button>
+  <div class="card cabecera">
+    <div class="dom">${c.d||'(sin domicilio)'}</div>
+    <div class="mini" style="font-size:15px">${c.n||'Sin nombre'} · Nº ${c.id}</div>
+    <div class="chips">${pillCat(c)}${c.fic==='recuperado'?'<span class="pill p-warn">Ficha recuperada</span>':''}</div>
+    <div class="saldonum ${s>0.5?'debe':(s<-0.5?'favor':'aldia')}">${Math.abs(s)>0.5?fmt(s):'Al día'}</div>
+    <div class="mini">${s>0.5?'te debe':(s<-0.5?'tiene a favor':'sin deuda')}${c.dud?' · ⚠ signo corregido, confirmar con Beba':''}</div>
+    ${devengoDe(c)>0?`<div class="mini" style="margin-top:4px">incluye ${fmt(devengoDe(c))} de consumo devengado automático desde el 01/09</div>`:''}
+    ${sinPrecio(c).length?`<div class="aviso">⚠ ${sinPrecio(c).map(x=>x[0]).join(', ')}: sin precio cargado, no devenga. Cargalo en Precios.</div>`:''}
+    ${c.tel?`<div style="margin-top:8px;font-size:14.5px">Tel: <a style="color:var(--azul)" href="tel:${c.tel.replace(/[^0-9+]/g,'')}">${c.tel}</a></div>`:''}
+    <div class="grid2">
+      <button class="btn chico" id="fbc" data-cli="${id}">＋ Cobro</button>
+      <button class="btn chico sec" id="fbl" data-cli="${id}">＋ Ajuste</button>
+    </div>
+    <div id="fform"></div>
+  </div>`;
+  if(novs.length){h+=`<h2>Novedades cargadas acá</h2><div class="card">`+novs.map(n=>`<div class="subrow"><b>${n.tipo}</b> ${n.pub||''} <span class="mini">desde ${fecha(n.desde)}${n.hasta?' hasta '+fecha(n.hasta):''} ${n.nota||''}</span></div>`).join('')+`</div>`;}
+  const altas=LIVE.novedades.filter(n=>n.cli===id&&n.tipo==='Alta'&&n.dias&&!suspendida(id,n.pub,hoy0));
+  h+=`<h2>Suscripciones vigentes (${vig.length+altas.length})</h2>`;
+  altas.forEach(n=>{h+=`<div class="card"><b>${n.pub}</b>${(n.qty||1)>1?` <span class="mini">×${n.qty}</span>`:''} <span class="pill ${(n.via||'C')==='S'?'p-susc':'p-cli'}">${(n.via||'C')==='S'?'vía distribuidora':'le cobrás vos'}</span> <span class="pill p-warn">alta cargada acá</span>
+  <div class="dias">${DIAS.map((dd,i)=>`<div class="dia${n.dias.includes(i)?' on':''}">${dd}</div>`).join('')}</div>
+  <div class="mini" style="margin-top:6px">desde ${fecha(n.desde)}</div>
+  <div><button class="btn chico sec" data-sform="a${n.id}" data-pub="${n.pub}" data-cli="${id}" data-acc="Suspensión">Suspender / dar de baja</button></div></div>`;});
+  if(vig.length) vig.forEach((x,ix)=>{h+=`<div class="card"><b>${x[0]}</b>${x[5]>1?` <span class="mini">×${x[5]}</span>`:''} <span class="pill ${x[2]==='S'?'p-susc':'p-cli'}">${x[2]==='S'?'vía distribuidora':'le cobrás vos'}</span>${diasHTML(x[1])}<div class="mini" style="margin-top:6px">desde ${fecha(x[4])}</div>
+  <div id="sf-${ix}"><button class="btn chico sec" data-sform="${ix}" data-pub="${x[0]}" data-cli="${id}" data-acc="Suspensión">Suspender / dar de baja</button></div></div>`;});
+  else if(!altas.length) h+='<div class="card mini">Sin publicaciones vigentes.</div>';
+  h+=`<div id="altabox"><button class="btn chico" id="altabtn" data-cli="${id}">＋ Alta de suscripción nueva</button></div>`;
+  if(susp.length){h+=`<h2>Suspendidas (${susp.length})</h2><div class="card">`+susp.slice(0,10).map((x,ix)=>{
+    const porNov=x[3]==='V';
+    return `<div class="subrow">${x[0]} <span class="tag-susp">${porNov?'suspendida acá':'susp. '+fecha(x[3])}</span> <span class="mini">${x[1]||''}</span>
+    <div id="rf-${ix}"><button class="btn chico sec" data-sform="r${ix}" data-pub="${x[0]}" data-cli="${id}" data-acc="Reanudación">Reactivar</button></div></div>`;}).join('')+`</div>`;}
+  h+=`<h2>Movimientos <span class="mini" style="text-transform:none">— tocá una liquidación para ver el desglose</span></h2><div class="card">`+(movs.length?movs.slice(0,20).map((m,i)=>{
+    const esLiq=m.tipo==='Liquidación'&&!m.id;
+    return `<div class="mov${esLiq?' liqrow':''}"${esLiq?` data-dlq="${m.f.slice(0,10)}" data-dlc="${id}"`:''}><span class="f">${fecha(m.f)}</span><span class="t">${m.tipo}${m.tipo==='Cobro'&&m.medio?' · '+m.medio:''}</span><span class="m ${m.tipo==='Cobro'?'favor':''}">${m.tipo==='Cobro'?'−':''}${fmt(m.imp)}</span>${m.id?`<button class="del" data-mid="${m.id}" data-cli="${id}">✕</button>`:''}</div><div class="desglose" data-dg="${m.f.slice(0,10)}_${id}" hidden></div>`;
+  }).join(''):'<div class="mini">Sin movimientos desde 2024.</div>')+`</div>
+  <div class="mini" style="margin:8px 0 20px">Cobro = pagó (baja deuda) · el consumo diario se devenga solo según sus suscripciones y precios. Las filas con ✕ se cargaron en este sistema y se pueden borrar.</div>`;
+  $('v-ficha').innerHTML=h; ver('ficha');
+}
+function formCobro(id){
+  $('fform').innerHTML=`<label>Importe cobrado</label><input id="fimp" type="number" inputmode="decimal" placeholder="0">
+  <label>Medio de pago</label><select id="fmed">${LISTAS.medios.map(m=>`<option>${m}</option>`).join('')}</select>
+  <label>Fecha</label><input id="ffec" type="date" value="${hoyISO()}">
+  <button class="btn" id="fok" data-cli="${id}" data-tipo="Cobro">Guardar cobro</button>`;
+  $('fimp').focus();
+}
+function formLiq(id){
+  $('fform').innerHTML=`<label>Importe del ajuste (suma deuda; el consumo diario ya se devenga solo)</label><input id="fimp" type="number" inputmode="decimal" placeholder="0">
+  <label>Fecha</label><input id="ffec" type="date" value="${hoyISO()}">
+  <label>Nota</label><input id="fnota" placeholder="ej: venta extra revista">
+  <button class="btn" id="fok" data-cli="${id}" data-tipo="Ajuste">Guardar ajuste</button>`;
+  $('fimp').focus();
+}
+async function addMov(id,tipo){
+  const imp=parseFloat($('fimp').value);
+  if(!imp||imp<=0){toast('Poné un importe');return;}
+  const nota=$('fnota')?$('fnota').value:'';
+  const r={id:nid(),ts:new Date().toISOString(),cli:id,tipo,imp,f:$('ffec').value,medio:tipo==='Cobro'?$('fmed').value:'',nota};
+  try{
+    await guardar('movs',[...LIVE.movs,r]);
+    if(tipo==='Cobro'){
+      const cc={id:nid(),ts:r.ts,f:r.f,c:'0 Cobro a clientes',d:nomCli(id),ing:imp,egr:0,m:r.medio};
+      await guardar('caja',[...LIVE.caja,cc]);
+    }
+    toast(tipo+' guardado ✓'); ficha(id);
+  }catch(e){toast('No se pudo guardar: '+((e&&e.message)||e));}
+}
+async function borrarMov(mid,cli){
+  if(!confirm('¿Borrar este movimiento?'))return;
+  try{ await guardar('movs',LIVE.movs.filter(m=>m.id!==mid)); toast('Borrado'); ficha(cli);}catch(e){toast('Error: '+((e&&e.message)||e));}
+}
+
+/* ------- CAJA ------- */
+function pintarCaja(){
+  const porMedio={};
+  LIVE.caja.forEach(r=>{porMedio[r.m]=(porMedio[r.m]||0)+(r.ing||0)-(r.egr||0);});
+  const rows=[...LIVE.caja].sort((a,b)=>(b.ts||'').localeCompare(a.ts||''));
+  $('v-caja').innerHTML=`
+  <div class="stats">${Object.keys(porMedio).length?Object.entries(porMedio).map(([m,v])=>`<div class="stat"><b class="${v<0?'debe':''}">${fmt(v)}</b><i>${m}</i></div>`).join(''):'<div class="stat"><b>—</b><i>sin movimientos aún</i></div>'}</div>
+  <div class="card"><b>Cargar movimiento de caja</b>
+    <label>Concepto</label><select id="cc">${LISTAS.conceptos.map(c=>`<option>${c}</option>`).join('')}</select>
+    <div class="grid2"><div><label>Ingreso $</label><input id="cing" type="number" inputmode="decimal" placeholder="0"></div>
+    <div><label>Egreso $</label><input id="cegr" type="number" inputmode="decimal" placeholder="0"></div></div>
+    <label>Medio</label><select id="cm">${LISTAS.medios.map(m=>`<option>${m}</option>`).join('')}</select>
+    <label>Detalle</label><input id="cd" placeholder="ej: pago distribuidora semana 36">
+    <label>Fecha</label><input id="cf" type="date" value="${hoyISO()}">
+    <button class="btn" id="cok">Guardar</button></div>
+  <h2>Movimientos cargados</h2>
+  <div class="filtros"><select id="fcc"><option value="">Concepto: todos</option>${LISTAS.conceptos.map(c=>`<option>${c}</option>`).join('')}</select>
+  <select id="fcm"><option value="">Medio: todos</option>${LISTAS.medios.map(m=>`<option>${m}</option>`).join('')}</select></div>
+  <input id="fct" type="search" placeholder="Buscar en detalle…" style="margin-bottom:8px">
+  <div class="card" id="clist"></div>
+  <h2>Histórico NewsPaper 2026 <span class="mini" style="text-transform:none">(solo consulta)</span></h2>
+  <input id="fch2" type="search" placeholder="Buscar en el histórico…" style="margin-bottom:8px">
+  <div class="card" id="chlist"></div>`;
+  window.pintaC=function(){
+    const fc=$('fcc').value,fm=$('fcm').value,ft=norm($('fct').value);
+    const rs=rows.filter(r=>(!fc||r.c===fc)&&(!fm||r.m===fm)&&(!ft||norm((r.c||'')+' '+(r.d||'')).includes(ft)));
+    $('clist').innerHTML=rs.length?rs.slice(0,50).map(r=>`<div class="mov"><span class="f">${fecha(r.f)}</span><span class="t">${r.c||''}${r.d?' · '+r.d:''} <span class="mini">${r.m||''}</span></span><span class="m ${r.egr?'debe':'favor'}">${r.egr?'−':''}${fmt(r.ing||r.egr)}</span><button class="del" data-cid="${r.id}">✕</button></div>`).join(''):'<div class="mini">Nada con ese filtro.</div>';
+  }
+  window.pintaH=function(){
+    const ft=norm($('fch2').value);
+    const rs=CAJAH.filter(r=>!ft||norm((r.c||'')+' '+(r.d||'')).includes(ft));
+    $('chlist').innerHTML=rs.slice(-30).reverse().map(r=>`<div class="mov"><span class="f">${fecha(r.f)}</span><span class="t">${r.c||''}${r.d?' · '+r.d:''}</span><span class="m">${r.e?'−':''}${fmt(r.i||r.e)}</span></div>`).join('')||'<div class="mini">Nada con ese filtro.</div>';
+  }
+  pintaC();pintaH();
+}
+async function addCaja(){
+  const ing=parseFloat($('cing').value)||0, egr=parseFloat($('cegr').value)||0;
+  if(!ing&&!egr){toast('Poné un importe');return;}
+  const r={id:nid(),ts:new Date().toISOString(),f:$('cf').value,c:$('cc').value,d:$('cd').value,ing,egr,m:$('cm').value};
+  try{ await guardar('caja',[...LIVE.caja,r]); toast('Caja guardada ✓'); pintarCaja(); }catch(e){toast('Error: '+((e&&e.message)||e));}
+}
+async function borrarCaja(id){
+  if(!confirm('¿Borrar?'))return;
+  try{ await guardar('caja',LIVE.caja.filter(r=>r.id!==id)); toast('Borrado'); pintarCaja(); }catch(e){toast('Error: '+((e&&e.message)||e));}
+}
+
+/* ------- PRECIOS ------- */
+function pintarPrecios(){
+  const todos=[...PRECIOS,...LIVE.precios];
+  const porPub={};
+  todos.forEach(p=>{const k=p.pub+(p.dia!=null?' · '+DIAS[p.dia]:'');(porPub[k]=porPub[k]||[]).push(p);});
+  const pubs=Object.keys(porPub).sort();
+  $('v-precios').innerHTML=`
+  <div class="card"><b>Nueva vigencia de precio</b>
+    <label>Publicación</label><input id="ppub" list="dl-pubs" placeholder="ej: PAGINA 12"><datalist id="dl-pubs">${pubs.map(p=>`<option>${p}</option>`).join('')}</datalist>
+    <label>Día (para diarios con precio distinto por día)</label><select id="pdia"><option value="">Todos / único</option>${DIAS.map((d,i)=>`<option value="${i}">${d}</option>`).join('')}</select>
+    <label>Vigente desde</label><input id="pdesde" type="date" value="${hoyISO()}">
+    <label>Precio de tapa $</label><input id="pprecio" type="number" inputmode="decimal">
+    <button class="btn" id="pok">Guardar</button>
+    <div class="mini" style="margin-top:8px">Nunca se pisa un precio viejo: se agrega la vigencia nueva y la historia queda (sirve para recalcular meses).</div></div>
+  <h2>Precios por publicación</h2>
+  <input id="pfil" type="search" placeholder="Filtrar publicación…" style="margin-bottom:8px">
+  <div id="plist">${pubs.map(p=>{const v=porPub[p].sort((a,b)=>(a.desde||'').localeCompare(b.desde||''));const u=v[v.length-1];
+   return`<div class="card"><b>${p}</b> <span class="monto" style="float:right">${fmt(u.precio)}</span>
+   <div class="mini" style="margin-top:4px">desde ${fecha(u.desde)}${v.length>1?' · antes: '+v.slice(-3,-1).map(x=>fmt(x.precio)+' ('+fecha(x.desde)+')').join(', '):''}${u.nuevo?' · <b>cargado acá</b>':''}</div></div>`;}).join('')}</div>`;
+}
+async function addPrecio(){
+  const pub=$('ppub').value.trim().toUpperCase(), desde=$('pdesde').value, precio=parseFloat($('pprecio').value);
+  if(!pub||!precio){toast('Completá publicación y precio');return;}
+  const dia=$('pdia').value===''?null:parseInt($('pdia').value);
+  try{ await guardar('precios',[...LIVE.precios,{pub,dia,desde,precio,nuevo:1,ts:new Date().toISOString()}]); toast('Precio guardado ✓'); pintarPrecios(); }catch(e){toast('Error: '+((e&&e.message)||e));}
+}
+
+/* ------- NOVEDADES ------- */
+function pintarNovedades(){
+  const rows=[...LIVE.novedades].sort((a,b)=>(b.ts||'').localeCompare(a.ts||''));
+  $('v-novedades').innerHTML=`
+  <div class="card"><b>Nueva novedad</b> <span class="mini">alta · baja · suspensión · reanudación</span>
+    <label>Cliente (Nº o dirección)</label><input id="ncli" placeholder="ej: 230 o Dragones 2280 9 B">
+    <label>Tipo</label><select id="ntipo"><option>Suspensión</option><option>Reanudación</option><option>Alta</option><option>Baja</option></select>
+    <label>Publicación</label><input id="npub" placeholder="ej: LA NACION (solo domingo)">
+    <div class="grid2"><div><label>Desde</label><input id="ndesde" type="date" value="${hoyISO()}"></div>
+    <div><label>Hasta (si aplica)</label><input id="nhasta" type="date"></div></div>
+    <label>Nota</label><input id="nnota" placeholder="ej: avisó por WhatsApp">
+    <button class="btn" id="nok">Guardar</button></div>
+  <h2>Novedades cargadas</h2>
+  <div class="filtros"><select id="nfil"><option value="">Tipo: todas</option><option>Suspensión</option><option>Reanudación</option><option>Alta</option><option>Baja</option></select></div>
+  <input id="nft" type="search" placeholder="Buscar cliente o publicación…" style="margin-bottom:8px">
+  <div class="card" id="nlist"></div>`;
+  window.pintaN=function(){
+    const ft=$('nfil').value,q=norm($('nft').value);
+    const rs=rows.filter(n=>(!ft||n.tipo===ft)&&(!q||norm(nomCli(n.cli)+' '+(n.pub||'')+' '+(n.nota||'')).includes(q)));
+    $('nlist').innerHTML=rs.length?rs.map(n=>`<div class="mov"><span class="f">${fecha(n.desde)}</span><span class="t"><b>${n.tipo}</b> ${nomCli(n.cli)} · ${n.pub||''} ${n.nota?('· '+n.nota):''}</span><button class="del" data-nid="${n.id}">✕</button></div>`).join(''):'<div class="mini">Ninguna todavía. Acá va lo del cuaderno: suspensiones, altas y bajas desde el 12/08. Cada novedad queda también en la ficha del cliente.</div>';
+  }
+  pintaN();
+}
+async function addNov(){
+  const q=norm($('ncli').value.trim());
+  let cli=null;
+  if(/^\d+$/.test(q)) cli=parseInt(q);
+  else if(q.length>3){const c=C.find(x=>x.k.includes(q));cli=c?c.id:null;}
+  if(!cli||!C.find(x=>x.id===cli)){toast('No encontré ese cliente');return;}
+  const r={id:nid(),ts:new Date().toISOString(),cli,tipo:$('ntipo').value,pub:$('npub').value,desde:$('ndesde').value,hasta:$('nhasta').value,nota:$('nnota').value};
+  try{ await guardar('novedades',[...LIVE.novedades,r]); toast('Novedad guardada ✓ '+nomCli(cli)); pintarNovedades(); }catch(e){toast('Error: '+((e&&e.message)||e));}
+}
+async function borrarNov(id){
+  if(!confirm('¿Borrar?'))return;
+  try{ await guardar('novedades',LIVE.novedades.filter(r=>r.id!==id)); toast('Borrada'); pintarNovedades(); }catch(e){toast('Error: '+((e&&e.message)||e));}
+}
+/* ------- DISTRIBUIDORA ------- */
+function pintarDist(){
+  const mesAct=hoyISO().slice(0,7);
+  let repMes=0,repTot=0;
+  C.forEach(c=>{const d=devengoDe(c,'S');repTot+=d;});
+  const saldoNuevo=LIVE.dist.reduce((n,r)=>n+(r.imp||0),0);
+  const rows=[...LIVE.dist].sort((a,b)=>(b.ts||'').localeCompare(a.ts||''));
+  $('v-dist').innerHTML=`
+  <div class="stats">
+    <div class="stat"><b class="${saldoNuevo>0?'debe':(saldoNuevo<0?'favor':'')}">${fmt(saldoNuevo)}</b><i>${saldoNuevo>=0?'le debés (cargado acá)':'te debe (cargado acá)'}</i></div>
+    <div class="stat"><b>${fmt(repTot)}</b><i>valor tapa repartido a suscriptores desde el 01/09</i></div>
+  </div>
+  <div class="aviso">Lo que repartís a los suscriptores lo cobra la distribuidora: a vos te corresponde una comisión por el reparto que todavía está SIN DEFINIR. Cuando la sepas, la cargamos y esto se convierte en plata a tu favor.</div>
+  <div class="card"><b>Cargar movimiento con la distribuidora</b>
+    <label>Tipo</label><select id="dtipo"><option value="1">Liquidación / mercadería recibida (le debés más)</option><option value="-1">Pago que le hiciste (le debés menos)</option><option value="-2">Crédito a tu favor (comisión, devolución)</option></select>
+    <label>Importe $</label><input id="dimp" type="number" inputmode="decimal">
+    <label>Detalle</label><input id="ddet" placeholder="ej: liquidación semana 37">
+    <label>Fecha</label><input id="dfec" type="date" value="${hoyISO()}">
+    <button class="btn" id="dok">Guardar</button></div>
+  <h2>Movimientos cargados</h2>
+  <div class="card" id="dlist">${rows.length?rows.map(r=>`<div class="mov"><span class="f">${fecha(r.f)}</span><span class="t">${r.d||''}</span><span class="m ${r.imp>0?'debe':'favor'}">${r.imp<0?'−':''}${fmt(r.imp)}</span><button class="del" data-did="${r.id}">✕</button></div>`).join(''):'<div class="mini">Nada cargado todavía. El saldo con la distribuidora arranca de cero desde hoy.</div>'}</div>
+  <h2>Histórico NewsPaper 2024–2026 <span class="mini" style="text-transform:none">(solo consulta; la semántica de estos importes hay que confirmarla con Beba)</span></h2>
+  <input id="dfil" type="search" placeholder="Buscar…" style="margin-bottom:8px">
+  <div class="card" id="dhlist"></div>`;
+  window.pintaDH=function(){
+    const q=norm($('dfil').value);
+    const rs=DISTH.filter(r=>!q||norm((r.d||'')+' '+r.f).includes(q));
+    $('dhlist').innerHTML=rs.slice(-30).reverse().map(r=>`<div class="mov"><span class="f">${fecha(r.f)}</span><span class="t">${r.d||''}</span><span class="m">${fmt(r.imp)}</span></div>`).join('')||'<div class="mini">Nada con ese filtro.</div>';
+  }
+  pintaDH();
+}
+async function addDist(){
+  const imp=parseFloat($('dimp').value);
+  if(!imp||imp<=0){toast('Poné un importe');return;}
+  const t=$('dtipo').value;
+  const r={id:nid(),ts:new Date().toISOString(),f:$('dfec').value,d:$('ddet').value||($('dtipo').selectedOptions[0].textContent.split('(')[0].trim()),imp:t==='1'?imp:-imp};
+  try{ await guardar('dist',[...LIVE.dist,r]); toast('Guardado ✓'); pintarDist(); }catch(e){toast('Error: '+((e&&e.message)||e));}
+}
+async function borrarDist(id){
+  if(!confirm('¿Borrar?'))return;
+  try{ await guardar('dist',LIVE.dist.filter(r=>r.id!==id)); toast('Borrado'); pintarDist(); }catch(e){toast('Error: '+((e&&e.message)||e));}
+}
+
+/* ------- latido de diagnóstico ------- */
+let NEV=0;
+window.addEventListener('error',e=>{const l=$('lat');if(l)l.textContent='v7 · ⚠ '+(e.message||'error');});
+/* ------- desglose de una liquidación (reconstrucción) ------- */
+function desglose(cid,fliq){
+  const c=C.find(x=>x.id===cid); if(!c)return '<div class="mini">?</div>';
+  const d=new Date(fliq+'T12:00:00');
+  let y=d.getFullYear(),m=d.getMonth();
+  if(d.getDate()<=5){m--;if(m<0){m=11;y--;}}
+  const ini=new Date(y,m,1), fin=new Date(y,m+1,0);
+  const agg={}; let sinPrecioN=0;
+  let dd=new Date(ini);
+  while(dd<=fin){
+    const dia=dd.toISOString().slice(0,10), wd=(dd.getDay()+6)%7;
+    for(const x of c.subs){
+      if(x[2]!=='C')continue;
+      const desde=(x[4]||'').slice(0,10);
+      const hasta=x[3]==='V'?'9999':(x[3]||'');
+      if(!desde||desde>dia||hasta<dia)continue;
+      const days=FDIAS[norm(x[1])];
+      if(!days||!days.includes(wd))continue;
+      const p=precioDe(x[0],wd,dia);
+      const k=x[0];
+      agg[k]=agg[k]||{n:0,tot:0,sp:0};
+      agg[k].n+=(x[5]||1);
+      if(p)agg[k].tot+=p*(x[5]||1); else {agg[k].sp++;sinPrecioN++;}
+    }
+    dd.setDate(dd.getDate()+1);
+  }
+  const meses=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const ks=Object.keys(agg);
+  if(!ks.length)return '<div class="mini">No pude reconstruir este período: las suscripciones vigentes hoy no alcanzan a ese mes (pudo haber cambios que NewsPaper ya no conserva).</div>';
+  let tot=0;
+  let h='<div class="mini" style="margin-bottom:6px">Reconstrucción aproximada del consumo de <b>'+meses[m]+' '+y+'</b> (suscripciones × días × precio de tapa de cada fecha):</div>';
+  for(const k of ks){
+    tot+=agg[k].tot;
+    h+='<div class="dl"><span>'+k+' · '+agg[k].n+' ejemplares'+(agg[k].sp?' <span class="tag-susp">(faltan precios de '+agg[k].sp+' días)</span>':'')+'</span><span>'+(agg[k].tot?fmt(agg[k].tot):'—')+'</span></div>';
+  }
+  h+='<div class="dl tot"><span>Total reconstruido</span><span>'+fmt(tot)+'</span></div>';
+  h+='<div class="mini" style="margin-top:6px">Puede diferir del importe liquidado por NewsPaper: suspensiones puntuales, extras o precios que la base no conserva.</div>';
+  return h;
+}
+/* ------- DELEGACIÓN GLOBAL (sobrevive a cualquier re-render) ------- */
+document.addEventListener('click',function(e){
+  NEV++;
+  const t=e.target.closest?e.target:null; if(!t)return;
+  const tab=e.target.closest('.tab');
+  if(tab){ver(tab.dataset.v);const p={inicio:pintarInicio,caja:pintarCaja,precios:pintarPrecios,novedades:pintarNovedades,dist:pintarDist}[tab.dataset.v];if(p)p();return;}
+  const fch=e.target.closest('.fch');
+  if(fch){FCLI=fch.dataset.f;document.querySelectorAll('.fch').forEach(x=>x.classList.toggle('on',x.dataset.f===FCLI));buscar();return;}
+  const del=e.target.closest('.del');
+  if(del){
+    if(del.dataset.mid) borrarMov(del.dataset.mid,parseInt(del.dataset.cli));
+    else if(del.dataset.cid) borrarCaja(del.dataset.cid);
+    else if(del.dataset.nid) borrarNov(del.dataset.nid);
+    else if(del.dataset.did) borrarDist(del.dataset.did);
+    return;
+  }
+  const sf=e.target.closest('[data-sform]');
+  if(sf&&!sf.dataset.done){
+    const cont=sf.parentElement;
+    cont.innerHTML=`<label>${sf.dataset.acc} de ${sf.dataset.pub} desde</label><input type="date" class="sfec" value="${hoyISO()}">
+    <button class="btn chico" data-sok data-pub="${sf.dataset.pub}" data-cli="${sf.dataset.cli}" data-acc="${sf.dataset.acc}">Confirmar ${sf.dataset.acc.toLowerCase()}</button>`;
+    return;
+  }
+  const ab=e.target.closest('#altabtn');
+  if(ab){
+    const pubsCon=[...new Set([...PRECIOS,...LIVE.precios].map(p=>p.pub))].sort();
+    $('altabox').innerHTML=`<div class="card"><b>Alta de suscripción</b>
+    <label>Publicación</label><input id="apub" list="dl-apubs" placeholder="ej: CLARIN"><datalist id="dl-apubs">${pubsCon.map(p=>`<option>${p}</option>`).join('')}</datalist>
+    <label>Días que la recibe</label><div class="dias diasel" id="adias">${DIAS.map((d,i)=>`<div class="dia" data-di="${i}">${d}</div>`).join('')}</div>
+    <label>¿Quién cobra?</label><select id="avia"><option value="C">Le cobrás vos (cuenta corriente)</option><option value="S">Vía distribuidora (suscripción)</option></select>
+    <div class="grid2"><div><label>Ejemplares por día (casi siempre 1)</label><input id="aqty" type="number" value="1" min="1"></div>
+    <div><label>Desde</label><input id="adesde" type="date" value="${hoyISO()}"></div></div>
+    <button class="btn" data-altaok data-cli="${ab.dataset.cli}">Guardar alta</button></div>`;
+    return;
+  }
+  const di=e.target.closest('.diasel .dia');
+  if(di){di.classList.toggle('on');return;}
+  const ao=e.target.closest('[data-altaok]');
+  if(ao){
+    const pub=($('apub').value||'').trim().toUpperCase();
+    const dias=[...document.querySelectorAll('#adias .dia.on')].map(x=>parseInt(x.dataset.di));
+    if(!pub){toast('Poné la publicación');return;}
+    if(!dias.length){toast('Marcá al menos un día');return;}
+    const cli=parseInt(ao.dataset.cli);
+    const r={id:nid(),ts:new Date().toISOString(),cli,tipo:'Alta',pub,desde:$('adesde').value,hasta:'',dias,via:$('avia').value,qty:parseInt($('aqty').value)||1,nota:'alta desde la ficha'};
+    guardar('novedades',[...LIVE.novedades,r]).then(()=>{toast('Alta guardada ✓');ficha(cli);}).catch(err=>toast('Error: '+(err&&err.message)));
+    return;
+  }
+  const sok=e.target.closest('[data-sok]');
+  if(sok){
+    const f=sok.parentElement.querySelector('.sfec').value;
+    const cli=parseInt(sok.dataset.cli);
+    const r={id:nid(),ts:new Date().toISOString(),cli,tipo:sok.dataset.acc,pub:sok.dataset.pub,desde:f,hasta:'',nota:'desde la ficha'};
+    guardar('novedades',[...LIVE.novedades,r]).then(()=>{toast(sok.dataset.acc+' guardada ✓');ficha(cli);}).catch(err=>toast('Error: '+(err&&err.message)));
+    return;
+  }
+  const lq=e.target.closest('.liqrow');
+  if(lq){
+    const dg=document.querySelector('.desglose[data-dg="'+lq.dataset.dlq+'_'+lq.dataset.dlc+'"]');
+    if(dg){ if(dg.hidden){dg.innerHTML=desglose(parseInt(lq.dataset.dlc),lq.dataset.dlq);dg.hidden=false;} else dg.hidden=true; }
+    return;
+  }
+  const fila=e.target.closest('.fila[data-cli]');
+  if(fila){ficha(parseInt(fila.dataset.cli));return;}
+  const id=e.target.closest('button')&&e.target.closest('button').id;
+  const b=e.target.closest('button');
+  switch(id){
+    case 'bmas': MOSTR+=30;pintarLista();break;
+    case 'qcobrar': ver('clientes');setTimeout(()=>$('bq')&&$('bq').focus(),50);break;
+    case 'qcaja': ver('caja');pintarCaja();break;
+    case 'fvolver': ver('clientes');buscar();break;
+    case 'fbc': formCobro(parseInt(b.dataset.cli));break;
+    case 'fbl': formLiq(parseInt(b.dataset.cli));break;
+    case 'fok': addMov(parseInt(b.dataset.cli),b.dataset.tipo);break;
+    case 'cok': addCaja();break;
+    case 'pok': addPrecio();break;
+    case 'nok': addNov();break;
+    case 'dok': addDist();break;
+  }
+});
+document.addEventListener('input',function(e){
+  NEV++;
+  switch(e.target.id){
+    case 'bq': buscar();break;
+    case 'fct': if(window.pintaC)pintaC();break;
+    case 'fch2': if(window.pintaH)pintaH();break;
+    case 'pfil': {const q=norm(e.target.value);document.querySelectorAll('#plist .card').forEach(c=>{c.hidden=q&&!norm(c.textContent).includes(q);});break;}
+    case 'nft': if(window.pintaN)pintaN();break;
+    case 'dfil': if(window.pintaDH)pintaDH();break;
+  }
+});
+document.addEventListener('change',function(e){
+  if(e.target.id==='fcc'||e.target.id==='fcm'){if(window.pintaC)pintaC();}
+  if(e.target.id==='nfil'){if(window.pintaN)pintaN();}
+});
+
+
+async function iniciarApp(){
+  try{
+    await boot();
+    if(!C.length){$('cargando').hidden=true;$('importbox').hidden=false;return;}
+    const hdrEl=document.querySelector('header');
+    if(hdrEl&&!document.getElementById('lsalir')){
+      const b=document.createElement('button');b.id='lsalir';b.className='btn chico sec';b.style.marginLeft='auto';b.textContent='Salir';hdrEl.appendChild(b);
+    }
+  }catch(e){$('cargando').innerHTML='Error: '+(e.message||e);}
+}
+gate();
+</script>
+</body>
+</html>
