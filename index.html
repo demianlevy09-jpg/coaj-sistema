@@ -103,7 +103,7 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
     <label>Email</label><input id="lemail" type="email" autocomplete="username">
     <label>Contraseña</label><input id="lpass" type="password" autocomplete="current-password">
     <button class="btn" id="lentrar" style="width:100%">Entrar</button>
-    <button class="btn sec" id="lcrear" style="width:100%">Crear usuario nuevo</button>
+    <div class="mini" style="margin-top:10px">¿No tenés usuario? Pedíselo a Demian: los usuarios se crean desde adentro del sistema.</div>
     <div class="mini" id="lmsg" style="margin-top:10px"></div>
   </div>
 </div>
@@ -117,7 +117,7 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v12</div></header>
+<header><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v13</div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -127,6 +127,7 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
   <div id="v-novedades" hidden></div>
   <div id="v-dist" hidden></div>
   <div id="v-ficha" hidden></div>
+  <div id="v-usuarios" hidden></div>
 </div>
 </div>
 <nav class="tabs" id="tabs" hidden>
@@ -152,26 +153,35 @@ window.claude={use:async n=>{
     set:async v=>{const{error}=await sb.from('kv').upsert({k:p,v});if(error)throw error;}
   })};
 }};
+const ADMINS=['demianlevy09@gmail.com'];
+let USUARIO=null;
+const esAdmin=()=>!!USUARIO&&ADMINS.includes((USUARIO.email||'').toLowerCase());
+function traducirAuth(m){
+  m=String(m||'');
+  if(/Invalid login/i.test(m))return 'Email o contraseña incorrectos';
+  if(/Email not confirmed/i.test(m))return 'Ese usuario todavía no está habilitado. Avisale a Demian.';
+  if(/banned|user is banned/i.test(m))return 'Ese usuario está bloqueado. Avisale a Demian.';
+  if(/at least 6/i.test(m))return 'La contraseña tiene que tener al menos 6 caracteres';
+  if(/rate limit|too many/i.test(m))return 'Demasiados intentos, esperá un minuto';
+  if(/Failed to fetch|NetworkError/i.test(m))return 'Sin conexión. Revisá internet y probá de nuevo.';
+  return 'Error: '+m;
+}
 async function gate(){
   const{data:{session}}=await sb.auth.getSession();
-  if(session){$('login').hidden=true;$('appwrap').hidden=false;iniciarApp();}
+  if(session){USUARIO=session.user;$('login').hidden=true;$('appwrap').hidden=false;iniciarApp();}
   else{$('login').hidden=false;$('cargando').hidden=true;}
 }
 document.addEventListener('click',async e=>{
-  if(e.target.id==='lentrar'||e.target.id==='lcrear'){
+  if(e.target.id==='lentrar'){
     const email=$('lemail').value.trim(),pass=$('lpass').value;
     if(!email||!pass){$('lmsg').textContent='Completá email y contraseña';return;}
-    $('lmsg').textContent='...';
+    $('lmsg').textContent='Entrando…';
     try{
-      if(e.target.id==='lcrear'){
-        const{error}=await sb.auth.signUp({email,password:pass});
-        if(error)throw error;
-        $('lmsg').textContent='Usuario creado. Ya podés entrar.';
-      }
       const{error}=await sb.auth.signInWithPassword({email,password:pass});
       if(error)throw error;
+      USUARIO=(await sb.auth.getSession()).data.session?.user||null;
       $('login').hidden=true;$('appwrap').hidden=false;$('cargando').hidden=false;iniciarApp();
-    }catch(err){$('lmsg').textContent='Error: '+(err.message||err);}
+    }catch(err){$('lmsg').textContent=traducirAuth(err.message||err);}
   }
   if(e.target.id==='lsalir'){await sb.auth.signOut();location.reload();}
   if(e.target.id==='impok'){
@@ -324,7 +334,7 @@ function saldoHTML(s){
 }
 
 /* ------- navegación ------- */
-const VISTAS=['inicio','clientes','caja','precios','novedades','dist','ficha'];
+const VISTAS=['inicio','clientes','caja','precios','novedades','dist','ficha','usuarios'];
 function ver(v){
   VISTAS.forEach(x=>$('v-'+x).hidden=(x!==v));
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.v===v));
@@ -355,6 +365,7 @@ function pintarInicio(){
     <button class="btn chico" id="qcobrar">Cobrar a un cliente</button>
     <button class="btn chico sec" id="qcaja">Movimiento de caja</button>
   </div></div>
+  ${esAdmin()?`<div class="card"><b>Usuarios del sistema</b><div class="mini" style="margin:4px 0 6px">Solo vos podés crear, bloquear o borrar usuarios.</div><button class="btn chico sec" id="qusuarios">Administrar usuarios</button></div>`:''}
   <h2>Últimas cargas en el sistema</h2>
   <div class="card">${ult.length?ult.map(r=>`<div class="mov"><span class="f">${fecha(r.f)}</span><span class="t">${r._t==='mov'?(r.tipo+' · '+nomCli(r.cli)):((r.c||'')+(r.d?' · '+r.d:''))}</span><span class="m">${fmt(r.imp!=null?r.imp:((r.ing||0)-(r.egr||0)))}</span></div>`).join(''):'<div class="mini" style="padding:6px 0">Todavía no cargaste nada acá. Los datos migrados de NewsPaper ya están adentro.</div>'}</div>
   ${(()=>{const sp=new Set();C.forEach(c=>sinPrecio(c).forEach(x=>sp.add(x[0])));return sp.size?`<div class="aviso">⚠ Publicaciones sin precio cargado (no devengan): ${[...sp].slice(0,6).join(', ')}${sp.size>6?'…':''} — cargalos en Precios.</div>`:'';})()}
@@ -667,6 +678,63 @@ async function borrarDist(id){
   try{ await guardar('dist',LIVE.dist.filter(r=>r.id!==id)); toast('Borrado'); pintarDist(); }catch(e){toast('Error: '+((e&&e.message)||e));}
 }
 
+/* ------- USUARIOS (solo admin; la Edge Function "usuarios" es la que manda) ------- */
+async function apiUsuarios(body){
+  const{data,error}=await sb.functions.invoke('usuarios',{body});
+  if(error){
+    let msg=error.message||String(error);
+    try{ const j=await error.context.json(); if(j&&j.error)msg=j.error; }catch(_){}
+    if(/Failed to send|Failed to fetch|not found|404/i.test(msg)) msg='La función de usuarios no está publicada en Supabase todavía.';
+    throw new Error(msg);
+  }
+  if(data&&data.error)throw new Error(data.error);
+  return data;
+}
+async function pintarUsuarios(){
+  if(!esAdmin()){ver('inicio');return;}
+  $('v-usuarios').innerHTML=`
+  <button class="btn chico sec" id="uvolver">← Volver</button>
+  <h2>Usuarios del sistema</h2>
+  <div class="card"><b>Crear usuario</b>
+    <label>Email</label><input id="uemail" type="email" autocomplete="off" placeholder="socio@gmail.com">
+    <label>Contraseña (mín. 6)</label><input id="upass" type="text" autocomplete="off" placeholder="la que le vas a pasar">
+    <button class="btn" id="uok">Crear usuario</button>
+    <div class="mini" style="margin-top:8px">Queda habilitado al instante, sin confirmar mail. Pasale el email y la contraseña.</div>
+  </div>
+  <h2>Usuarios existentes</h2>
+  <div class="card" id="ulist"><div class="mini">Cargando…</div></div>`;
+  try{
+    const{usuarios}=await apiUsuarios({accion:'listar'});
+    $('ulist').innerHTML=usuarios.length?usuarios.map(u=>`<div class="card" style="margin-bottom:8px">
+      <b>${u.email||'(sin email)'}</b> ${u.admin?'<span class="pill p-susc">admin</span>':''} ${u.bloqueado?'<span class="pill p-warn">bloqueado</span>':''} ${!u.confirmado?'<span class="pill p-warn">sin confirmar</span>':''}
+      <div class="mini" style="margin-top:4px">Creado ${fecha(u.creado)} · Último ingreso ${u.ultimo?fecha(u.ultimo):'nunca'}</div>
+      ${u.admin?'':`<div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn chico sec" id="uclave" data-uid="${u.id}" data-email="${u.email}">Cambiar clave</button>
+        <button class="btn chico sec" id="ubloq" data-uid="${u.id}" data-email="${u.email}" data-bloq="${u.bloqueado?'1':'0'}">${u.bloqueado?'Desbloquear':'Bloquear'}</button>
+        <button class="btn chico sec" id="uborrar" data-uid="${u.id}" data-email="${u.email}" style="color:var(--rojo);border-color:var(--rojo)">Borrar</button>
+      </div>`}
+    </div>`).join(''):'<div class="mini">No hay usuarios.</div>';
+  }catch(e){ $('ulist').innerHTML='<div class="aviso">'+(e.message||e)+'</div>'; }
+}
+async function crearUsuario(){
+  const email=$('uemail').value.trim(),password=$('upass').value;
+  if(!email||password.length<6){toast('Email y contraseña de 6 o más');return;}
+  try{ await apiUsuarios({accion:'crear',email,password}); toast('Usuario creado ✓'); pintarUsuarios(); }catch(e){toast(e.message||e);}
+}
+async function cambiarClave(id,email){
+  const password=prompt('Nueva contraseña para '+email+' (mín. 6):'); if(password===null)return;
+  if(password.length<6){toast('Mínimo 6 caracteres');return;}
+  try{ await apiUsuarios({accion:'clave',id,password}); toast('Clave cambiada ✓'); }catch(e){toast(e.message||e);}
+}
+async function bloquearUsuario(id,email,bloqueado){
+  if(!confirm((bloqueado?'¿Desbloquear a ':'¿Bloquear a ')+email+'?'))return;
+  try{ await apiUsuarios({accion:'bloquear',id,bloquear:!bloqueado}); toast(bloqueado?'Desbloqueado':'Bloqueado'); pintarUsuarios(); }catch(e){toast(e.message||e);}
+}
+async function borrarUsuario(id,email){
+  if(!confirm('¿Borrar definitivamente a '+email+'? No va a poder entrar más.'))return;
+  try{ await apiUsuarios({accion:'borrar',id}); toast('Borrado'); pintarUsuarios(); }catch(e){toast(e.message||e);}
+}
+
 /* ------- latido de diagnóstico ------- */
 let NEV=0;
 window.addEventListener('error',e=>{const l=$('lat');if(l)l.textContent='v7 · ⚠ '+(e.message||'error');});
@@ -779,6 +847,12 @@ document.addEventListener('click',function(e){
     case 'bmas': MOSTR+=30;pintarLista();break;
     case 'qcobrar': ver('clientes');setTimeout(()=>$('bq')&&$('bq').focus(),50);break;
     case 'qcaja': ver('caja');pintarCaja();break;
+    case 'qusuarios': ver('usuarios');pintarUsuarios();break;
+    case 'uvolver': ver('inicio');pintarInicio();break;
+    case 'uok': crearUsuario();break;
+    case 'uclave': cambiarClave(b.dataset.uid,b.dataset.email);break;
+    case 'ubloq': bloquearUsuario(b.dataset.uid,b.dataset.email,b.dataset.bloq==='1');break;
+    case 'uborrar': borrarUsuario(b.dataset.uid,b.dataset.email);break;
     case 'fvolver': ver('clientes');buscar();break;
     case 'fbc': formCobro(parseInt(b.dataset.cli));break;
     case 'fbl': formLiq(parseInt(b.dataset.cli));break;
@@ -812,7 +886,8 @@ async function iniciarApp(){
     if(!C.length){$('cargando').hidden=true;$('importbox').hidden=false;return;}
     const hdrEl=document.querySelector('header');
     if(hdrEl&&!document.getElementById('lsalir')){
-      const b=document.createElement('button');b.id='lsalir';b.className='btn chico sec';b.style.marginLeft='auto';b.textContent='Salir';hdrEl.appendChild(b);
+      if(esAdmin()){const u=document.createElement('button');u.id='qusuarios';u.className='btn chico sec';u.style.marginLeft='auto';u.textContent='Usuarios';hdrEl.appendChild(u);}
+      const b=document.createElement('button');b.id='lsalir';b.className='btn chico sec';if(!esAdmin())b.style.marginLeft='auto';b.textContent='Salir';hdrEl.appendChild(b);
     }
   }catch(e){$('cargando').innerHTML='Error: '+(e.message||e);}
 }
