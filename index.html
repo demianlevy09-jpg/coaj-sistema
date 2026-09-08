@@ -379,7 +379,7 @@ function pintarInicio(){
   <h2>Últimas cargas en el sistema</h2>
   <div class="card">${ult.length?ult.map(r=>`<div class="mov"><span class="f">${fecha(r.f)}</span><span class="t">${r._t==='mov'?(r.tipo+' · '+nomCli(r.cli)):((r.c||'')+(r.d?' · '+r.d:''))}</span><span class="m">${fmt(r.imp!=null?r.imp:((r.ing||0)-(r.egr||0)))}</span></div>`).join(''):'<div class="mini" style="padding:6px 0">Todavía no cargaste nada acá. Los datos migrados de NewsPaper ya están adentro.</div>'}</div>
   ${(()=>{const sp=new Set();C.forEach(c=>sinPrecio(c).forEach(x=>sp.add(x[0])));return sp.size?`<div class="aviso">⚠ Publicaciones sin precio cargado (no devengan): ${[...sp].slice(0,6).join(', ')}${sp.size>6?'…':''} — cargalos en Precios.</div>`:'';})()}
-  <div class="aviso">El saldo de cada cliente se mueve solo: sube con cada entrega (según suscripciones y precios) y baja con los cobros. Pendiente: cargar el cuaderno del 12/08 en adelante.</div>`;
+  <div class="aviso">El saldo de cada cliente se mueve solo: sube con cada entrega (según suscripciones y precios) y baja con los cobros.</div>`;
 }
 function nomCli(id){const c=C.find(x=>x.id===id);return c?(c.d||('Nº '+id)):('Nº '+id);}
 
