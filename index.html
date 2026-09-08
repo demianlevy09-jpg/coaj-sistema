@@ -116,8 +116,8 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
 </div>
 
 
-<div class="wrap">
-<header><div class="marca">COAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v9</div></header>
+<div class="wrap" id="appwrap" hidden>
+<header><div class="marca">COAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v10</div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -154,7 +154,7 @@ window.claude={use:async n=>{
 }};
 async function gate(){
   const{data:{session}}=await sb.auth.getSession();
-  if(session){$('login').hidden=true;iniciarApp();}
+  if(session){$('login').hidden=true;$('appwrap').hidden=false;iniciarApp();}
   else{$('login').hidden=false;$('cargando').hidden=true;}
 }
 document.addEventListener('click',async e=>{
@@ -170,7 +170,7 @@ document.addEventListener('click',async e=>{
       }
       const{error}=await sb.auth.signInWithPassword({email,password:pass});
       if(error)throw error;
-      $('login').hidden=true;$('cargando').hidden=false;iniciarApp();
+      $('login').hidden=true;$('appwrap').hidden=false;$('cargando').hidden=false;iniciarApp();
     }catch(err){$('lmsg').textContent='Error: '+(err.message||err);}
   }
   if(e.target.id==='lsalir'){await sb.auth.signOut();location.reload();}
