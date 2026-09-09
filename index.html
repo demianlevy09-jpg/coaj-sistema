@@ -117,7 +117,7 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v30</div></header>
+<header><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v31</div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -314,15 +314,22 @@ function suspendida(cli,titulo,dia){
   return sus;
 }
 let SCACHE={};
-function devengoDe(c,tipo){
+// Modo de saldo: 'vivo' (hasta hoy) o 'cierre' (hasta el último cierre mensual = fin del mes anterior)
+let MODO_SALDO='vivo'; try{MODO_SALDO=localStorage.getItem('modoSaldo')||'vivo';}catch(_){}
+function cierreISO(){const d=new Date();d.setDate(0);return d.toISOString().slice(0,10);} // último día del mes anterior
+function hastaSaldo(){return MODO_SALDO==='cierre'?cierreISO():hoyISO();}
+function setModoSaldo(m){MODO_SALDO=m;try{localStorage.setItem('modoSaldo',m);}catch(_){}pintarInicio();pintarClientes();}
+function toggleSaldoHTML(){return `<div class="fchips" style="margin:0 0 6px"><button class="fch${MODO_SALDO==='vivo'?' on':''}" onclick="setModoSaldo('vivo')">Saldo hoy</button><button class="fch${MODO_SALDO==='cierre'?' on':''}" onclick="setModoSaldo('cierre')">Saldo al ${fecha(cierreISO())} (mes vencido)</button></div>`;}
+function devengoDe(c,tipo,hasta){
   tipo=tipo||'C';
-  const ck='d'+tipo+c.id;
+  hasta=hasta||hoyISO();
+  const ck='d'+tipo+c.id+'|'+hasta;
   if(SCACHE[ck]!=null) return SCACHE[ck];
   let tot=0;
   const items=c.subs.filter(x=>x[3]==='V'&&x[2]===tipo).map(x=>({t:x[0],days:FDIAS[norm(x[1])],desde:(x[4]||'').slice(0,10),q:Math.abs(x[5])||1}));
   LIVE.novedades.filter(n=>n.cli===c.id&&n.tipo==='Alta'&&n.dias&&((n.via||'C')===tipo)).forEach(n=>items.push({t:n.pub,days:n.dias,desde:(n.desde||'').slice(0,10),q:n.qty||1}));
   if(items.length){
-    const hoy=hoyISO();
+    const hoy=hasta;
     let d=new Date(DEV0+'T12:00:00');
     while(d.toISOString().slice(0,10)<=hoy){
       const dia=d.toISOString().slice(0,10);
@@ -342,9 +349,10 @@ function devengoDe(c,tipo){
   return tot;
 }
 /* ------- saldos ------- */
-function saldoDe(c){
-  let s=c.sal+devengoDe(c);
-  for(const m of LIVE.movs) if(m.cli===c.id) s+=(m.tipo==='Cobro'?-m.imp:m.imp);
+function saldoDe(c,hasta){
+  hasta=hasta||hastaSaldo();
+  let s=c.sal+devengoDe(c,'C',hasta);
+  for(const m of LIVE.movs) if(m.cli===c.id&&(m.f||'').slice(0,10)<=hasta) s+=(m.tipo==='Cobro'?-m.imp:m.imp);
   return s;
 }
 function sinPrecio(c){
@@ -381,7 +389,7 @@ function pintarInicio(){
   <div class="stats">
     <div class="stat"><b>${act.length}</b><i>clientes activos</i></div>
     <div class="stat"><b>${vig}</b><i>susc. vigentes</i></div>
-    <div class="stat"><b class="debe">${fmt(tot)}</b><i>te deben (${deud.length})</i></div>
+    <div class="stat"><b class="debe">${fmt(tot)}</b><i>te deben (${deud.length}) · ${MODO_SALDO==='cierre'?'al '+fecha(cierreISO()):'a hoy'}</i></div>
     <div class="stat"><b>${cajaHoy.length?fmt(ing-egr):'—'}</b><i>caja de hoy</i></div>
     <div class="stat" style="cursor:pointer" onclick="document.querySelector('.tab[data-v=dist]').click()"><b class="${sd>0?'debe':(sd<0?'favor':'aldia')}">${fmt(sd)}</b><i>CC distribuidora · ${sd>0?'le debés':(sd<0?'te debe':'al día')} →</i></div>
   </div>
@@ -403,6 +411,7 @@ const FDEFS=[['todos','Todos'],['puesto','Del puesto'],['distrib','De la distrib
 function pintarClientes(){
   $('v-clientes').innerHTML=`<div style="position:sticky;top:0;background:var(--papel);padding:8px 0;z-index:5">
   <input id="bq" type="search" placeholder="Dirección, nombre, Nº o publicación (ej: ole)…" autocomplete="off" oninput="buscar()">
+  ${toggleSaldoHTML()}
   <div class="fchips">${FDEFS.map(f=>`<button class="fch${FCLI===f[0]?' on':''}" data-f="${f[0]}" onclick="setF('${f[0]}')">${f[1]}</button>`).join('')}</div></div>
   <div class="mini" id="bres" style="margin-bottom:6px"></div>
   <div id="blist"></div><button class="btn sec" id="bmas" hidden style="width:100%">Mostrar más</button>`;
@@ -497,8 +506,9 @@ function ficha(id,mas){
     <div class="mini" style="font-size:15px">${c.n||'Sin nombre'} · Nº ${c.id}</div>
     <div class="chips">${pillCat(c)}${c.fic==='recuperado'?'<span class="pill p-warn">Ficha recuperada</span>':''}</div>
     <div class="saldonum ${s>0.5?'debe':(s<-0.5?'favor':'aldia')}">${Math.abs(s)>0.5?fmt(s):'Al día'}</div>
-    <div class="mini">${s>0.5?'te debe':(s<-0.5?'tiene a favor':'sin deuda')}</div>
-    ${devengoDe(c)>0?`<div class="mini" style="margin-top:4px">incluye ${fmt(devengoDe(c))} de consumo devengado automático desde el 01/09</div>`:''}
+    <div class="mini">${s>0.5?'te debe':(s<-0.5?'tiene a favor':'sin deuda')} · ${MODO_SALDO==='cierre'?'saldo al '+fecha(cierreISO())+' (mes vencido)':'saldo a hoy'}</div>
+    ${(()=>{const o=saldoDe(c,MODO_SALDO==='cierre'?hoyISO():cierreISO());return `<div class="mini" style="margin-top:2px">${MODO_SALDO==='cierre'?'Saldo a hoy':'Saldo al '+fecha(cierreISO())+' (mes vencido)'}: <b>${Math.abs(o)>0.5?fmt(o):'al día'}</b></div>`;})()}
+    ${devengoDe(c,'C',hastaSaldo())>0?`<div class="mini" style="margin-top:4px">incluye ${fmt(devengoDe(c,'C',hastaSaldo()))} de consumo devengado automático desde el 01/09</div>`:''}
     ${devengoDe(c,'S')>0?`<div class="mini" style="margin-top:4px;color:var(--ok)">Vía distribuidora: repartido ${fmt(devengoDe(c,'S'))} de tapa desde el 01/09 → te genera ${fmt(devengoDe(c,'S')*CONFIG.comision/100)} de comisión (no es deuda del cliente)</div>`:''}
     ${sinPrecio(c).length?`<div class="aviso">⚠ ${sinPrecio(c).map(x=>x[0]).join(', ')}: sin precio cargado, no devenga. Cargalo en Precios.</div>`:''}
     ${c.tel?`<div style="margin-top:8px;font-size:14.5px">Tel: <a style="color:var(--azul)" href="tel:${c.tel.replace(/[^0-9+]/g,'')}">${c.tel}</a></div>`:''}
