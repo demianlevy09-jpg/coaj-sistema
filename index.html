@@ -117,7 +117,7 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v29</div></header>
+<header><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v30</div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -214,7 +214,8 @@ document.addEventListener('click',async e=>{
 
 let db=null, C=[], PRECIOS=[], CAJAH=[], LISTAS={medios:[],conceptos:[],tipos:[]};
 const CONCEPTOS_CAJA=['Cobro a cliente','Venta mostrador','Cobro distribuidora','Pago a distribuidora','Pago a empleado','Gasto','Retiro','Cambio inicial','Transferencia entre cuentas','Otro'];
-let LIVE={movs:[],caja:[],precios:[],novedades:[],dist:[]};
+let LIVE={movs:[],caja:[],precios:[],novedades:[],dist:[],feriados:[],devol:[]};
+let FER=new Set(); // fechas ISO sin reparto
 let CONFIG={comision:32}; // % del precio de tapa que le corresponde a COHAJ por lo repartido a suscriptores (dato de Demian 09/09: 32%)
 let DISTH=[];
 const $=id=>document.getElementById(id);
@@ -238,9 +239,10 @@ async function boot(){
       db.doc('seed/clientes_1').get(),db.doc('seed/clientes_2').get(),db.doc('seed/clientes_3').get(),
       db.doc('seed/precios').get(),db.doc('seed/caja_hist').get(),db.doc('seed/listas').get(),
       db.doc('live/movs').get(),db.doc('live/caja').get(),db.doc('live/precios').get(),db.doc('live/novedades').get(),
-      db.doc('seed/dist').get(),db.doc('live/dist').get(),db.doc('live/config').get()
+      db.doc('seed/dist').get(),db.doc('live/dist').get(),db.doc('live/config').get(),db.doc('live/feriados').get(),db.doc('live/devol').get()
     ]);
-    const [c1,c2,c3,pr,ch,ls,m1,m2,m3,m4,dh,dl,cf]=lecturas.map(dget);
+    const [c1,c2,c3,pr,ch,ls,m1,m2,m3,m4,dh,dl,cf,fe,dv]=lecturas.map(dget);
+    LIVE.feriados=fe?.rows||[]; LIVE.devol=dv?.rows||[]; FER=new Set(LIVE.feriados.map(r=>r.f));
     if(cf&&typeof cf.comision==='number') CONFIG.comision=cf.comision;
     C=[...(c1?.rows||[]),...(c2?.rows||[]),...(c3?.rows||[])].map(r=>({...r}));
     PRECIOS=pr?.rows||[]; CAJAH=ch?.rows||[]; if(ls) LISTAS=ls;
@@ -268,6 +270,7 @@ async function guardar(col,rows){
   const persist=rows.filter(r=>!r.fijo);
   await db.doc('live/'+col).set({rows:persist});
   LIVE[col]=(col==='caja')?[...CAJA_INICIAL,...persist]:persist;
+  if(col==='feriados') FER=new Set(persist.map(r=>r.f));
   SCACHE={};
   if(col==='precios') armarPIDX();
 }
@@ -324,6 +327,7 @@ function devengoDe(c,tipo){
     while(d.toISOString().slice(0,10)<=hoy){
       const dia=d.toISOString().slice(0,10);
       const wd=(d.getDay()+6)%7;
+      if(FER.has(dia)){d.setDate(d.getDate()+1);continue;}
       for(const x of items){
         if(!x.days||!x.days.includes(wd)) continue;
         if(x.desde&&x.desde>dia) continue;
@@ -645,6 +649,12 @@ function pintarNovedades(){
     <div><label>Hasta (si aplica)</label><input id="nhasta" type="date"></div></div>
     <label>Nota</label><input id="nnota" placeholder="ej: avisó por WhatsApp">
     <button class="btn" id="nok">Guardar</button></div>
+  <h2>Feriados sin reparto</h2>
+  <div class="card"><div class="mini" style="margin-bottom:6px">Los días que cargues acá no se devenga nada: ni a los clientes ni comisión de la distribuidora.</div>
+    <div class="grid2"><div><label>Fecha</label><input id="fefec" type="date"></div><div><label>Motivo</label><input id="fedet" placeholder="ej: feriado nacional, paro"></div></div>
+    <button class="btn chico" id="feok">Agregar feriado</button>
+    <div style="margin-top:8px">${[...LIVE.feriados].sort((a,b)=>(b.f||'').localeCompare(a.f||'')).map(r=>`<div class="mov"><span class="f">${fecha(r.f)}</span><span class="t">${r.d||'sin reparto'}</span><button class="del" data-feid="${r.id}">✕</button></div>`).join('')||'<div class="mini">Ningún feriado cargado.</div>'}</div>
+  </div>
   <h2>Novedades cargadas</h2>
   <div class="filtros"><select id="nfil"><option value="">Tipo: todas</option><option>Suspensión</option><option>Reanudación</option><option>Alta</option><option>Baja</option></select></div>
   <input id="nft" type="search" placeholder="Buscar cliente o publicación…" style="margin-bottom:8px">
@@ -695,6 +705,14 @@ function pintarDist(){
     <label>Detalle</label><input id="ddet" placeholder="ej: liquidación semana 37">
     <label>Fecha</label><input id="dfec" type="date" value="${hoyISO()}">
     <button class="btn" id="dok">Guardar</button></div>
+  <h2>Devoluciones a la distribuidora</h2>
+  <div class="card"><div class="mini" style="margin-bottom:6px">Ejemplares que vuelven. Por ahora hay una sola distribuidora. Se registran y se valúan a precio de tapa como referencia; no mueven el saldo hasta que definamos cómo los liquida ella.</div>
+    <div class="grid2"><div><label>Fecha</label><input id="dvfec" type="date" value="${hoyISO()}"></div><div><label>Cantidad</label><input id="dvqty" type="number" inputmode="numeric" min="1" placeholder="0"></div></div>
+    <label>Publicación</label><input id="dvpub" list="dvpubs" placeholder="ej: CLARIN"><datalist id="dvpubs">${[...new Set(PRECIOS.concat(LIVE.precios).map(p=>p.pub))].sort().map(p=>`<option value="${p}">`).join('')}</datalist>
+    <label>Nota</label><input id="dvnota" placeholder="ej: sobrantes del domingo">
+    <button class="btn chico" id="dvok">Registrar devolución</button>
+    <div style="margin-top:8px">${(()=>{const rs=[...LIVE.devol].sort((a,b)=>(b.f||'').localeCompare(a.f||'')||(b.ts||'').localeCompare(a.ts||''));const mes=hoyISO().slice(0,7);const tot=rs.filter(r=>(r.f||'').startsWith(mes)).reduce((n,r)=>n+(r.qty||0),0);return (tot?`<div class="mini" style="margin-bottom:6px">Este mes: <b>${tot}</b> ejemplares devueltos.</div>`:'')+(rs.slice(0,30).map(r=>{const wd=(new Date(r.f+'T12:00:00').getDay()+6)%7;const p=precioDe(r.pub,wd,r.f)||0;return `<div class="mov"><span class="f">${fecha(r.f)}</span><span class="t"><b>${r.qty}</b> × ${r.pub}${r.nota?' · '+r.nota:''}</span><span class="m">${p?fmt(p*r.qty):'—'}</span><button class="del" data-dvid="${r.id}">✕</button></div>`;}).join('')||'<div class="mini">Ninguna devolución cargada.</div>');})()}</div>
+  </div>
   <h2>Movimientos</h2>
   <input id="dfil" type="search" placeholder="Buscar por número, detalle o fecha…" style="margin-bottom:8px">
   <div class="card" id="dhlist"></div>
@@ -712,6 +730,26 @@ function pintarDist(){
 }
 function comisionDevengada(){ let t=0; C.forEach(c=>{t+=devengoDe(c,'S');}); return t*CONFIG.comision/100; }
 function saldoDistribuidora(){ return LIVE.dist.reduce((n,r)=>n+(r.imp||0),0)-comisionDevengada(); }
+async function addFeriado(){
+  const f=$('fefec').value; if(!f){toast('Poné la fecha');return;}
+  if(FER.has(f)){toast('Ese día ya está cargado');return;}
+  const r={id:nid(),ts:new Date().toISOString(),f,d:$('fedet').value||''};
+  try{ await guardar('feriados',[...LIVE.feriados,r]); SCACHE={}; toast('Feriado guardado ✓'); pintarNovedades(); }catch(e){toast('Error: '+((e&&e.message)||e));}
+}
+async function borrarFeriado(id){
+  if(!confirm('¿Borrar este feriado?'))return;
+  try{ await guardar('feriados',LIVE.feriados.filter(r=>r.id!==id)); SCACHE={}; toast('Borrado'); pintarNovedades(); }catch(e){toast('Error: '+((e&&e.message)||e));}
+}
+async function addDevol(){
+  const qty=parseInt($('dvqty').value),pub=$('dvpub').value.trim().toUpperCase(),f=$('dvfec').value;
+  if(!qty||qty<=0||!pub||!f){toast('Completá fecha, cantidad y publicación');return;}
+  const r={id:nid(),ts:new Date().toISOString(),f,pub,qty,nota:$('dvnota').value||'',dist:'principal'};
+  try{ await guardar('devol',[...LIVE.devol,r]); toast('Devolución registrada ✓'); pintarDist(); }catch(e){toast('Error: '+((e&&e.message)||e));}
+}
+async function borrarDevol(id){
+  if(!confirm('¿Borrar esta devolución?'))return;
+  try{ await guardar('devol',LIVE.devol.filter(r=>r.id!==id)); toast('Borrado'); pintarDist(); }catch(e){toast('Error: '+((e&&e.message)||e));}
+}
 async function guardarComision(){
   const v=parseFloat($('dcom').value);
   if(isNaN(v)||v<0||v>100){toast('Poné un porcentaje entre 0 y 100');return;}
@@ -800,6 +838,7 @@ function desglose(cid,fliq){
   let dd=new Date(ini);
   while(dd<=fin){
     const dia=dd.toISOString().slice(0,10), wd=(dd.getDay()+6)%7;
+    if(FER.has(dia)){dd.setDate(dd.getDate()+1);continue;}
     for(const x of c.subs){
       if(x[2]!=='C')continue;
       const desde=(x[4]||'').slice(0,10);
@@ -843,6 +882,8 @@ document.addEventListener('click',function(e){
     else if(del.dataset.cid) borrarCaja(del.dataset.cid);
     else if(del.dataset.nid) borrarNov(del.dataset.nid);
     else if(del.dataset.did) borrarDist(del.dataset.did);
+    else if(del.dataset.feid) borrarFeriado(del.dataset.feid);
+    else if(del.dataset.dvid) borrarDevol(del.dataset.dvid);
     return;
   }
   const sf=e.target.closest('[data-sform]');
@@ -916,6 +957,8 @@ document.addEventListener('click',function(e){
     case 'nok': addNov();break;
     case 'dok': addDist();break;
     case 'dcomok': guardarComision();break;
+    case 'feok': addFeriado();break;
+    case 'dvok': addDevol();break;
   }
 });
 document.addEventListener('input',function(e){
