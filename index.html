@@ -117,7 +117,7 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v18</div></header>
+<header><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v19</div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -347,6 +347,7 @@ function saldoHTML(s){
 /* ------- navegación ------- */
 const VISTAS=['inicio','clientes','caja','precios','novedades','dist','ficha','usuarios'];
 function ver(v){
+  if(v!=='ficha'){try{history.replaceState(null,'','#'+v);}catch(_){}}
   VISTAS.forEach(x=>$('v-'+x).hidden=(x!==v));
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.v===v));
   window.scrollTo(0,0);
@@ -503,7 +504,7 @@ function ficha(id,mas){
   }).join(''):'<div class="mini">Sin movimientos desde 2024.</div>')+`</div>
   ${movs.length>FMOSTR?`<div style="text-align:center"><button class="btn chico sec" id="fmas" data-cli="${id}">Ver más (${movs.length-FMOSTR} anteriores)</button></div>`:''}
   <div class="mini" style="margin:8px 0 20px">Cobro = pagó (baja deuda) · el consumo diario se devenga solo según sus suscripciones y precios. Las filas con ✕ se cargaron en este sistema y se pueden borrar.</div>`;
-  $('v-ficha').innerHTML=h; ver('ficha');
+  $('v-ficha').innerHTML=h; ver('ficha'); try{history.replaceState(null,'','#ficha-'+id);}catch(_){}
 }
 function formCobro(id){
   $('fform').innerHTML=`<label>Importe cobrado</label><input id="fimp" type="number" inputmode="decimal" placeholder="0">
@@ -902,6 +903,14 @@ async function iniciarApp(){
   try{
     await boot();
     if(!C.length)return;
+    (function(){
+      const hs=(location.hash||'').slice(1);
+      if(!hs)return;
+      const mf=hs.match(/^ficha-(\d+)$/);
+      if(mf){ficha(parseInt(mf[1]));return;}
+      if(hs==='usuarios'){if(esAdmin()){ver('usuarios');pintarUsuarios();}return;}
+      if(VISTAS.includes(hs)&&hs!=='ficha'){ver(hs);const p={caja:pintarCaja,precios:pintarPrecios,novedades:pintarNovedades,dist:pintarDist}[hs];if(p)p();}
+    })();
     const hdrEl=document.querySelector('header');
     if(hdrEl&&!document.getElementById('lsalir')){
       if(esAdmin()){const u=document.createElement('button');u.id='qusuarios';u.className='btn chico sec';u.style.marginLeft='auto';u.textContent='Usuarios';hdrEl.appendChild(u);}
