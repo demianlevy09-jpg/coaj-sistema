@@ -117,7 +117,7 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v16</div></header>
+<header><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v17</div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -308,7 +308,7 @@ function devengoDe(c,tipo){
   const ck='d'+tipo+c.id;
   if(SCACHE[ck]!=null) return SCACHE[ck];
   let tot=0;
-  const items=c.subs.filter(x=>x[3]==='V'&&x[2]===tipo).map(x=>({t:x[0],days:FDIAS[norm(x[1])],desde:(x[4]||'').slice(0,10),q:x[5]||1}));
+  const items=c.subs.filter(x=>x[3]==='V'&&x[2]===tipo).map(x=>({t:x[0],days:FDIAS[norm(x[1])],desde:(x[4]||'').slice(0,10),q:Math.abs(x[5])||1}));
   LIVE.novedades.filter(n=>n.cli===c.id&&n.tipo==='Alta'&&n.dias&&((n.via||'C')===tipo)).forEach(n=>items.push({t:n.pub,days:n.dias,desde:(n.desde||'').slice(0,10),q:n.qty||1}));
   if(items.length){
     const hoy=hoyISO();
@@ -386,7 +386,7 @@ function nomCli(id){const c=C.find(x=>x.id===id);return c?(c.d||('Nº '+id)):('N
 /* ------- CLIENTES ------- */
 let RES=[],MOSTR=30,FCLI='todos';
 function setF(f){FCLI=f;document.querySelectorAll('.fch').forEach(x=>x.classList.toggle('on',x.dataset.f===FCLI));buscar();}
-const FDEFS=[['todos','Todos'],['puesto','Del puesto'],['distrib','De la distribuidora'],['mixto','Mixtos'],['deudores','Deudores'],['favor','A favor'],['inactivos','Inactivos'],['recup','Ficha recuperada'],['dudoso','Signo dudoso']];
+const FDEFS=[['todos','Todos'],['puesto','Del puesto'],['distrib','De la distribuidora'],['mixto','Mixtos'],['deudores','Deudores'],['favor','A favor'],['inactivos','Inactivos'],['recup','Ficha recuperada']];
 function pintarClientes(){
   $('v-clientes').innerHTML=`<div style="position:sticky;top:0;background:var(--papel);padding:8px 0;z-index:5">
   <input id="bq" type="search" placeholder="Dirección, nombre, Nº o publicación (ej: ole)…" autocomplete="off" oninput="buscar()">
@@ -404,7 +404,6 @@ function pasaFiltro(c,s){
     case 'favor': return s<-0.5;
     case 'inactivos': return !c.act;
     case 'recup': return c.fic==='recuperado';
-    case 'dudoso': return !!c.dud;
     default: return true;
   }
 }
@@ -471,7 +470,7 @@ function ficha(id){
     <div class="mini" style="font-size:15px">${c.n||'Sin nombre'} · Nº ${c.id}</div>
     <div class="chips">${pillCat(c)}${c.fic==='recuperado'?'<span class="pill p-warn">Ficha recuperada</span>':''}</div>
     <div class="saldonum ${s>0.5?'debe':(s<-0.5?'favor':'aldia')}">${Math.abs(s)>0.5?fmt(s):'Al día'}</div>
-    <div class="mini">${s>0.5?'te debe':(s<-0.5?'tiene a favor':'sin deuda')}${c.dud?' · ⚠ signo corregido, confirmar con Beba':''}</div>
+    <div class="mini">${s>0.5?'te debe':(s<-0.5?'tiene a favor':'sin deuda')}</div>
     ${devengoDe(c)>0?`<div class="mini" style="margin-top:4px">incluye ${fmt(devengoDe(c))} de consumo devengado automático desde el 01/09</div>`:''}
     ${sinPrecio(c).length?`<div class="aviso">⚠ ${sinPrecio(c).map(x=>x[0]).join(', ')}: sin precio cargado, no devenga. Cargalo en Precios.</div>`:''}
     ${c.tel?`<div style="margin-top:8px;font-size:14.5px">Tel: <a style="color:var(--azul)" href="tel:${c.tel.replace(/[^0-9+]/g,'')}">${c.tel}</a></div>`:''}
