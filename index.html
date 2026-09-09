@@ -117,7 +117,7 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v19</div></header>
+<header><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v20</div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -291,6 +291,8 @@ function precioDe(pub,wd,dia){
 }
 /* ------- devengo diario (desde 01/09/2026; la liquidación del 02/09 cubrió agosto) ------- */
 const DEV0='2026-09-01';
+// Clientes con entrega registrada en NewsPaper entre el 25/08 y el 08/09/2026 (139). Base para el filtro "Con reparto activo".
+const REPARTO_ACTIVO=new Set([6, 7, 9, 12, 15, 16, 22, 28, 37, 40, 76, 82, 84, 86, 91, 92, 94, 96, 97, 109, 117, 119, 126, 141, 146, 169, 223, 230, 240, 244, 246, 254, 265, 270, 272, 279, 288, 289, 291, 304, 324, 327, 328, 339, 341, 349, 350, 365, 369, 393, 395, 406, 426, 427, 434, 436, 448, 453, 455, 456, 458, 460, 504, 527, 543, 558, 579, 581, 600, 649, 662, 665, 684, 713, 753, 773, 781, 815, 819, 825, 835, 838, 839, 845, 847, 853, 871, 873, 883, 890, 891, 897, 905, 995, 1006, 1048, 1051, 1052, 1074, 1075, 1077, 1098, 1099, 1110, 1118, 1157, 1162, 1166, 1173, 1181, 1189, 1219, 1224, 1231, 1255, 1264, 1266, 1290, 1301, 1306, 1322, 1367, 1424, 1430, 1466, 1467, 1471, 1472, 1493, 1499, 1534, 1644, 1645, 1651, 1668, 1671, 1692, 1694, 1696]);
 function suspendida(cli,titulo,dia){
   let sus=false;
   const nvs=LIVE.novedades.filter(n=>n.cli===cli&&(!n.pub||norm(titulo).includes(norm(n.pub))||norm(n.pub).includes(norm(titulo)))).sort((a,b)=>(a.desde||'').localeCompare(b.desde||''));
@@ -387,7 +389,7 @@ function nomCli(id){const c=C.find(x=>x.id===id);return c?(c.d||('Nº '+id)):('N
 /* ------- CLIENTES ------- */
 let RES=[],MOSTR=30,FCLI='todos';
 function setF(f){FCLI=f;document.querySelectorAll('.fch').forEach(x=>x.classList.toggle('on',x.dataset.f===FCLI));buscar();}
-const FDEFS=[['todos','Todos'],['puesto','Del puesto'],['distrib','De la distribuidora'],['mixto','Mixtos'],['deudores','Deudores'],['favor','A favor'],['inactivos','Inactivos'],['recup','Ficha recuperada']];
+const FDEFS=[['todos','Todos'],['puesto','Del puesto'],['distrib','De la distribuidora'],['mixto','Mixtos'],['reparto','Con reparto activo'],['deudores','Deudores'],['favor','A favor'],['inactivos','Inactivos'],['recup','Ficha recuperada']];
 function pintarClientes(){
   $('v-clientes').innerHTML=`<div style="position:sticky;top:0;background:var(--papel);padding:8px 0;z-index:5">
   <input id="bq" type="search" placeholder="Dirección, nombre, Nº o publicación (ej: ole)…" autocomplete="off" oninput="buscar()">
@@ -400,6 +402,7 @@ function pasaFiltro(c,s){
   switch(FCLI){
     case 'puesto': return c.act&&(c.cat==='Cliente'||c.cat==='Mixto');
     case 'distrib': return c.act&&(c.cat==='Suscriptor'||c.cat==='Mixto');
+    case 'reparto': return REPARTO_ACTIVO.has(c.id);
     case 'mixto': return c.cat==='Mixto';
     case 'deudores': return s>0.5;
     case 'favor': return s<-0.5;
@@ -471,7 +474,7 @@ function ficha(id,mas){
   <div class="card cabecera">
     <div class="dom">${c.d||'(sin domicilio)'}</div>
     <div class="mini" style="font-size:15px">${c.n||'Sin nombre'} · Nº ${c.id}</div>
-    <div class="chips">${pillCat(c)}${c.fic==='recuperado'?'<span class="pill p-warn">Ficha recuperada</span>':''}</div>
+    <div class="chips">${pillCat(c)}${REPARTO_ACTIVO.has(c.id)?'<span class="pill p-cli">Reparto activo</span>':''}${c.fic==='recuperado'?'<span class="pill p-warn">Ficha recuperada</span>':''}</div>
     <div class="saldonum ${s>0.5?'debe':(s<-0.5?'favor':'aldia')}">${Math.abs(s)>0.5?fmt(s):'Al día'}</div>
     <div class="mini">${s>0.5?'te debe':(s<-0.5?'tiene a favor':'sin deuda')}</div>
     ${devengoDe(c)>0?`<div class="mini" style="margin-top:4px">incluye ${fmt(devengoDe(c))} de consumo devengado automático desde el 01/09</div>`:''}
