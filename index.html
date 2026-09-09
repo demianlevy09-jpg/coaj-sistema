@@ -117,7 +117,7 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v27</div></header>
+<header><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v28</div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -406,10 +406,10 @@ function pintarClientes(){
 }
 function pasaFiltro(c,s){
   switch(FCLI){
-    case 'puesto': return c.act&&(c.cat==='Cliente'||c.cat==='Mixto');
-    case 'distrib': return c.act&&(c.cat==='Suscriptor'||c.cat==='Mixto');
+    case 'puesto': return c.act&&(catDe(c)==='Cliente'||catDe(c)==='Mixto');
+    case 'distrib': return c.act&&(catDe(c)==='Suscriptor'||catDe(c)==='Mixto');
     case 'reparto': return REPARTO_ACTIVO.has(c.id);
-    case 'mixto': return c.cat==='Mixto';
+    case 'mixto': return catDe(c)==='Mixto';
     case 'deudores': return s>0.5;
     case 'favor': return s<-0.5;
     case 'inactivos': return !c.act;
@@ -449,12 +449,23 @@ function pintarLista(){
   if(!RES.length) l.innerHTML='<div class="mini" style="text-align:center;padding:24px">Sin resultados. Probá con menos letras, o solo el número de puerta.</div>';
   $('bmas').hidden=RES.length<=MOSTR;
 }
+function catDe(c){
+  const hoy=hoyISO();
+  const vias=new Set();
+  c.subs.forEach(x=>{ if(x[3]==='V'&&!suspendida(c.id,x[0],hoy)) vias.add(x[2]==='S'?'S':'C'); });
+  LIVE.novedades.filter(n=>n.cli===c.id&&n.tipo==='Alta'&&n.dias&&!suspendida(c.id,n.pub,hoy)).forEach(n=>vias.add((n.via||'C')==='S'?'S':'C'));
+  if(vias.has('S')&&vias.has('C'))return 'Mixto';
+  if(vias.has('S'))return 'Suscriptor';
+  if(vias.has('C'))return 'Cliente';
+  return '';
+}
 function pillCat(c){
   if(!c.act)return'<span class="pill p-inact">Inactivo</span>';
-  if(c.cat==='Suscriptor')return'<span class="pill p-susc">Suscriptor</span>';
-  if(c.cat==='Mixto')return'<span class="pill p-mix">Mixto</span>';
-  if(c.cat==='Cliente')return'<span class="pill p-cli">Cliente</span>';
-  return'<span class="pill p-inact">Sin reparto</span>';
+  const k=catDe(c);
+  if(k==='Suscriptor')return'<span class="pill p-susc">Suscriptor</span>';
+  if(k==='Mixto')return'<span class="pill p-mix">Mixto</span>';
+  if(k==='Cliente')return'<span class="pill p-cli">Cliente</span>';
+  return'<span class="pill p-inact">Sin suscripción vigente</span>';
 }
 function diasHTML(fr){
   const dd=FDIAS[norm(fr)];
@@ -484,6 +495,7 @@ function ficha(id,mas){
     <div class="saldonum ${s>0.5?'debe':(s<-0.5?'favor':'aldia')}">${Math.abs(s)>0.5?fmt(s):'Al día'}</div>
     <div class="mini">${s>0.5?'te debe':(s<-0.5?'tiene a favor':'sin deuda')}</div>
     ${devengoDe(c)>0?`<div class="mini" style="margin-top:4px">incluye ${fmt(devengoDe(c))} de consumo devengado automático desde el 01/09</div>`:''}
+    ${devengoDe(c,'S')>0?`<div class="mini" style="margin-top:4px;color:var(--ok)">Vía distribuidora: repartido ${fmt(devengoDe(c,'S'))} de tapa desde el 01/09 → te genera ${fmt(devengoDe(c,'S')*CONFIG.comision/100)} de comisión (no es deuda del cliente)</div>`:''}
     ${sinPrecio(c).length?`<div class="aviso">⚠ ${sinPrecio(c).map(x=>x[0]).join(', ')}: sin precio cargado, no devenga. Cargalo en Precios.</div>`:''}
     ${c.tel?`<div style="margin-top:8px;font-size:14.5px">Tel: <a style="color:var(--azul)" href="tel:${c.tel.replace(/[^0-9+]/g,'')}">${c.tel}</a></div>`:''}
     <div class="grid2">
