@@ -117,7 +117,7 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v28</div></header>
+<header><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v29</div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -549,7 +549,7 @@ async function addMov(id,tipo){
   try{
     await guardar('movs',[...LIVE.movs,r]);
     if(tipo==='Cobro'){
-      const cc={id:nid(),ts:r.ts,f:r.f,c:'0 Cobro a clientes',d:nomCli(id),ing:imp,egr:0,m:r.medio};
+      const cc={id:nid(),ts:r.ts,f:r.f,c:'Cobro a cliente',d:nomCli(id),ing:imp,egr:0,m:r.medio};
       await guardar('caja',[...LIVE.caja,cc]);
     }
     toast(tipo+' guardado ✓'); ficha(id);
