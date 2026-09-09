@@ -117,7 +117,7 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v17</div></header>
+<header><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v18</div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -451,8 +451,10 @@ function diasHTML(fr){
   if(!dd)return fr?`<div class="mini" style="margin-top:6px">${fr}</div>`:'';
   return '<div class="dias">'+DIAS.map((d,i)=>`<div class="dia${dd.includes(i)?' on':''}">${d}</div>`).join('')+'</div>';
 }
-function ficha(id){
+let FMOSTR=20, FULT=null;
+function ficha(id,mas){
   const c=C.find(x=>x.id===id); if(!c)return;
+  if(FULT!==id){FMOSTR=20;FULT=id;} if(mas)FMOSTR+=40;
   const s=saldoDe(c);
   const hoy0=hoyISO();
   const vig=[],susp=[];
@@ -495,10 +497,11 @@ function ficha(id){
     const porNov=x[3]==='V';
     return `<div class="subrow">${x[0]} <span class="tag-susp">${porNov?'suspendida acá':'susp. '+fecha(x[3])}</span> <span class="mini">${x[1]||''}</span>
     <div id="rf-${ix}"><button class="btn chico sec" data-sform="r${ix}" data-pub="${x[0]}" data-cli="${id}" data-acc="Reanudación">Reactivar</button></div></div>`;}).join('')+`</div>`;}
-  h+=`<h2>Movimientos <span class="mini" style="text-transform:none">— tocá una liquidación para ver el desglose</span></h2><div class="card">`+(movs.length?movs.slice(0,20).map((m,i)=>{
+  h+=`<h2>Movimientos <span class="mini" style="text-transform:none">— tocá una liquidación para ver el desglose</span></h2><div class="card">`+(movs.length?movs.slice(0,FMOSTR).map((m,i)=>{
     const esLiq=m.tipo==='Liquidación'&&!m.id;
     return `<div class="mov${esLiq?' liqrow':''}"${esLiq?` data-dlq="${m.f.slice(0,10)}" data-dlc="${id}"`:''}><span class="f">${fecha(m.f)}</span><span class="t">${m.tipo}${m.tipo==='Cobro'&&m.medio?' · '+m.medio:''}</span><span class="m ${m.tipo==='Cobro'?'favor':''}">${m.tipo==='Cobro'?'−':''}${fmt(m.imp)}</span>${m.id?`<button class="del" data-mid="${m.id}" data-cli="${id}">✕</button>`:''}</div><div class="desglose" data-dg="${m.f.slice(0,10)}_${id}" hidden></div>`;
   }).join(''):'<div class="mini">Sin movimientos desde 2024.</div>')+`</div>
+  ${movs.length>FMOSTR?`<div style="text-align:center"><button class="btn chico sec" id="fmas" data-cli="${id}">Ver más (${movs.length-FMOSTR} anteriores)</button></div>`:''}
   <div class="mini" style="margin:8px 0 20px">Cobro = pagó (baja deuda) · el consumo diario se devenga solo según sus suscripciones y precios. Las filas con ✕ se cargaron en este sistema y se pueden borrar.</div>`;
   $('v-ficha').innerHTML=h; ver('ficha');
 }
@@ -771,8 +774,9 @@ function desglose(cid,fliq){
       const p=precioDe(x[0],wd,dia);
       const k=x[0];
       agg[k]=agg[k]||{n:0,tot:0,sp:0};
-      agg[k].n+=(x[5]||1);
-      if(p)agg[k].tot+=p*(x[5]||1); else {agg[k].sp++;sinPrecioN++;}
+      const qn=Math.abs(x[5])||1;
+      agg[k].n+=qn;
+      if(p)agg[k].tot+=p*qn; else {agg[k].sp++;sinPrecioN++;}
     }
     dd.setDate(dd.getDate()+1);
   }
@@ -867,6 +871,7 @@ document.addEventListener('click',function(e){
     case 'ubloq': bloquearUsuario(b.dataset.uid,b.dataset.email,b.dataset.bloq==='1');break;
     case 'uborrar': borrarUsuario(b.dataset.uid,b.dataset.email);break;
     case 'fvolver': ver('clientes');buscar();break;
+    case 'fmas': {const y=window.scrollY;ficha(parseInt(b.dataset.cli),true);window.scrollTo(0,y);break;}
     case 'fbc': formCobro(parseInt(b.dataset.cli));break;
     case 'fbl': formLiq(parseInt(b.dataset.cli));break;
     case 'fok': addMov(parseInt(b.dataset.cli),b.dataset.tipo);break;
