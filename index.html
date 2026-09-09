@@ -117,7 +117,7 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v22</div></header>
+<header><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v23</div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -255,7 +255,8 @@ async function boot(){
     else { $('cargando').innerHTML='No pude leer los datos (la sesión venció o no hay conexión).<br><br><button class="btn" onclick="location.reload()">Recargar</button> <button class="btn sec" id="lsalir">Volver a entrar</button>'; }
     return;
   }
-  C.forEach(c=>{if(REPARTO_ACTIVO.has(c.id))c.act=1;c.k=norm(c.d+' '+c.n+' '+c.id+' '+c.subs.map(x=>x[0]).join(' '));});
+  C=C.filter(c=>REPARTO_ACTIVO.has(c.id)); // limpieza 09/09: solo clientes con reparto activo
+  C.forEach(c=>{c.act=1;c.k=norm(c.d+' '+c.n+' '+c.id+' '+c.subs.map(x=>x[0]).join(' '));});
   armarPIDX();
   $('cargando').hidden=true; $('app').hidden=false; $('tabs').hidden=false;
   $('estado-db').textContent='guardado en la nube ✓';
@@ -389,7 +390,7 @@ function nomCli(id){const c=C.find(x=>x.id===id);return c?(c.d||('Nº '+id)):('N
 /* ------- CLIENTES ------- */
 let RES=[],MOSTR=30,FCLI='todos';
 function setF(f){FCLI=f;document.querySelectorAll('.fch').forEach(x=>x.classList.toggle('on',x.dataset.f===FCLI));buscar();}
-const FDEFS=[['todos','Todos'],['puesto','Del puesto'],['distrib','De la distribuidora'],['mixto','Mixtos'],['reparto','Con reparto activo'],['deudores','Deudores'],['favor','A favor'],['inactivos','Inactivos'],['recup','Ficha recuperada']];
+const FDEFS=[['todos','Todos'],['puesto','Del puesto'],['distrib','De la distribuidora'],['mixto','Mixtos'],['deudores','Deudores'],['favor','A favor'],['recup','Ficha recuperada']];
 function pintarClientes(){
   $('v-clientes').innerHTML=`<div style="position:sticky;top:0;background:var(--papel);padding:8px 0;z-index:5">
   <input id="bq" type="search" placeholder="Dirección, nombre, Nº o publicación (ej: ole)…" autocomplete="off" oninput="buscar()">
@@ -474,7 +475,7 @@ function ficha(id,mas){
   <div class="card cabecera">
     <div class="dom">${c.d||'(sin domicilio)'}</div>
     <div class="mini" style="font-size:15px">${c.n||'Sin nombre'} · Nº ${c.id}</div>
-    <div class="chips">${pillCat(c)}${REPARTO_ACTIVO.has(c.id)?'<span class="pill p-cli">Reparto activo</span>':''}${c.fic==='recuperado'?'<span class="pill p-warn">Ficha recuperada</span>':''}</div>
+    <div class="chips">${pillCat(c)}${c.fic==='recuperado'?'<span class="pill p-warn">Ficha recuperada</span>':''}</div>
     <div class="saldonum ${s>0.5?'debe':(s<-0.5?'favor':'aldia')}">${Math.abs(s)>0.5?fmt(s):'Al día'}</div>
     <div class="mini">${s>0.5?'te debe':(s<-0.5?'tiene a favor':'sin deuda')}</div>
     ${devengoDe(c)>0?`<div class="mini" style="margin-top:4px">incluye ${fmt(devengoDe(c))} de consumo devengado automático desde el 01/09</div>`:''}
