@@ -117,7 +117,7 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v26</div></header>
+<header><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v27</div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -372,7 +372,7 @@ function pintarInicio(){
   const cajaHoy=LIVE.caja.filter(r=>(r.f||'').startsWith(hoy));
   const ing=cajaHoy.reduce((n,r)=>n+(r.ing||0),0), egr=cajaHoy.reduce((n,r)=>n+(r.egr||0),0);
   const ult=[...LIVE.movs.map(r=>({...r,_t:'mov'})),...LIVE.caja.map(r=>({...r,_t:'caja'}))].sort((a,b)=>(b.ts||'').localeCompare(a.ts||'')).slice(0,8);
-  const sd=LIVE.dist.reduce((n,r)=>n+(r.imp||0),0);
+  const sd=saldoDistribuidora();
   $('v-inicio').innerHTML=`
   <div class="stats">
     <div class="stat"><b>${act.length}</b><i>clientes activos</i></div>
@@ -662,14 +662,17 @@ function pintarDist(){
   const mesAct=hoyISO().slice(0,7);
   let repMes=0,repTot=0;
   C.forEach(c=>{const d=devengoDe(c,'S');repTot+=d;});
-  const saldoNuevo=LIVE.dist.reduce((n,r)=>n+(r.imp||0),0);
+  const cargado=LIVE.dist.reduce((n,r)=>n+(r.imp||0),0);
+  const comi=comisionDevengada();
+  const saldoNuevo=cargado-comi;
   const rows=[...LIVE.dist].sort((a,b)=>(b.ts||'').localeCompare(a.ts||''));
   $('v-dist').innerHTML=`
   <div class="stats">
-    <div class="stat"><b class="${saldoNuevo>0?'debe':(saldoNuevo<0?'favor':'')}">${fmt(saldoNuevo)}</b><i>${saldoNuevo>=0?'le debés':'te debe'}</i></div>
+    <div class="stat"><b class="${saldoNuevo>0.5?'debe':(saldoNuevo<-0.5?'favor':'aldia')}">${fmt(saldoNuevo)}</b><i>${saldoNuevo>0.5?'le debés':(saldoNuevo<-0.5?'te debe':'al día')}</i></div>
     <div class="stat"><b>${fmt(repTot)}</b><i>valor tapa repartido a suscriptores desde el 01/09</i></div>
-    <div class="stat"><b class="favor">${fmt(repTot*CONFIG.comision/100)}</b><i>tu comisión (${CONFIG.comision}% de tapa) por ese reparto</i></div>
+    <div class="stat"><b class="favor">${fmt(comi)}</b><i>comisión devengada a tu favor (${CONFIG.comision}% de tapa)</i></div>
   </div>
+  <div class="mini" style="margin:2px 0 8px">Saldo = movimientos cargados acá (${cargado<0?'−':''}${fmt(cargado)}) − comisión devengada por el reparto a suscriptores (${fmt(comi)}). Cada entrega a un suscriptor suma comisión a tu favor automáticamente.</div>
   <div class="card"><b>Comisión sobre precio de tapa</b>
     <div class="mini" style="margin:4px 0 6px">Lo que repartís a los suscriptores lo cobra la distribuidora; a vos te corresponde este % del precio de tapa. Ej.: diario a $1.000 → te deben $${Math.round(1000*CONFIG.comision/100)}.</div>
     <div style="display:flex;gap:8px;align-items:center"><input id="dcom" type="number" inputmode="decimal" step="0.5" min="0" max="100" value="${CONFIG.comision}" style="max-width:110px"> <span>%</span> <button class="btn chico sec" id="dcomok">Guardar</button></div>
@@ -695,6 +698,8 @@ function pintarDist(){
   window.masDist=function(){DMOSTR+=40;pintaDH();};
   pintaDH();
 }
+function comisionDevengada(){ let t=0; C.forEach(c=>{t+=devengoDe(c,'S');}); return t*CONFIG.comision/100; }
+function saldoDistribuidora(){ return LIVE.dist.reduce((n,r)=>n+(r.imp||0),0)-comisionDevengada(); }
 async function guardarComision(){
   const v=parseFloat($('dcom').value);
   if(isNaN(v)||v<0||v>100){toast('Poné un porcentaje entre 0 y 100');return;}
