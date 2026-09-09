@@ -117,7 +117,7 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v31</div></header>
+<header><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v32</div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -246,7 +246,7 @@ async function boot(){
     if(cf&&typeof cf.comision==='number') CONFIG.comision=cf.comision;
     C=[...(c1?.rows||[]),...(c2?.rows||[]),...(c3?.rows||[])].map(r=>({...r}));
     PRECIOS=pr?.rows||[]; CAJAH=ch?.rows||[]; if(ls) LISTAS=ls;
-    LIVE.movs=m1?.rows||[]; LIVE.caja=[...CAJA_INICIAL,...(m2?.rows||[])]; LIVE.precios=m3?.rows||[]; LIVE.novedades=m4?.rows||[];
+    LIVE.movs=[...AJUSTES_INICIALES,...(m1?.rows||[])]; LIVE.caja=[...CAJA_INICIAL,...(m2?.rows||[])]; LIVE.precios=m3?.rows||[]; LIVE.novedades=m4?.rows||[];
     DISTH=dh?.rows||[]; LIVE.dist=dl?.rows||[];
   }catch(e){
     $('cargando').innerHTML='Error cargando datos: '+((e&&e.message)||e);
@@ -269,7 +269,7 @@ async function boot(){
 async function guardar(col,rows){
   const persist=rows.filter(r=>!r.fijo);
   await db.doc('live/'+col).set({rows:persist});
-  LIVE[col]=(col==='caja')?[...CAJA_INICIAL,...persist]:persist;
+  LIVE[col]=(col==='caja')?[...CAJA_INICIAL,...persist]:(col==='movs')?[...AJUSTES_INICIALES,...persist]:persist;
   if(col==='feriados') FER=new Set(persist.map(r=>r.f));
   SCACHE={};
   if(col==='precios') armarPIDX();
@@ -299,6 +299,8 @@ function precioDe(pub,wd,dia){
 /* ------- devengo diario (desde 01/09/2026; la liquidación del 02/09 cubrió agosto) ------- */
 const DEV0='2026-09-01';
 // Saldo de caja chica al 08/09/2026 según Demian (09/09): $130.000 en efectivo. Fila fija, no se borra desde la app.
+// Ajustes iniciales (09/09/2026, decisión de Demian): suscriptores puros con saldo residual de NewsPaper y sin movimientos desde 2024 → saldo a cero. [cliente, importe del ajuste]
+const AJUSTES_INICIALES=[[7,282.95],[9,366.7],[37,-29.25],[84,-40.3],[94,401.9],[126,-9087.05],[141,-445.95],[146,149.4],[169,-13.5],[223,57.0],[246,36.9],[254,75.35],[270,82.8],[272,-105.85],[288,2372.45],[291,470.65],[304,150.85],[324,-402.6],[339,15.8],[341,-624.9],[349,116.6],[365,121.9],[427,2476.0],[436,347.6],[448,-58.1],[453,92.8],[456,475.95],[458,339.45],[460,325.45],[600,148.0],[649,-94.45],[753,-112.3],[773,-94.9],[781,-3.35],[815,-1449.8],[835,84.85],[838,647.3],[873,-65.1],[891,78.1],[929,3.25],[995,-9.0],[1048,91.0],[1052,-20.0],[1374,184.7]].map(([cli,imp])=>({id:'aj0-'+cli,ts:'2026-08-31T23:59:00.000Z',cli,tipo:'Ajuste',imp,f:'2026-08-31',medio:'',nota:'Saldo a cero: resto de NewsPaper anterior a 2024',fijo:1}));
 const CAJA_INICIAL=[{id:'ini-caja-20260908',ts:'2026-09-08T00:00:00.000Z',f:'2026-09-08',c:'Cambio inicial',d:'Caja chica al 08/09 (saldo inicial)',ing:130000,egr:0,m:'Efectivo',fijo:1}];
 // Clientes activos reales (166): aparecen en las hojas de reparto de NewsPaper de la semana del 08/09/2026 (163) o tienen entrega registrada 25/08–08/09 (3 más).
 const REPARTO_ACTIVO=new Set([6, 7, 9, 12, 15, 16, 22, 28, 37, 40, 50, 76, 82, 84, 86, 91, 92, 94, 96, 97, 109, 110, 117, 119, 126, 141, 146, 169, 223, 230, 240, 244, 246, 254, 255, 265, 270, 272, 279, 288, 289, 291, 304, 324, 327, 328, 339, 341, 349, 350, 365, 369, 393, 395, 404, 406, 409, 418, 423, 426, 427, 434, 436, 448, 453, 455, 456, 458, 460, 472, 492, 504, 527, 543, 558, 579, 581, 600, 649, 662, 665, 667, 684, 713, 734, 753, 773, 781, 798, 815, 819, 825, 835, 838, 839, 841, 845, 847, 853, 871, 873, 883, 890, 891, 897, 905, 923, 929, 995, 1006, 1043, 1048, 1051, 1052, 1057, 1074, 1075, 1077, 1098, 1099, 1110, 1118, 1157, 1162, 1166, 1173, 1181, 1189, 1219, 1224, 1231, 1255, 1256, 1264, 1266, 1290, 1301, 1306, 1322, 1325, 1365, 1367, 1374, 1414, 1424, 1430, 1466, 1467, 1471, 1472, 1480, 1493, 1499, 1532, 1534, 1633, 1644, 1645, 1649, 1651, 1658, 1668, 1671, 1692, 1694, 1696]);
@@ -497,7 +499,7 @@ function ficha(id,mas){
     else susp.push(x);
   });
   susp.sort((a,b)=>(b[3]||'').localeCompare(a[3]||''));
-  const movLive=LIVE.movs.filter(m=>m.cli===id).map(m=>({f:m.f,tipo:m.tipo,imp:(m.tipo==='Cobro'?-m.imp:m.imp),medio:m.medio,id:m.id}));
+  const movLive=LIVE.movs.filter(m=>m.cli===id).map(m=>({f:m.f,tipo:m.tipo,imp:(m.tipo==='Cobro'?-m.imp:m.imp),medio:m.medio,id:m.fijo?'':m.id,nota:m.nota}));
   const movs=[...c.movs.map(m=>({f:m[0],tipo:m[1],imp:m[2],medio:m[3]})),...movLive].sort((a,b)=>(b.f||'').localeCompare(a.f||''));
   const novs=LIVE.novedades.filter(n=>n.cli===id);
   let h=`<button class="volver" id="fvolver">← Volver</button>
@@ -535,7 +537,7 @@ function ficha(id,mas){
     <div id="rf-${ix}"><button class="btn chico sec" data-sform="r${ix}" data-pub="${x[0]}" data-cli="${id}" data-acc="Reanudación">Reactivar</button></div></div>`;}).join('')+`</div>`;}
   h+=`<h2>Movimientos <span class="mini" style="text-transform:none">— tocá una liquidación para ver el desglose</span></h2><div class="card">`+(movs.length?movs.slice(0,FMOSTR).map((m,i)=>{
     const esLiq=m.tipo==='Liquidación'&&!m.id;
-    return `<div class="mov${esLiq?' liqrow':''}"${esLiq?` data-dlq="${m.f.slice(0,10)}" data-dlc="${id}"`:''}><span class="f">${fecha(m.f)}</span><span class="t">${m.tipo}${m.tipo==='Cobro'&&m.medio?' · '+m.medio:''}</span><span class="m ${m.tipo==='Cobro'?'favor':''}">${m.tipo==='Cobro'?'−':''}${fmt(m.imp)}</span>${m.id?`<button class="del" data-mid="${m.id}" data-cli="${id}">✕</button>`:''}</div><div class="desglose" data-dg="${m.f.slice(0,10)}_${id}" hidden></div>`;
+    return `<div class="mov${esLiq?' liqrow':''}"${esLiq?` data-dlq="${m.f.slice(0,10)}" data-dlc="${id}"`:''}><span class="f">${fecha(m.f)}</span><span class="t">${m.tipo}${m.tipo==='Cobro'&&m.medio?' · '+m.medio:''}${m.nota?' <span class="mini">· '+m.nota+'</span>':''}</span><span class="m ${m.tipo==='Cobro'?'favor':''}">${m.tipo==='Cobro'?'−':''}${fmt(m.imp)}</span>${m.id?`<button class="del" data-mid="${m.id}" data-cli="${id}">✕</button>`:''}</div><div class="desglose" data-dg="${m.f.slice(0,10)}_${id}" hidden></div>`;
   }).join(''):'<div class="mini">Sin movimientos desde 2024.</div>')+`</div>
   ${movs.length>FMOSTR?`<div style="text-align:center"><button class="btn chico sec" id="fmas" data-cli="${id}">Ver más (${movs.length-FMOSTR} anteriores)</button></div>`:''}
   <div class="mini" style="margin:8px 0 20px">Cobro = pagó (baja deuda) · el consumo diario se devenga solo según sus suscripciones y precios. Las filas con ✕ se cargaron en este sistema y se pueden borrar.</div>`;
