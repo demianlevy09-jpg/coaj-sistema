@@ -117,7 +117,7 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v20</div></header>
+<header><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v21</div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -291,8 +291,8 @@ function precioDe(pub,wd,dia){
 }
 /* ------- devengo diario (desde 01/09/2026; la liquidación del 02/09 cubrió agosto) ------- */
 const DEV0='2026-09-01';
-// Clientes con entrega registrada en NewsPaper entre el 25/08 y el 08/09/2026 (139). Base para el filtro "Con reparto activo".
-const REPARTO_ACTIVO=new Set([6, 7, 9, 12, 15, 16, 22, 28, 37, 40, 76, 82, 84, 86, 91, 92, 94, 96, 97, 109, 117, 119, 126, 141, 146, 169, 223, 230, 240, 244, 246, 254, 265, 270, 272, 279, 288, 289, 291, 304, 324, 327, 328, 339, 341, 349, 350, 365, 369, 393, 395, 406, 426, 427, 434, 436, 448, 453, 455, 456, 458, 460, 504, 527, 543, 558, 579, 581, 600, 649, 662, 665, 684, 713, 753, 773, 781, 815, 819, 825, 835, 838, 839, 845, 847, 853, 871, 873, 883, 890, 891, 897, 905, 995, 1006, 1048, 1051, 1052, 1074, 1075, 1077, 1098, 1099, 1110, 1118, 1157, 1162, 1166, 1173, 1181, 1189, 1219, 1224, 1231, 1255, 1264, 1266, 1290, 1301, 1306, 1322, 1367, 1424, 1430, 1466, 1467, 1471, 1472, 1493, 1499, 1534, 1644, 1645, 1651, 1668, 1671, 1692, 1694, 1696]);
+// Clientes activos reales (166): aparecen en las hojas de reparto de NewsPaper de la semana del 08/09/2026 (163) o tienen entrega registrada 25/08–08/09 (3 más).
+const REPARTO_ACTIVO=new Set([6, 7, 9, 12, 15, 16, 22, 28, 37, 40, 50, 76, 82, 84, 86, 91, 92, 94, 96, 97, 109, 110, 117, 119, 126, 141, 146, 169, 223, 230, 240, 244, 246, 254, 255, 265, 270, 272, 279, 288, 289, 291, 304, 324, 327, 328, 339, 341, 349, 350, 365, 369, 393, 395, 404, 406, 409, 418, 423, 426, 427, 434, 436, 448, 453, 455, 456, 458, 460, 472, 492, 504, 527, 543, 558, 579, 581, 600, 649, 662, 665, 667, 684, 713, 734, 753, 773, 781, 798, 815, 819, 825, 835, 838, 839, 841, 845, 847, 853, 871, 873, 883, 890, 891, 897, 905, 923, 929, 995, 1006, 1043, 1048, 1051, 1052, 1057, 1074, 1075, 1077, 1098, 1099, 1110, 1118, 1157, 1162, 1166, 1173, 1181, 1189, 1219, 1224, 1231, 1255, 1256, 1264, 1266, 1290, 1301, 1306, 1322, 1325, 1365, 1367, 1374, 1414, 1424, 1430, 1466, 1467, 1471, 1472, 1480, 1493, 1499, 1532, 1534, 1633, 1644, 1645, 1649, 1651, 1658, 1668, 1671, 1692, 1694, 1696]);
 function suspendida(cli,titulo,dia){
   let sus=false;
   const nvs=LIVE.novedades.filter(n=>n.cli===cli&&(!n.pub||norm(titulo).includes(norm(n.pub))||norm(n.pub).includes(norm(titulo)))).sort((a,b)=>(a.desde||'').localeCompare(b.desde||''));
