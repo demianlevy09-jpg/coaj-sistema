@@ -117,7 +117,7 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v25</div></header>
+<header><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v26</div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -215,6 +215,7 @@ document.addEventListener('click',async e=>{
 let db=null, C=[], PRECIOS=[], CAJAH=[], LISTAS={medios:[],conceptos:[],tipos:[]};
 const CONCEPTOS_CAJA=['Cobro a cliente','Venta mostrador','Cobro distribuidora','Pago a distribuidora','Pago a empleado','Gasto','Retiro','Cambio inicial','Transferencia entre cuentas','Otro'];
 let LIVE={movs:[],caja:[],precios:[],novedades:[],dist:[]};
+let CONFIG={comision:32}; // % del precio de tapa que le corresponde a COHAJ por lo repartido a suscriptores (dato de Demian 09/09: 32%)
 let DISTH=[];
 const $=id=>document.getElementById(id);
 const fmt=n=>'$'+Math.abs(n).toLocaleString('es-AR',{maximumFractionDigits:0});
@@ -237,9 +238,10 @@ async function boot(){
       db.doc('seed/clientes_1').get(),db.doc('seed/clientes_2').get(),db.doc('seed/clientes_3').get(),
       db.doc('seed/precios').get(),db.doc('seed/caja_hist').get(),db.doc('seed/listas').get(),
       db.doc('live/movs').get(),db.doc('live/caja').get(),db.doc('live/precios').get(),db.doc('live/novedades').get(),
-      db.doc('seed/dist').get(),db.doc('live/dist').get()
+      db.doc('seed/dist').get(),db.doc('live/dist').get(),db.doc('live/config').get()
     ]);
-    const [c1,c2,c3,pr,ch,ls,m1,m2,m3,m4,dh,dl]=lecturas.map(dget);
+    const [c1,c2,c3,pr,ch,ls,m1,m2,m3,m4,dh,dl,cf]=lecturas.map(dget);
+    if(cf&&typeof cf.comision==='number') CONFIG.comision=cf.comision;
     C=[...(c1?.rows||[]),...(c2?.rows||[]),...(c3?.rows||[])].map(r=>({...r}));
     PRECIOS=pr?.rows||[]; CAJAH=ch?.rows||[]; if(ls) LISTAS=ls;
     LIVE.movs=m1?.rows||[]; LIVE.caja=[...CAJA_INICIAL,...(m2?.rows||[])]; LIVE.precios=m3?.rows||[]; LIVE.novedades=m4?.rows||[];
@@ -666,8 +668,12 @@ function pintarDist(){
   <div class="stats">
     <div class="stat"><b class="${saldoNuevo>0?'debe':(saldoNuevo<0?'favor':'')}">${fmt(saldoNuevo)}</b><i>${saldoNuevo>=0?'le debés':'te debe'}</i></div>
     <div class="stat"><b>${fmt(repTot)}</b><i>valor tapa repartido a suscriptores desde el 01/09</i></div>
+    <div class="stat"><b class="favor">${fmt(repTot*CONFIG.comision/100)}</b><i>tu comisión (${CONFIG.comision}% de tapa) por ese reparto</i></div>
   </div>
-  <div class="aviso">Lo que repartís a los suscriptores lo cobra la distribuidora: a vos te corresponde una comisión por el reparto que todavía está SIN DEFINIR. Cuando la sepas, la cargamos y esto se convierte en plata a tu favor.</div>
+  <div class="card"><b>Comisión sobre precio de tapa</b>
+    <div class="mini" style="margin:4px 0 6px">Lo que repartís a los suscriptores lo cobra la distribuidora; a vos te corresponde este % del precio de tapa. Ej.: diario a $1.000 → te deben $${Math.round(1000*CONFIG.comision/100)}.</div>
+    <div style="display:flex;gap:8px;align-items:center"><input id="dcom" type="number" inputmode="decimal" step="0.5" min="0" max="100" value="${CONFIG.comision}" style="max-width:110px"> <span>%</span> <button class="btn chico sec" id="dcomok">Guardar</button></div>
+  </div>
   <div class="card"><b>Cargar movimiento con la distribuidora</b>
     <label>Tipo</label><select id="dtipo"><option value="1">Liquidación / mercadería recibida (le debés más)</option><option value="-1">Pago que le hiciste (le debés menos)</option><option value="-2">Crédito a tu favor (comisión, devolución)</option></select>
     <label>Importe $</label><input id="dimp" type="number" inputmode="decimal">
@@ -688,6 +694,11 @@ function pintarDist(){
   }
   window.masDist=function(){DMOSTR+=40;pintaDH();};
   pintaDH();
+}
+async function guardarComision(){
+  const v=parseFloat($('dcom').value);
+  if(isNaN(v)||v<0||v>100){toast('Poné un porcentaje entre 0 y 100');return;}
+  try{ await db.doc('live/config').set({...CONFIG,comision:v}); CONFIG.comision=v; toast('Comisión guardada ✓'); pintarDist(); }catch(e){toast('Error: '+((e&&e.message)||e));}
 }
 async function addDist(){
   const imp=parseFloat($('dimp').value);
@@ -887,6 +898,7 @@ document.addEventListener('click',function(e){
     case 'pok': addPrecio();break;
     case 'nok': addNov();break;
     case 'dok': addDist();break;
+    case 'dcomok': guardarComision();break;
   }
 });
 document.addEventListener('input',function(e){
