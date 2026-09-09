@@ -117,7 +117,7 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v21</div></header>
+<header><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v22</div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -255,7 +255,7 @@ async function boot(){
     else { $('cargando').innerHTML='No pude leer los datos (la sesión venció o no hay conexión).<br><br><button class="btn" onclick="location.reload()">Recargar</button> <button class="btn sec" id="lsalir">Volver a entrar</button>'; }
     return;
   }
-  C.forEach(c=>{c.k=norm(c.d+' '+c.n+' '+c.id+' '+c.subs.map(x=>x[0]).join(' '));});
+  C.forEach(c=>{if(REPARTO_ACTIVO.has(c.id))c.act=1;c.k=norm(c.d+' '+c.n+' '+c.id+' '+c.subs.map(x=>x[0]).join(' '));});
   armarPIDX();
   $('cargando').hidden=true; $('app').hidden=false; $('tabs').hidden=false;
   $('estado-db').textContent='guardado en la nube ✓';
