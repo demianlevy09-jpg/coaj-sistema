@@ -140,7 +140,7 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v37</span></div></div><div class="hb" id="hbtns"></div></header>
+<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v38</span></div></div><div class="hb" id="hbtns"></div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -447,29 +447,36 @@ function pintarInicio(){
 function nomCli(id){const c=C.find(x=>x.id===id);return c?(c.d||('Nº '+id)):('Nº '+id);}
 
 /* ------- CLIENTES ------- */
-let RES=[],MOSTR=30,FCLI='todos';
-function setF(f){FCLI=f;document.querySelectorAll('.fch').forEach(x=>x.classList.toggle('on',x.dataset.f===FCLI));buscar();}
+let RES=[],MOSTR=30,FSEL=new Set(); // filtros seleccionados (varios a la vez)
+// Grupos de filtros: dentro de un grupo se suman (O); entre grupos se cruzan (Y).
+// Tipo: puesto = SOLO le cobrás vos · distrib = SOLO vía distribuidora · mixto = las dos cosas.
+const FGRUPOS={tipo:['puesto','distrib','mixto'],saldo:['deudores','favor'],estado:['inactivos','recup']};
+const FTEST={
+  puesto:c=>catDe(c)==='Cliente', distrib:c=>catDe(c)==='Suscriptor', mixto:c=>catDe(c)==='Mixto',
+  deudores:(c,s)=>s>0.5, favor:(c,s)=>s<-0.5,
+  inactivos:c=>!c.act, recup:c=>c.fic==='recuperado'
+};
+function setF(f){
+  if(f==='todos') FSEL.clear(); else if(FSEL.has(f)) FSEL.delete(f); else FSEL.add(f);
+  document.querySelectorAll('.fch').forEach(x=>x.classList.toggle('on',x.dataset.f==='todos'?FSEL.size===0:FSEL.has(x.dataset.f)));
+  buscar();
+}
 const FDEFS=[['todos','Todos'],['puesto','Del puesto'],['distrib','De la distribuidora'],['mixto','Mixtos'],['deudores','Deudores'],['favor','A favor'],['inactivos','Inactivos'],['recup','Ficha recuperada']];
 function pintarClientes(){
   $('v-clientes').innerHTML=`<div style="position:sticky;top:0;background:var(--papel);padding:8px 0;z-index:5">
   <input id="bq" type="search" placeholder="Dirección, nombre, Nº o publicación (ej: ole)…" autocomplete="off" oninput="buscar()">
   ${toggleSaldoHTML()}
-  <div class="fchips">${FDEFS.map(f=>`<button class="fch${FCLI===f[0]?' on':''}" data-f="${f[0]}" onclick="setF('${f[0]}')">${f[1]}</button>`).join('')}</div></div>
+  <div class="fchips">${FDEFS.map(f=>`<button class="fch${(f[0]==='todos'?FSEL.size===0:FSEL.has(f[0]))?' on':''}" data-f="${f[0]}">${f[1]}</button>`).join('')}</div></div>
   <div class="mini" id="bres" style="margin-bottom:6px"></div>
   <div id="blist"></div><button class="btn sec" id="bmas" hidden style="width:100%">Mostrar más</button>`;
   buscar();
 }
 function pasaFiltro(c,s){
-  switch(FCLI){
-    case 'puesto': return c.act&&(catDe(c)==='Cliente'||catDe(c)==='Mixto');
-    case 'distrib': return c.act&&(catDe(c)==='Suscriptor'||catDe(c)==='Mixto');
-    case 'mixto': return catDe(c)==='Mixto';
-    case 'deudores': return s>0.5;
-    case 'favor': return s<-0.5;
-    case 'inactivos': return !c.act;
-    case 'recup': return c.fic==='recuperado';
-    default: return true;
+  for(const g of Object.values(FGRUPOS)){
+    const act=g.filter(k=>FSEL.has(k));
+    if(act.length&&!act.some(k=>FTEST[k](c,s))) return false;
   }
+  return true;
 }
 function buscar(){
  try{
@@ -478,12 +485,12 @@ function buscar(){
   window.__dbg='q=«'+q+'»';
   let base=C.map(c=>({c,s:saldoDe(c)}));
   if(q){const p=q.split(/\s+/);base=base.filter(x=>p.every(t=>(x.c.k||'').includes(t)));}
-  else if(FCLI==='todos') base=base.filter(x=>x.c.act);
+  else if(!FSEL.has('inactivos')) base=base.filter(x=>x.c.act);
   base=base.filter(x=>pasaFiltro(x.c,x.s));
   RES=base.sort((a,b)=>(b.c.act-a.c.act)||Math.abs(b.s)-Math.abs(a.s));
   MOSTR=30;pintarLista();
   const tot=RES.reduce((n,x)=>n+x.s,0);
-  $('bres').innerHTML=RES.length+' clientes · saldo neto '+(tot>=0?'debe ':'a favor ')+fmt(tot)+(FCLI==='deudores'&&!q?` &nbsp; <button class="btn chico sec" id="bimp" style="margin-top:0;padding:5px 10px;font-size:12px">🖨 Imprimir resúmenes (${RES.length}, 3 por hoja)</button>`:'');
+  $('bres').innerHTML=RES.length+' clientes · saldo neto '+(tot>=0?'debe ':'a favor ')+fmt(tot)+(FSEL.has('deudores')&&!q?` &nbsp; <button class="btn chico sec" id="bimp" style="margin-top:0;padding:5px 10px;font-size:12px">🖨 Imprimir resúmenes (${RES.length}, 3 por hoja)</button>`:'');
   window.__dbg+=' → '+RES.length+' result.';
  }catch(e){
   window.__dbg='ERROR buscar: '+(e&&e.message);
@@ -1007,7 +1014,7 @@ document.addEventListener('click',function(e){
   const tab=e.target.closest('.tab');
   if(tab){ver(tab.dataset.v);const p={inicio:pintarInicio,caja:pintarCaja,precios:pintarPrecios,novedades:pintarNovedades,dist:pintarDist}[tab.dataset.v];if(p)p();return;}
   const fch=e.target.closest('.fch');
-  if(fch){FCLI=fch.dataset.f;document.querySelectorAll('.fch').forEach(x=>x.classList.toggle('on',x.dataset.f===FCLI));buscar();return;}
+  if(fch){setF(fch.dataset.f);return;}
   const del=e.target.closest('.del');
   if(del){
     if(del.dataset.mid) borrarMov(del.dataset.mid,parseInt(del.dataset.cli));
