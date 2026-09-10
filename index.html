@@ -3,23 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#15171B">
+<meta name="theme-color" content="#F4F5F7">
 <title>COHAJ Sistema</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;900&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
 :root{
-  --papel:#F6F4EE; --tarjeta:#FFFFFF; --tinta:#1C1B17; --tinta2:#5C594F;
-  --linea:#E2DED2; --azul:#23538F; --azulsuave:#E8EEF7;
-  --ok:#1F7A3D; --oksuave:#E4F1E7; --rojo:#B3261E; --rojosuave:#F9E9E7;
-  --ambar:#8A6100; --ambarsuave:#F6EED9;
-}
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    --papel:#15171B; --tarjeta:#1E2126; --tinta:#EDEAE2; --tinta2:#A5A198;
-    --linea:#31353C; --azul:#7FA8DC; --azulsuave:#22314A;
-    --ok:#6FC48C; --oksuave:#1D3326; --rojo:#E58B84; --rojosuave:#42221F;
-    --ambar:#D9B45C; --ambarsuave:#3A3120;
-  }
+  --papel:#F4F5F7; --tarjeta:#FFFFFF; --tinta:#16181D; --tinta2:#6B7080;
+  --linea:#E3E5EA; --azul:#2F6FED; --azulsuave:#EAF0FD;
+  --ok:#1E9E5A; --oksuave:#E9F7EF; --okborde:#BFE6CE;
+  --rojo:#D6453D; --rojosuave:#FCEBEA; --rojoborde:#F1C4C1;
+  --ambar:#B8760A; --ambarsuave:#FDF4E3; --ambarborde:#F0D9A8;
 }
 :root[data-theme="dark"]{
   --papel:#15171B; --tarjeta:#1E2126; --tinta:#EDEAE2; --tinta2:#A5A198;
@@ -44,10 +37,52 @@ header .hb .btn.chico{margin-top:0;padding:8px 12px;font-size:13px}
 .tab{flex:1;text-align:center;padding:10px 2px 12px;font-size:12.5px;font-weight:600;color:var(--tinta2);cursor:pointer;border:none;background:none;font-family:inherit}
 .tab .ic{display:block;font-size:20px;margin-bottom:1px}
 .tab.on{color:var(--azul)}
-.card{background:var(--tarjeta);border:1px solid var(--linea);border-radius:10px;padding:14px;margin-bottom:10px}
+.tabs .tl-l,.sb-top,.sb-foot{display:none}
+.sb-nav{display:flex;flex:1}
+/* ------- inicio (Hola, …) ------- */
+.hola h1{font-family:'Archivo',sans-serif;font-weight:900;font-size:28px;letter-spacing:-.5px;margin:10px 0 2px}
+.sec{display:flex;align-items:center;gap:8px;font-family:'Archivo',sans-serif;font-weight:700;font-size:12.5px;letter-spacing:1px;text-transform:uppercase;color:var(--tinta2);margin:26px 0 10px}
+.sec .dot{width:8px;height:8px;border-radius:50%;background:var(--azul);flex:none}
+.sec.ok{color:var(--ok)} .sec.ok .dot{background:var(--ok)}
+.sec.rojo{color:var(--rojo)} .sec.rojo .dot{background:var(--rojo)}
+.sec.amb{color:var(--ambar)} .sec.amb .dot{background:var(--ambar)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.kpi{background:var(--tarjeta);border:1px solid var(--linea);border-left:4px solid var(--linea);border-radius:12px;padding:15px 18px 14px;min-height:92px}
+.kpi.click{cursor:pointer;transition:box-shadow .15s} .kpi.click:hover{box-shadow:0 3px 10px rgba(20,30,60,.08)}
+.kpi i{display:block;font-style:normal;font-size:13px;color:var(--tinta2)}
+.kpi b{display:block;font-family:'Archivo',sans-serif;font-weight:800;font-size:24px;line-height:1.1;margin:5px 0 4px;font-variant-numeric:tabular-nums;letter-spacing:-.3px}
+.kpi b small{font-family:'IBM Plex Sans',sans-serif;font-weight:500;font-size:14px;color:var(--tinta2);letter-spacing:0}
+.kpi.ok{border-color:var(--okborde);border-left-color:var(--ok);background:var(--oksuave)} .kpi.ok b{color:var(--ok)}
+.kpi.rojo{border-color:var(--rojoborde);border-left-color:var(--rojo);background:var(--rojosuave)} .kpi.rojo b{color:var(--rojo)}
+.kpi.amb{border-color:var(--ambarborde);border-left-color:var(--ambar);background:var(--ambarsuave)} .kpi.amb b{color:var(--ambar)}
+.kpi.gris{border-left-style:dashed} .kpi.gris b{color:var(--tinta2);opacity:.75}
+.kpi.punteado{border-style:dashed;border-left-style:solid}
+.kpi .acc{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px} .kpi .acc .btn{margin-top:0}
+@media (min-width:900px){
+  body{padding:0}
+  .wrap{max-width:none;margin:0;padding:26px 40px 60px 292px}
+  .wrap>#app,.wrap>#cargando{max-width:1040px}
+  header{display:none}
+  .tabs{top:0;bottom:0;right:auto;width:252px;flex-direction:column;border-top:none;border-right:1px solid var(--linea);padding:22px 14px 18px;background:var(--papel)}
+  .sb-top{display:block;padding:0 12px 16px;margin-bottom:10px;border-bottom:1px solid var(--linea)}
+  .sb-top .marca{font-size:22px}
+  .sb-nav{flex-direction:column;gap:2px}
+  .tab{flex:none;display:flex;align-items:center;gap:10px;text-align:left;padding:10px 12px;border-radius:9px;font-size:15px;font-weight:500;color:var(--tinta)}
+  .tab .ic{display:inline-block;font-size:15px;margin:0;width:20px;text-align:center;color:var(--tinta2)}
+  .tab.on{background:var(--tarjeta);color:var(--azul);font-weight:600;box-shadow:0 1px 2px rgba(20,30,60,.06)}
+  .tab.on .ic{color:var(--azul)}
+  .tabs .tl-c{display:none} .tabs .tl-l{display:inline}
+  .sb-foot{display:block;border-top:1px solid var(--linea);padding-top:12px}
+  .sb-foot .hb{flex-direction:column;margin:0;gap:2px}
+  .sb-foot .btn.chico{margin:0;background:none;border:none;color:var(--tinta2);text-align:left;padding:8px 12px;font-weight:500;font-size:14px;border-radius:8px}
+  .sb-foot .btn.chico:hover{color:var(--tinta);background:var(--tarjeta)}
+  .toast{bottom:30px}
+  .hola h1{font-size:32px}
+}
+.card{background:var(--tarjeta);border:1px solid var(--linea);border-radius:12px;padding:14px 16px;margin-bottom:10px}
 h2{font-family:'Archivo',sans-serif;font-weight:700;font-size:13.5px;text-transform:uppercase;letter-spacing:.8px;color:var(--tinta2);margin:20px 0 8px}
 .stats{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 4px}
-.stat{background:var(--tarjeta);border:1px solid var(--linea);border-radius:8px;padding:8px 12px;flex:1;min-width:88px}
+.stat{background:var(--tarjeta);border:1px solid var(--linea);border-left:3px solid var(--azul);border-radius:10px;padding:10px 14px;flex:1;min-width:110px}
 .stat b{display:block;font-family:'Archivo',sans-serif;font-weight:700;font-size:18px;font-variant-numeric:tabular-nums}
 .stat i{font-style:normal;font-size:11px;color:var(--tinta2);text-transform:uppercase;letter-spacing:.4px}
 .debe{color:var(--rojo)} .favor{color:var(--ok)} .aldia{color:var(--tinta2)}
@@ -148,7 +183,7 @@ select.apagado{opacity:.45}
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v43</span></div></div><div class="hb" id="hbtns"></div></header>
+<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v44</span></div></div><div class="hb" id="hbtns"></div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -162,12 +197,16 @@ select.apagado{opacity:.45}
 </div>
 </div>
 <nav class="tabs" id="tabs" hidden>
-  <button class="tab on" data-v="inicio"><span class="ic">▦</span>Inicio</button>
-  <button class="tab" data-v="clientes"><span class="ic">⌂</span>Clientes</button>
-  <button class="tab" data-v="caja"><span class="ic">$</span>Caja</button>
-  <button class="tab" data-v="precios"><span class="ic">%</span>Precios</button>
-  <button class="tab" data-v="novedades"><span class="ic">✎</span>Noved.</button>
-  <button class="tab" data-v="dist"><span class="ic">⇄</span>Distrib.</button>
+  <div class="sb-top"><div class="marca">COHAJ<span>.</span></div><div class="mini" id="sb-user"></div></div>
+  <div class="sb-nav">
+  <button class="tab on" data-v="inicio"><span class="ic">▦</span><span class="tl-c">Inicio</span><span class="tl-l">Inicio</span></button>
+  <button class="tab" data-v="clientes"><span class="ic">⌂</span><span class="tl-c">Clientes</span><span class="tl-l">Clientes / Cuentas corrientes</span></button>
+  <button class="tab" data-v="caja"><span class="ic">$</span><span class="tl-c">Caja</span><span class="tl-l">Caja</span></button>
+  <button class="tab" data-v="precios"><span class="ic">%</span><span class="tl-c">Precios</span><span class="tl-l">Precios</span></button>
+  <button class="tab" data-v="novedades"><span class="ic">✎</span><span class="tl-c">Noved.</span><span class="tl-l">Novedades</span></button>
+  <button class="tab" data-v="dist"><span class="ic">⇄</span><span class="tl-c">Distrib.</span><span class="tl-l">Distribuidora</span></button>
+  </div>
+  <div class="sb-foot" id="sb-foot"></div>
 </nav>
 <div class="toast" id="toast"></div>
 <div id="print-area"></div>
@@ -448,23 +487,45 @@ function pintarInicio(){
   const ing=cajaHoy.reduce((n,r)=>n+(r.ing||0),0), egr=cajaHoy.reduce((n,r)=>n+(r.egr||0),0);
   const ult=[...LIVE.movs.map(r=>({...r,_t:'mov'})),...LIVE.caja.map(r=>({...r,_t:'caja'}))].sort((a,b)=>(b.ts||'').localeCompare(a.ts||'')).slice(0,8);
   const sd=saldoDistribuidora();
+  const fav=C.map(c=>({c,s:saldoDe(c)})).filter(x=>x.s<-0.5), favTot=fav.reduce((n,x)=>n+x.s,0);
+  const sp=new Set();C.forEach(c=>sinPrecio(c).forEach(x=>sp.add(x[0])));
+  const com=comisionDevengada();
+  const modo=MODO_SALDO==='cierre'?'saldos al '+fecha(cierreISO())+' (mes vencido)':'saldos a hoy';
   $('v-inicio').innerHTML=`
-  <div class="stats">
-    <div class="stat"><b>${act.length}</b><i>clientes activos</i></div>
-    <div class="stat"><b>${vig}</b><i>susc. vigentes</i></div>
-    <div class="stat"><b class="debe">${fmt(tot)}</b><i>te deben (${deud.length}) · ${MODO_SALDO==='cierre'?'al '+fecha(cierreISO()):'a hoy'}</i></div>
-    <div class="stat"><b>${cajaHoy.length?fmt(ing-egr):'—'}</b><i>caja de hoy</i></div>
-    <div class="stat" style="cursor:pointer" onclick="document.querySelector('.tab[data-v=dist]').click()"><b class="${sd>0?'debe':(sd<0?'favor':'aldia')}">${fmt(sd)}</b><i>CC distribuidora · ${sd>0?'le debés':(sd<0?'te debe':'al día')} →</i></div>
+  <div class="hola"><h1>Hola, ${nombreUsuario()}</h1><div class="mini">${act.length} clientes activos · ${vig} suscripciones vigentes · ${modo}</div></div>
+
+  <div class="sec amb"><span class="dot"></span>Para hacer</div>
+  <div class="kpis">
+    <div class="kpi click ${sp.size?'amb':'gris'}" onclick="irTab('precios')"><i>Precios faltantes →</i><b>${sp.size} <small>publicaciones</small></b><i>${sp.size?'sin precio, no devengan':'al día ✓'}</i></div>
+    <div class="kpi click ${deud.length?'amb':'gris'}" onclick="irClientes('deudores')"><i>Cobrar →</i><b>${deud.length} <small>clientes</small></b><i>${deud.length?'con deuda con el puesto':'nadie debe ✓'}</i></div>
+    <div class="kpi"><i>Carga rápida</i><div class="acc"><button class="btn chico" id="qcobrar">Cobrar a un cliente</button><button class="btn chico sec" id="qcaja">Movimiento de caja</button></div></div>
   </div>
-  <div class="card"><b>Carga rápida</b><div class="grid2">
-    <button class="btn chico" id="qcobrar">Cobrar a un cliente</button>
-    <button class="btn chico sec" id="qcaja">Movimiento de caja</button>
-  </div></div>
-  <h2>Últimas cargas en el sistema</h2>
+
+  <div class="sec ok"><span class="dot"></span>Tengo</div>
+  <div class="kpis">
+    <div class="kpi ok punteado click" onclick="irClientes('deudores')"><i>Me deben</i><b>${fmt(tot)}</b><i>${deud.length} clientes con saldo deudor</i></div>
+    <div class="kpi ok click" onclick="irTab('caja')"><i>Caja de hoy</i><b>${cajaHoy.length?fmt(ing-egr):'—'}</b><i>${cajaHoy.length?cajaHoy.length+' movimientos':'sin movimientos hoy'}</i></div>
+    <div class="kpi ok click" onclick="irTab('dist')"><i>Comisión devengada</i><b>${fmt(com)}</b><i>${CONFIG.comision}% de tapa repartida a suscriptores</i></div>
+    ${sd<-0.5?`<div class="kpi ok click" onclick="irTab('dist')"><i>La distribuidora me debe</i><b>${fmt(-sd)}</b><i>saldo de la CC</i></div>`:''}
+  </div>
+
+  <div class="sec rojo"><span class="dot"></span>Debo</div>
+  <div class="kpis">
+    <div class="kpi ${sd>0.5?'rojo':'gris'} click" onclick="irTab('dist')"><i>Debo a la distribuidora</i><b>${sd>0.5?fmt(sd):fmt(0)}</b><i>liquidaciones − pagos − comisión</i></div>
+    <div class="kpi ${fav.length?'rojo':'gris'} click" onclick="irClientes('favor')"><i>Saldos a favor de clientes</i><b>${fmt(-favTot)}</b><i>${fav.length} clientes</i></div>
+  </div>
+
+  <div class="sec"><span class="dot"></span>Últimas cargas</div>
   <div class="card">${ult.length?ult.map(r=>`<div class="mov"><span class="f">${fecha(r.f)}</span><span class="t">${r._t==='mov'?(r.tipo+' · '+nomCli(r.cli)):((r.c||'')+(r.d?' · '+r.d:''))}</span><span class="m">${fmt(r.imp!=null?r.imp:((r.ing||0)-(r.egr||0)))}</span></div>`).join(''):'<div class="mini" style="padding:6px 0">Todavía no cargaste nada acá. Los datos migrados de NewsPaper ya están adentro.</div>'}</div>
-  ${(()=>{const sp=new Set();C.forEach(c=>sinPrecio(c).forEach(x=>sp.add(x[0])));return sp.size?`<div class="aviso">⚠ Publicaciones sin precio cargado (no devengan): ${[...sp].slice(0,6).join(', ')}${sp.size>6?'…':''} — cargalos en Precios.</div>`:'';})()}
-  <div class="aviso">El saldo de cada cliente se mueve solo: sube con cada entrega (según suscripciones y precios) y baja con los cobros.</div>`;
+  ${sp.size?`<div class="aviso">⚠ Publicaciones sin precio cargado (no devengan): ${[...sp].slice(0,6).join(', ')}${sp.size>6?'…':''} — cargalos en Precios.</div>`:''}`;
 }
+function nombreUsuario(){
+  let n=(PERFIL&&PERFIL.nombre)||(USUARIO&&USUARIO.email?USUARIO.email.split('@')[0]:'')||'';
+  n=n.replace(/[0-9._-]+$/,'');
+  return n?n.charAt(0).toUpperCase()+n.slice(1):'';
+}
+function irTab(v){const t=document.querySelector('.tab[data-v='+v+']');if(t)t.click();}
+function irClientes(f){FSEL.clear();if(f)FSEL.add(f);ver('clientes');pintarClientes();}
 function nomCli(id){const c=C.find(x=>x.id===id);return c?(c.d||('Nº '+id)):('Nº '+id);}
 
 /* ------- CLIENTES ------- */
@@ -1168,9 +1229,17 @@ async function iniciarApp(){
       if(esAdmin()){const x=document.createElement('button');x.id='qexport';x.className='btn chico sec';x.textContent='Backup';x.title='Descargar una copia de todos los datos';x.onclick=exportarTodo;hdrEl.appendChild(x);const u=document.createElement('button');u.id='qusuarios';u.className='btn chico sec';u.textContent='Usuarios';hdrEl.appendChild(u);}
       const b=document.createElement('button');b.id='lsalir';b.className='btn chico sec';b.textContent='Salir';hdrEl.appendChild(b);
       if(PERFIL&&PERFIL.rol){const e=$('estado-db');e.textContent='☁ guardado · '+(PERFIL.rol==='admin'?'admin':'operador');e.title=USUARIO.email||'';}
+      const su=$('sb-user');if(su){su.textContent=nombreUsuario()+' · '+(PERFIL&&PERFIL.rol==='admin'?'admin':'operador')+' · '+$('lat').textContent;su.title=USUARIO.email||'';}
     }
+    ubicarBotones();
   }catch(e){$('cargando').innerHTML='Error: '+(e.message||e);}
 }
+function ubicarBotones(){
+  const esc=window.matchMedia('(min-width:900px)').matches;
+  const h=$('hbtns'), dest=esc?$('sb-foot'):document.querySelector('header');
+  if(h&&dest&&h.parentElement!==dest)dest.appendChild(h);
+}
+try{window.matchMedia('(min-width:900px)').addEventListener('change',ubicarBotones);}catch(_){}
 gate();
 </script>
 </body>
