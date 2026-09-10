@@ -256,6 +256,8 @@ drop policy if exists p_perfiles_w on public.perfiles;
 create policy p_perfiles_w on public.perfiles for all to authenticated using (public.es_admin()) with check (public.es_admin());
 
 -- ---------- 4. Cálculos en la base ----------
+-- Fecha de hoy en Argentina (el servidor está en UTC)
+create or replace function public.hoy_ar() returns date language sql stable as $$ select (now() at time zone 'America/Argentina/Buenos_Aires')::date; $$;
 -- Precio de tapa vigente de una publicación en una fecha (busca precio por día de semana, si no por "todos los días")
 create or replace function public.precio_en(p_pub text, p_fecha date) returns numeric language sql stable as $$
   with d as (select ((extract(isodow from p_fecha))::int - 1) as wd)
@@ -281,10 +283,10 @@ $$;
 create or replace function public.devengo(p_cli integer, p_via char, p_desde date, p_hasta date) returns numeric language sql stable as $$
   select coalesce(sum(public.precio_en(s.publicacion, d.dia) * abs(s.cantidad)), 0)
   from public.suscripciones s
-  cross join lateral generate_series(greatest(p_desde, coalesce(s.desde, p_desde)), least(p_hasta, coalesce(s.hasta, p_hasta)), interval '1 day') as g(dia)
+  cross join lateral generate_series(greatest(p_desde, coalesce(s.desde, p_desde)), least(p_hasta, coalesce(s.hasta - 1, p_hasta)), interval '1 day') as g(dia)
   cross join lateral (select g.dia::date as dia) d
   where not s.anulado and s.cliente_id = p_cli and s.via = p_via
-    and (s.hasta is null or s.hasta >= d.dia)
+    and (s.hasta is null or s.hasta > d.dia)   -- hasta = fecha de suspensión (exclusiva), como en NewsPaper
     and cardinality(s.dias) > 0 and (((extract(isodow from d.dia))::int - 1) = any(s.dias))
     and not exists (select 1 from public.feriados f where f.fecha = d.dia and not f.anulado)
     and not public.suspendida(p_cli, s.publicacion, d.dia)
@@ -293,7 +295,7 @@ $$;
 
 -- Saldo de un cliente a una fecha = saldo inicial (NewsPaper, ya incluye sus propios movimientos)
 --   + devengo C desde el día siguiente al saldo inicial + movimientos cargados en este sistema (origen <> 'newspaper')
-create or replace function public.saldo_cliente(p_cli integer, p_hasta date default current_date) returns numeric language sql stable as $$
+create or replace function public.saldo_cliente(p_cli integer, p_hasta date default (now() at time zone 'America/Argentina/Buenos_Aires')::date) returns numeric language sql stable as $$
   select c.saldo_inicial
        + public.devengo(c.id, 'C', c.saldo_inicial_fecha + 1, p_hasta)
        + coalesce((select sum(case when m.tipo='Cobro' then -m.importe else m.importe end) from public.movimientos m
@@ -304,9 +306,9 @@ $$;
 -- Vista de saldos a hoy (para listados y reportes)
 create or replace view public.v_saldos as
   select c.id, c.domicilio, c.nombre, c.activo,
-         public.saldo_cliente(c.id, current_date) as saldo_hoy,
-         public.saldo_cliente(c.id, (date_trunc('month', current_date) - interval '1 day')::date) as saldo_cierre,
-         public.devengo(c.id, 'S', c.saldo_inicial_fecha + 1, current_date) as tapa_via_distribuidora
+         public.saldo_cliente(c.id, public.hoy_ar()) as saldo_hoy,
+         public.saldo_cliente(c.id, (date_trunc('month', public.hoy_ar()) - interval '1 day')::date) as saldo_cierre,
+         public.devengo(c.id, 'S', c.saldo_inicial_fecha + 1, public.hoy_ar()) as tapa_via_distribuidora
   from public.clientes c where not c.anulado;
 
 -- Cerrar un mes: guarda la foto de saldos (solo admin)
