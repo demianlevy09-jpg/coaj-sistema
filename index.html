@@ -58,6 +58,10 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
 .btn.sec{background:var(--tarjeta);color:var(--azul);border:1.5px solid var(--azul)}
 .btn.chico{font-size:14px;padding:9px 14px;margin-top:8px}
 .fila{background:var(--tarjeta);border:1px solid var(--linea);border-radius:10px;padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.fila.sel{border-color:var(--azul);background:var(--azulsuave)}
+.chk{width:22px;height:22px;border:2px solid var(--azul);border-radius:6px;flex:none;position:relative}
+.chk.on{background:var(--azul)}
+.chk.on::after{content:'✓';color:#fff;position:absolute;left:4px;top:-1px;font-size:15px;font-weight:900}
 .fila .dom{font-weight:600;font-size:16px}
 .fila .nom{color:var(--tinta2);font-size:14px}
 .fila .der{margin-left:auto;text-align:right;flex-shrink:0}
@@ -141,7 +145,7 @@ select.apagado{opacity:.45}
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v40</span></div></div><div class="hb" id="hbtns"></div></header>
+<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v41</span></div></div><div class="hb" id="hbtns"></div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -462,6 +466,7 @@ function nomCli(id){const c=C.find(x=>x.id===id);return c?(c.d||('Nº '+id)):('N
 
 /* ------- CLIENTES ------- */
 let RES=[],MOSTR=30,FSEL=new Set(); // filtros seleccionados (varios a la vez)
+let SELMODE=false, SELCLI=new Set(); // selección de clientes para imprimir resúmenes
 // Grupos de filtros: dentro de un grupo se suman (O); entre grupos se cruzan (Y).
 // Tipo: puesto = SOLO le cobrás vos · distrib = SOLO vía distribuidora · mixto = las dos cosas.
 const FGRUPOS={tipo:['puesto','distrib','mixto','sinsub'],saldo:['deudores','favor'],estado:['inactivos','recup']};
@@ -504,20 +509,25 @@ function buscar(){
   RES=base.sort((a,b)=>(b.c.act-a.c.act)||Math.abs(b.s)-Math.abs(a.s));
   MOSTR=30;pintarLista();
   const tot=RES.reduce((n,x)=>n+x.s,0);
-  $('bres').innerHTML=RES.length+' clientes · saldo neto '+(tot>=0?'debe ':'a favor ')+fmt(tot)+(FSEL.has('deudores')&&!q?` &nbsp; <button class="btn chico sec" id="bimp" style="margin-top:0;padding:5px 10px;font-size:12px">🖨 Imprimir resúmenes (${RES.length}, 3 por hoja)</button>`:'');
+  const conDeuda=RES.filter(x=>saldoDe(x.c,cierreISO())>0.5).length;
+  $('bres').innerHTML=RES.length+' clientes · saldo neto '+(tot>=0?'debe ':'a favor ')+fmt(tot)+
+    `<div class="fchips" style="margin:6px 0 0">${SELMODE
+      ?`<button class="fch on" id="bimpsel" style="margin-top:0">🖨 Imprimir seleccionados (${SELCLI.size})</button><button class="fch" id="bseltodos" style="margin-top:0">Marcar todos</button><button class="fch" id="bselno" style="margin-top:0">Cancelar</button>`
+      :`<button class="fch" id="bsel" style="margin-top:0">☑ Elegir varios</button>${conDeuda?`<button class="fch" id="bimp" style="margin-top:0">🖨 Imprimir todos los listados con deuda (${conDeuda})</button>`:''}`}</div>`;
   window.__dbg+=' → '+RES.length+' result.';
  }catch(e){
   window.__dbg='ERROR buscar: '+(e&&e.message);
   const b=$('bres'); if(b) b.textContent='ERROR: '+(e&&e.message);
  }
 }
+function toggleSel(id){ if(SELCLI.has(id))SELCLI.delete(id); else SELCLI.add(id); const y=window.scrollY; buscar(); window.scrollTo(0,y); }
 function pintarLista(){
   const l=$('blist');l.innerHTML='';
   RES.slice(0,MOSTR).forEach(x=>{
     const c=x.c,s=x.s;
     const vig=c.subs.filter(y=>y[3]==='V').length;
-    const div=document.createElement('div');div.className='fila';div.dataset.cli=c.id;div.setAttribute('onclick','ficha('+c.id+')');
-    div.innerHTML=`<div><div class="dom">${c.d||'(sin domicilio)'} <span class="mini">Nº ${c.id}</span></div><div class="nom">${c.n||''}</div></div>
+    const div=document.createElement('div');div.className='fila'+(SELMODE&&SELCLI.has(c.id)?' sel':'');div.dataset.cli=c.id;
+    div.innerHTML=`${SELMODE?`<div class="chk${SELCLI.has(c.id)?' on':''}"></div>`:''}<div><div class="dom">${c.d||'(sin domicilio)'} <span class="mini">Nº ${c.id}</span></div><div class="nom">${c.n||''}</div></div>
     <div class="der">${saldoHTML(s)}<div class="mini">${vig?vig+' susc.':(c.act?'sin reparto':'inactivo')}</div></div>`;
     l.appendChild(div);
   });
@@ -1027,7 +1037,7 @@ document.addEventListener('click',function(e){
   const tab=e.target.closest('.tab');
   if(tab){ver(tab.dataset.v);const p={inicio:pintarInicio,caja:pintarCaja,precios:pintarPrecios,novedades:pintarNovedades,dist:pintarDist}[tab.dataset.v];if(p)p();return;}
   const fch=e.target.closest('.fch');
-  if(fch){setF(fch.dataset.f);return;}
+  if(fch&&fch.dataset.f){setF(fch.dataset.f);return;}
   const del=e.target.closest('.del');
   if(del){
     if(del.dataset.mid) borrarMov(del.dataset.mid,parseInt(del.dataset.cli));
@@ -1085,7 +1095,7 @@ document.addEventListener('click',function(e){
     return;
   }
   const fila=e.target.closest('.fila[data-cli]');
-  if(fila){ficha(parseInt(fila.dataset.cli));return;}
+  if(fila){ if(SELMODE) toggleSel(parseInt(fila.dataset.cli)); else ficha(parseInt(fila.dataset.cli)); return;}
   const id=e.target.closest('button')&&e.target.closest('button').id;
   const b=e.target.closest('button');
   switch(id){
@@ -1105,6 +1115,10 @@ document.addEventListener('click',function(e){
     case 'fbl': formLiq(parseInt(b.dataset.cli));break;
     case 'fres': imprimirResumenes([parseInt(b.dataset.cli)]);break;
     case 'bimp': {const ids=RES.filter(x=>saldoDe(x.c,cierreISO())>0.5).map(x=>x.c.id); if(!ids.length){toast('Nadie con saldo deudor al '+fecha(cierreISO()));break;} imprimirResumenes(ids);break;}
+    case 'bsel': SELMODE=true;SELCLI.clear();buscar();break;
+    case 'bselno': SELMODE=false;SELCLI.clear();buscar();break;
+    case 'bseltodos': RES.forEach(x=>SELCLI.add(x.c.id));buscar();break;
+    case 'bimpsel': {const ids=[...SELCLI]; if(!ids.length){toast('Marcá al menos un cliente');break;} imprimirResumenes(ids);break;}
     case 'emok': guardarEmisor();break;
     case 'fok': addMov(parseInt(b.dataset.cli),b.dataset.tipo);break;
     case 'cok': addCaja();break;
