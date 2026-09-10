@@ -37,6 +37,7 @@ header .hb .btn.chico{margin-top:0;padding:8px 12px;font-size:13px}
 .tab{flex:1;text-align:center;padding:10px 2px 12px;font-size:12.5px;font-weight:600;color:var(--tinta2);cursor:pointer;border:none;background:none;font-family:inherit}
 .tab .ic{display:block;font-size:20px;margin-bottom:1px}
 .tab.on{color:var(--azul)}
+.tabs[hidden]{display:none}
 .tabs .tl-l,.sb-top,.sb-foot{display:none}
 .sb-nav{display:flex;flex:1}
 /* ------- inicio (Hola, …) ------- */
@@ -67,6 +68,8 @@ header .hb .btn.chico{margin-top:0;padding:8px 12px;font-size:13px}
   .sb-top{display:block;padding:0 12px 16px;margin-bottom:10px;border-bottom:1px solid var(--linea)}
   .sb-top .marca{font-size:22px}
   .sb-nav{flex-direction:column;gap:2px}
+  .tab{line-height:1.2}
+  .tab .ic{flex:none}
   .tab{flex:none;display:flex;align-items:center;gap:10px;text-align:left;padding:10px 12px;border-radius:9px;font-size:15px;font-weight:500;color:var(--tinta)}
   .tab .ic{display:inline-block;font-size:15px;margin:0;width:20px;text-align:center;color:var(--tinta2)}
   .tab.on{background:var(--tarjeta);color:var(--azul);font-weight:600;box-shadow:0 1px 2px rgba(20,30,60,.06)}
@@ -200,7 +203,7 @@ select.apagado{opacity:.45}
   <div class="sb-top"><div class="marca">COHAJ<span>.</span></div><div class="mini" id="sb-user"></div></div>
   <div class="sb-nav">
   <button class="tab on" data-v="inicio"><span class="ic">▦</span><span class="tl-c">Inicio</span><span class="tl-l">Inicio</span></button>
-  <button class="tab" data-v="clientes"><span class="ic">⌂</span><span class="tl-c">Clientes</span><span class="tl-l">Clientes / Cuentas corrientes</span></button>
+  <button class="tab" data-v="clientes"><span class="ic">⌂</span><span class="tl-c">Clientes</span><span class="tl-l">Clientes y cuentas corrientes</span></button>
   <button class="tab" data-v="caja"><span class="ic">$</span><span class="tl-c">Caja</span><span class="tl-l">Caja</span></button>
   <button class="tab" data-v="precios"><span class="ic">%</span><span class="tl-c">Precios</span><span class="tl-l">Precios</span></button>
   <button class="tab" data-v="novedades"><span class="ic">✎</span><span class="tl-c">Noved.</span><span class="tl-l">Novedades</span></button>
