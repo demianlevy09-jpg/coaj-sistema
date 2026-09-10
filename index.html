@@ -107,17 +107,10 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
     <div class="mini" id="lmsg" style="margin-top:10px"></div>
   </div>
 </div>
-<div id="importbox" hidden style="max-width:520px;margin:40px auto;padding:0 16px">
-  <div class="card"><b>Carga inicial de datos</b>
-  <div class="mini" style="margin:8px 0">La base está vacía. Seleccioná los archivos JSON de la carpeta <b>app_coaj</b> (los 8 juntos) y se cargan solos.</div>
-  <input id="impfiles" type="file" multiple accept=".json">
-  <button class="btn" id="impok" style="width:100%">Importar</button>
-  <div class="mini" id="impmsg" style="margin-top:8px"></div></div>
-</div>
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v32</div></header>
+<header><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v33</div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -146,16 +139,8 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
 const SB_URL='https://bqujsvrfcyqazzjysijn.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJxdWpzdnJmY3lxYXp6anlzaWpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4MjAzMTAsImV4cCI6MjEwNDM5NjMxMH0.Y4gXrZFqG4Q6u9B5UK-9vPJe8OxdMUcyJ8ROrXGol9c';
 const sb=window.supabase.createClient(SB_URL,SB_KEY);
-window.claude={use:async n=>{
-  if(n!=='db')return null;
-  return {doc:p=>({
-    get:async()=>{const{data,error}=await sb.from('kv').select('v').eq('k',p).maybeSingle();if(error)throw error;return data?data.v:null;},
-    set:async v=>{const{error}=await sb.from('kv').upsert({k:p,v});if(error)throw error;}
-  })};
-}};
-const ADMINS=['demianlevy09@gmail.com'];
-let USUARIO=null;
-const esAdmin=()=>!!USUARIO&&ADMINS.includes((USUARIO.email||'').toLowerCase());
+let USUARIO=null, PERFIL=null;
+const esAdmin=()=>!!PERFIL&&PERFIL.rol==='admin'&&PERFIL.activo!==false;
 function traducirAuth(m){
   m=String(m||'');
   if(/Invalid login/i.test(m))return 'Email o contraseña incorrectos';
@@ -188,26 +173,6 @@ document.addEventListener('click',async e=>{
     }catch(err){$('lmsg').textContent=traducirAuth(err.message||err);}
   }
   if(e.target.id==='lsalir'){await sb.auth.signOut();location.reload();}
-  if(e.target.id==='impok'){
-    const files=[...$('impfiles').files];
-    if(!files.length){$('impmsg').textContent='Elegí los archivos';return;}
-    $('impmsg').textContent='Importando...';
-    try{
-      for(const f of files){
-        const v=JSON.parse(await f.text());
-        const base=f.name.replace('.json','');
-        const k=(base==='dist'?'seed/dist':(base.startsWith('clientes_')||['precios','caja_hist','listas'].includes(base))?'seed/'+base:'seed/'+base);
-        await (await claude.use('db')).doc(k).set(v);
-        $('impmsg').textContent='✓ '+f.name;
-      }
-      for(const l of ['movs','caja','precios','novedades','dist']){
-        const d=(await claude.use('db')).doc('live/'+l);
-        if(!(await d.get())) await d.set({rows:[]});
-      }
-      $('impmsg').textContent='Listo. Recargando...';
-      setTimeout(()=>location.reload(),800);
-    }catch(err){$('impmsg').textContent='Error: '+(err.message||err);}
-  }
 });
 </script>
 <script>
@@ -228,51 +193,101 @@ const FDIAS={'lunes':[0],'martes':[1],'miercoles':[2],'jueves':[3],'viernes':[4]
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('ver');setTimeout(()=>t.classList.remove('ver'),2200);}
 const dget=snap=>(snap&&typeof snap.data==='function')?snap.data():snap;
 
+/* ------- capa de datos: tablas de Supabase (v33) ------- */
+const TABLAS={movs:'movimientos',caja:'caja',precios:'precios',novedades:'novedades',dist:'dist_movimientos',feriados:'feriados',devol:'devoluciones'};
+const A_DB={
+  movs:r=>({cliente_id:r.cli,fecha:r.f,tipo:r.tipo,importe:r.imp,medio:r.medio||'',nota:r.nota||''}),
+  caja:r=>({fecha:r.f,concepto:r.c,detalle:r.d||'',ingreso:r.ing||0,egreso:r.egr||0,medio:r.m||'Efectivo',movimiento_id:r.mid||null}),
+  precios:r=>({publicacion:r.pub,dia:r.dia==null?null:r.dia,desde:r.desde,precio:r.precio}),
+  novedades:r=>({cliente_id:r.cli,tipo:r.tipo,publicacion:r.pub||'',desde:r.desde||null,hasta:r.hasta||null,dias:r.dias||null,via:r.via||null,cantidad:r.qty||null,nota:r.nota||''}),
+  dist:r=>({distribuidor_id:r.dist||1,fecha:r.f,detalle:r.d||'',importe:r.imp}),
+  feriados:r=>({fecha:r.f,motivo:r.d||''}),
+  devol:r=>({distribuidor_id:1,fecha:r.f,publicacion:r.pub,cantidad:r.qty,nota:r.nota||''})
+};
+const DE_DB={
+  movs:x=>({id:String(x.id),ts:x.creado_en,cli:x.cliente_id,tipo:x.tipo,imp:Number(x.importe),f:x.fecha,medio:x.medio||'',nota:x.nota||'',fijo:x.fijo?1:0}),
+  caja:x=>({id:String(x.id),ts:x.creado_en,f:x.fecha,c:x.concepto,d:x.detalle||'',ing:Number(x.ingreso)||0,egr:Number(x.egreso)||0,m:x.medio||'',fijo:x.fijo?1:0}),
+  precios:x=>({id:String(x.id),pub:x.publicacion,dia:x.dia==null?null:x.dia,desde:x.desde,precio:Number(x.precio),nuevo:x.origen!=='newspaper'?1:0,ts:x.creado_en}),
+  novedades:x=>({id:String(x.id),ts:x.creado_en,cli:x.cliente_id,tipo:x.tipo,pub:x.publicacion||'',desde:x.desde||'',hasta:x.hasta||'',dias:x.dias||null,via:x.via||null,qty:x.cantidad||null,nota:x.nota||''}),
+  dist:x=>({id:String(x.id),ts:x.creado_en,f:x.fecha,d:x.detalle||'',imp:Number(x.importe),dist:x.distribuidor_id}),
+  feriados:x=>({id:x.fecha,f:x.fecha,d:x.motivo||''}),
+  devol:x=>({id:String(x.id),ts:x.creado_en,f:x.fecha,pub:x.publicacion,qty:x.cantidad,nota:x.nota||'',dist:x.distribuidor_id})
+};
+async function todo(mk){ // trae todas las filas paginando de a 1000
+  let out=[],from=0;
+  for(;;){ const{data,error}=await mk().range(from,from+999); if(error)throw error; out.push(...data); if(data.length<1000)break; from+=1000; }
+  return out;
+}
+async function cargarTabla(col){
+  const t=TABLAS[col];
+  let rows=await todo(()=>sb.from(t).select('*').eq('anulado',false).order(t==='feriados'?'fecha':'id',{ascending:true}));
+  if(col==='movs'){ const ids=new Set(C.map(c=>c.id)); rows=rows.filter(x=>x.origen!=='newspaper'&&ids.has(x.cliente_id)); }
+  if(col==='caja'){ CAJAH=rows.filter(x=>x.origen==='newspaper').map(x=>({f:x.fecha+(x.hora?' '+String(x.hora).slice(0,5):''),c:x.concepto,d:x.detalle||'',i:Number(x.ingreso)||0,e:Number(x.egreso)||0,m:x.medio||''})); rows=rows.filter(x=>x.origen!=='newspaper'); }
+  if(col==='precios'){ PRECIOS=rows.filter(x=>x.origen==='newspaper').map(DE_DB.precios); rows=rows.filter(x=>x.origen!=='newspaper'); }
+  if(col==='dist'){ DISTH=rows.filter(x=>x.historico).map(x=>({f:x.fecha,d:x.detalle||'',imp:Number(x.importe)})); rows=rows.filter(x=>!x.historico); }
+  LIVE[col]=rows.map(DE_DB[col]);
+  if(col==='feriados') FER=new Set(LIVE.feriados.map(r=>r.f));
+  if(col==='precios') armarPIDX();
+  SCACHE={};
+}
+async function cargarClientes(){
+  const cl=await todo(()=>sb.from('clientes').select('*').eq('activo',true).eq('anulado',false).order('id'));
+  C=cl.map(x=>({id:x.id,d:x.domicilio,n:x.nombre||'',cat:'',act:1,fic:x.ficha||'actual',tel:x.telefono||'',obs:x.observaciones||'',part:x.particularidad||'',sal:Number(x.saldo_inicial)||0,salf:x.saldo_inicial_fecha,dud:0,subs:[],movs:[]}));
+  const idx={}; C.forEach(c=>idx[c.id]=c);
+  const ids=C.map(c=>c.id);
+  const subs=await todo(()=>sb.from('suscripciones').select('*').in('cliente_id',ids).eq('anulado',false).order('id'));
+  subs.forEach(x=>{const c=idx[x.cliente_id]; if(c) c.subs.push([x.publicacion,x.dias_texto||'',x.via,x.hasta?x.hasta:'V',x.desde||'',x.cantidad||1]);});
+  const movs=await todo(()=>sb.from('movimientos').select('*').in('cliente_id',ids).eq('anulado',false).eq('origen','newspaper').order('fecha'));
+  movs.forEach(x=>{const c=idx[x.cliente_id]; if(c) c.movs.push([x.fecha,x.tipo,x.tipo==='Cobro'?-Number(x.importe):Number(x.importe),x.medio||'']);});
+  C.forEach(c=>{c.k=norm(c.d+' '+c.n+' '+c.id+' '+c.subs.map(x=>x[0]).join(' '));});
+}
+async function cargarConfig(){
+  const{data,error}=await sb.from('config').select('*'); if(error)throw error;
+  const cf={}; (data||[]).forEach(r=>cf[r.clave]=r.valor);
+  if(typeof cf.comision==='number') CONFIG.comision=cf.comision;
+  if(Array.isArray(cf.medios)) LISTAS.medios=cf.medios;
+  CONFIG.raw=cf;
+}
 async function boot(){
-  try{ db=await claude.use('db'); }catch(e){ db=null; }
-  if(!db){
-    $('cargando').innerHTML='No pude conectar con la base de datos.<br>Abrí esta página desde claude.ai con tu cuenta y recargá.';
-    return;
-  }
+  db=true;
   try{
-    const lecturas=await Promise.all([
-      db.doc('seed/clientes_1').get(),db.doc('seed/clientes_2').get(),db.doc('seed/clientes_3').get(),
-      db.doc('seed/precios').get(),db.doc('seed/caja_hist').get(),db.doc('seed/listas').get(),
-      db.doc('live/movs').get(),db.doc('live/caja').get(),db.doc('live/precios').get(),db.doc('live/novedades').get(),
-      db.doc('seed/dist').get(),db.doc('live/dist').get(),db.doc('live/config').get(),db.doc('live/feriados').get(),db.doc('live/devol').get()
-    ]);
-    const [c1,c2,c3,pr,ch,ls,m1,m2,m3,m4,dh,dl,cf,fe,dv]=lecturas.map(dget);
-    LIVE.feriados=fe?.rows||[]; LIVE.devol=dv?.rows||[]; FER=new Set(LIVE.feriados.map(r=>r.f));
-    if(cf&&typeof cf.comision==='number') CONFIG.comision=cf.comision;
-    C=[...(c1?.rows||[]),...(c2?.rows||[]),...(c3?.rows||[])].map(r=>({...r}));
-    PRECIOS=pr?.rows||[]; CAJAH=ch?.rows||[]; if(ls) LISTAS=ls;
-    LIVE.movs=[...AJUSTES_INICIALES,...(m1?.rows||[])]; LIVE.caja=[...CAJA_INICIAL,...(m2?.rows||[])]; LIVE.precios=m3?.rows||[]; LIVE.novedades=m4?.rows||[];
-    DISTH=dh?.rows||[]; LIVE.dist=dl?.rows||[];
+    const{data:pf}=await sb.from('perfiles').select('*').eq('id',USUARIO.id).maybeSingle(); PERFIL=pf||{rol:'operador',activo:true};
+    await cargarConfig();
+    await cargarClientes();
+    await Promise.all(['precios','caja','movs','novedades','dist','feriados','devol'].map(cargarTabla));
   }catch(e){
-    $('cargando').innerHTML='Error cargando datos: '+((e&&e.message)||e);
+    $('cargando').innerHTML='No pude leer los datos: '+((e&&e.message)||e)+'<br><br><button class="btn" onclick="location.reload()">Recargar</button> <button class="btn sec" id="lsalir">Volver a entrar</button>';
     return;
   }
   if(!C.length){
-    let vacia=false;
-    try{ const{count,error}=await sb.from('kv').select('k',{count:'exact',head:true}); vacia=!error&&count===0; }catch(_){}
-    if(vacia){ $('cargando').hidden=true; $('importbox').hidden=false; }
-    else { $('cargando').innerHTML='No pude leer los datos (la sesión venció o no hay conexión).<br><br><button class="btn" onclick="location.reload()">Recargar</button> <button class="btn sec" id="lsalir">Volver a entrar</button>'; }
+    $('cargando').innerHTML='No hay clientes activos cargados (o la sesión venció).<br><br><button class="btn" onclick="location.reload()">Recargar</button> <button class="btn sec" id="lsalir">Volver a entrar</button>';
     return;
   }
-  C=C.filter(c=>REPARTO_ACTIVO.has(c.id)); // limpieza 09/09: solo clientes con reparto activo
-  C.forEach(c=>{c.act=1;c.k=norm(c.d+' '+c.n+' '+c.id+' '+c.subs.map(x=>x[0]).join(' '));});
   armarPIDX();
   $('cargando').hidden=true; $('app').hidden=false; $('tabs').hidden=false;
   $('estado-db').textContent='guardado en la nube ✓';
   pintarInicio(); pintarClientes(); pintarCaja(); pintarPrecios(); pintarNovedades(); pintarDist();
 }
+// guardar(col, filas): compara con lo que hay en memoria → inserta las nuevas y anula las que faltan, fila por fila (sin pisar a otros usuarios)
 async function guardar(col,rows){
-  const persist=rows.filter(r=>!r.fijo);
-  await db.doc('live/'+col).set({rows:persist});
-  LIVE[col]=(col==='caja')?[...CAJA_INICIAL,...persist]:(col==='movs')?[...AJUSTES_INICIALES,...persist]:persist;
-  if(col==='feriados') FER=new Set(persist.map(r=>r.f));
-  SCACHE={};
-  if(col==='precios') armarPIDX();
+  const t=TABLAS[col];
+  const antes=new Map(LIVE[col].map(r=>[String(r.id),r]));
+  const nuevos=rows.filter(r=>!antes.has(String(r.id)));
+  const idsDespues=new Set(rows.map(r=>String(r.id)));
+  const anulados=LIVE[col].filter(r=>!idsDespues.has(String(r.id))&&!r.fijo);
+  for(const r of nuevos){ const{error}=await sb.from(t).insert(A_DB[col](r)); if(error)throw new Error(error.message); }
+  for(const r of anulados){
+    const q=sb.from(t).update({anulado:true}); const{error}=await (t==='feriados'?q.eq('fecha',r.id):q.eq('id',r.id)); if(error)throw new Error(error.message);
+  }
+  await cargarTabla(col);
+}
+async function exportarTodo(){
+  try{
+    const{data,error}=await sb.rpc('exportar_todo'); if(error)throw error;
+    const blob=new Blob([JSON.stringify(data)],{type:'application/json'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='cohaj-backup-'+hoyISO()+'.json'; a.click();
+    toast('Backup descargado ✓');
+  }catch(e){toast('Error: '+((e&&e.message)||e));}
 }
 function nid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
 
@@ -298,12 +313,6 @@ function precioDe(pub,wd,dia){
 }
 /* ------- devengo diario (desde 01/09/2026; la liquidación del 02/09 cubrió agosto) ------- */
 const DEV0='2026-09-01';
-// Saldo de caja chica al 08/09/2026 según Demian (09/09): $130.000 en efectivo. Fila fija, no se borra desde la app.
-// Ajustes iniciales (09/09/2026, decisión de Demian): suscriptores puros con saldo residual de NewsPaper y sin movimientos desde 2024 → saldo a cero. [cliente, importe del ajuste]
-const AJUSTES_INICIALES=[[7,282.95],[9,366.7],[37,-29.25],[84,-40.3],[94,401.9],[126,-9087.05],[141,-445.95],[146,149.4],[169,-13.5],[223,57.0],[246,36.9],[254,75.35],[270,82.8],[272,-105.85],[288,2372.45],[291,470.65],[304,150.85],[324,-402.6],[339,15.8],[341,-624.9],[349,116.6],[365,121.9],[427,2476.0],[436,347.6],[448,-58.1],[453,92.8],[456,475.95],[458,339.45],[460,325.45],[600,148.0],[649,-94.45],[753,-112.3],[773,-94.9],[781,-3.35],[815,-1449.8],[835,84.85],[838,647.3],[873,-65.1],[891,78.1],[929,3.25],[995,-9.0],[1048,91.0],[1052,-20.0],[1374,184.7]].map(([cli,imp])=>({id:'aj0-'+cli,ts:'2026-08-31T23:59:00.000Z',cli,tipo:'Ajuste',imp,f:'2026-08-31',medio:'',nota:'Saldo a cero: resto de NewsPaper anterior a 2024',fijo:1}));
-const CAJA_INICIAL=[{id:'ini-caja-20260908',ts:'2026-09-08T00:00:00.000Z',f:'2026-09-08',c:'Cambio inicial',d:'Caja chica al 08/09 (saldo inicial)',ing:130000,egr:0,m:'Efectivo',fijo:1}];
-// Clientes activos reales (166): aparecen en las hojas de reparto de NewsPaper de la semana del 08/09/2026 (163) o tienen entrega registrada 25/08–08/09 (3 más).
-const REPARTO_ACTIVO=new Set([6, 7, 9, 12, 15, 16, 22, 28, 37, 40, 50, 76, 82, 84, 86, 91, 92, 94, 96, 97, 109, 110, 117, 119, 126, 141, 146, 169, 223, 230, 240, 244, 246, 254, 255, 265, 270, 272, 279, 288, 289, 291, 304, 324, 327, 328, 339, 341, 349, 350, 365, 369, 393, 395, 404, 406, 409, 418, 423, 426, 427, 434, 436, 448, 453, 455, 456, 458, 460, 472, 492, 504, 527, 543, 558, 579, 581, 600, 649, 662, 665, 667, 684, 713, 734, 753, 773, 781, 798, 815, 819, 825, 835, 838, 839, 841, 845, 847, 853, 871, 873, 883, 890, 891, 897, 905, 923, 929, 995, 1006, 1043, 1048, 1051, 1052, 1057, 1074, 1075, 1077, 1098, 1099, 1110, 1118, 1157, 1162, 1166, 1173, 1181, 1189, 1219, 1224, 1231, 1255, 1256, 1264, 1266, 1290, 1301, 1306, 1322, 1325, 1365, 1367, 1374, 1414, 1424, 1430, 1466, 1467, 1471, 1472, 1480, 1493, 1499, 1532, 1534, 1633, 1644, 1645, 1649, 1651, 1658, 1668, 1671, 1692, 1694, 1696]);
 function suspendida(cli,titulo,dia){
   let sus=false;
   const nvs=LIVE.novedades.filter(n=>n.cli===cli&&(!n.pub||norm(titulo).includes(norm(n.pub))||norm(n.pub).includes(norm(titulo)))).sort((a,b)=>(a.desde||'').localeCompare(b.desde||''));
@@ -423,7 +432,6 @@ function pasaFiltro(c,s){
   switch(FCLI){
     case 'puesto': return c.act&&(catDe(c)==='Cliente'||catDe(c)==='Mixto');
     case 'distrib': return c.act&&(catDe(c)==='Suscriptor'||catDe(c)==='Mixto');
-    case 'reparto': return REPARTO_ACTIVO.has(c.id);
     case 'mixto': return catDe(c)==='Mixto';
     case 'deudores': return s>0.5;
     case 'favor': return s<-0.5;
@@ -765,7 +773,7 @@ async function borrarDevol(id){
 async function guardarComision(){
   const v=parseFloat($('dcom').value);
   if(isNaN(v)||v<0||v>100){toast('Poné un porcentaje entre 0 y 100');return;}
-  try{ await db.doc('live/config').set({...CONFIG,comision:v}); CONFIG.comision=v; toast('Comisión guardada ✓'); pintarDist(); }catch(e){toast('Error: '+((e&&e.message)||e));}
+  try{ const{error}=await sb.from('config').upsert({clave:'comision',valor:v}); if(error)throw error; CONFIG.comision=v; SCACHE={}; toast('Comisión guardada ✓'); pintarDist(); }catch(e){toast('Error: '+((e&&e.message)||e));}
 }
 async function addDist(){
   const imp=parseFloat($('dimp').value);
@@ -1004,8 +1012,9 @@ async function iniciarApp(){
     })();
     const hdrEl=document.querySelector('header');
     if(hdrEl&&!document.getElementById('lsalir')){
-      if(esAdmin()){const u=document.createElement('button');u.id='qusuarios';u.className='btn chico sec';u.style.marginLeft='auto';u.textContent='Usuarios';hdrEl.appendChild(u);}
+      if(esAdmin()){const x=document.createElement('button');x.id='qexport';x.className='btn chico sec';x.style.marginLeft='auto';x.textContent='Backup';x.onclick=exportarTodo;hdrEl.appendChild(x);const u=document.createElement('button');u.id='qusuarios';u.className='btn chico sec';u.textContent='Usuarios';hdrEl.appendChild(u);}
       const b=document.createElement('button');b.id='lsalir';b.className='btn chico sec';if(!esAdmin())b.style.marginLeft='auto';b.textContent='Salir';hdrEl.appendChild(b);
+      if(PERFIL&&PERFIL.rol) $('estado-db').textContent='guardado en la nube ✓ · '+(USUARIO.email||'')+' ('+PERFIL.rol+')';
     }
   }catch(e){$('cargando').innerHTML='Error: '+(e.message||e);}
 }
