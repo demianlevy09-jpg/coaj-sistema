@@ -275,7 +275,7 @@ async function guardar(col,rows){
   const nuevos=rows.filter(r=>!antes.has(String(r.id)));
   const idsDespues=new Set(rows.map(r=>String(r.id)));
   const anulados=LIVE[col].filter(r=>!idsDespues.has(String(r.id))&&!r.fijo);
-  for(const r of nuevos){ const{error}=await sb.from(t).insert(A_DB[col](r)); if(error)throw new Error(error.message); }
+  for(const r of nuevos){ const fila=A_DB[col](r); const{error}=await (t==='feriados'?sb.from(t).upsert({...fila,anulado:false,anulado_en:null,anulado_por:null},{onConflict:'fecha'}):sb.from(t).insert(fila)); if(error)throw new Error(error.message); }
   for(const r of anulados){
     const q=sb.from(t).update({anulado:true}); const{error}=await (t==='feriados'?q.eq('fecha',r.id):q.eq('id',r.id)); if(error)throw new Error(error.message);
   }
