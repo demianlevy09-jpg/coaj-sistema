@@ -124,6 +124,7 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
 .res .pago{margin-top:2mm;padding-top:1.5mm;border-top:1px solid #000;font-size:9.5pt;display:flex;justify-content:space-between;gap:6mm}
 .res .pago b{font-family:monospace;font-size:10pt}
 .res .ley{font-size:8pt;color:#333;margin-top:1mm}
+select.apagado{opacity:.45}
 </style>
 </head>
 <body>
@@ -140,7 +141,7 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v38</span></div></div><div class="hb" id="hbtns"></div></header>
+<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v39</span></div></div><div class="hb" id="hbtns"></div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -355,13 +356,26 @@ function suspendida(cli,titulo,dia){
   }
   return sus;
 }
+const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 let SCACHE={};
 // Modo de saldo: 'vivo' (hasta hoy) o 'cierre' (hasta el último cierre mensual = fin del mes anterior)
-let MODO_SALDO='vivo'; try{MODO_SALDO=localStorage.getItem('modoSaldo')||'vivo';}catch(_){}
-function cierreISO(){const h=hoyISO();const d=new Date(h+'T12:00:00');d.setDate(0);return d.toISOString().slice(0,10);} // último día del mes anterior (según fecha de Argentina)
+let MODO_SALDO='vivo', CIERRE_SEL=''; try{MODO_SALDO=localStorage.getItem('modoSaldo')||'vivo';CIERRE_SEL=localStorage.getItem('cierreSel')||'';}catch(_){}
+const PRIMER_CIERRE='2026-08-31'; // primer mes vencido que existe en el sistema
+function ultimoCierreISO(){const h=hoyISO();const d=new Date(h+'T12:00:00');d.setDate(0);return d.toISOString().slice(0,10);} // último día del mes anterior (según fecha de Argentina)
+function cierresDisponibles(){ // del primer cierre al último mes vencido, más reciente primero
+  const out=[]; let d=new Date(ultimoCierreISO()+'T12:00:00');
+  while(d.toISOString().slice(0,10)>=PRIMER_CIERRE){ out.push(d.toISOString().slice(0,10)); d=new Date(d.getFullYear(),d.getMonth(),0,12); }
+  return out;
+}
+function cierreISO(){ const disp=cierresDisponibles(); return (CIERRE_SEL&&disp.includes(CIERRE_SEL))?CIERRE_SEL:(disp[0]||ultimoCierreISO()); } // cierre elegido (por defecto, el último mes vencido)
 function hastaSaldo(){return MODO_SALDO==='cierre'?cierreISO():hoyISO();}
-function setModoSaldo(m){MODO_SALDO=m;try{localStorage.setItem('modoSaldo',m);}catch(_){}pintarInicio();pintarClientes();}
-function toggleSaldoHTML(){return `<div class="segm"><button class="${MODO_SALDO==='vivo'?'on':''}" onclick="setModoSaldo('vivo')">Saldo a hoy</button><button class="${MODO_SALDO==='cierre'?'on':''}" onclick="setModoSaldo('cierre')">Al ${fecha(cierreISO())} (mes vencido)</button></div>`;}
+function setModoSaldo(m,cierre){MODO_SALDO=m;if(cierre)CIERRE_SEL=cierre;try{localStorage.setItem('modoSaldo',m);localStorage.setItem('cierreSel',CIERRE_SEL);}catch(_){}pintarInicio();pintarClientes();}
+function etiquetaMes(iso){const d=new Date(iso+'T12:00:00');return MESES[d.getMonth()]+' '+d.getFullYear();}
+function toggleSaldoHTML(){
+  const disp=cierresDisponibles(), sel=cierreISO();
+  return `<div class="segm"><button class="${MODO_SALDO==='vivo'?'on':''}" onclick="setModoSaldo('vivo')">En vivo (hoy)</button><button class="${MODO_SALDO==='cierre'?'on':''}" onclick="setModoSaldo('cierre')">Mes vencido</button></div>
+  <select id="selcierre" class="${MODO_SALDO==='cierre'?'':'apagado'}" style="display:inline-block;width:auto;margin:6px 0 8px 8px;padding:6px 10px;font-size:13px" onchange="setModoSaldo('cierre',this.value)">${disp.map(x=>`<option value="${x}"${x===sel?' selected':''}>al ${fecha(x)} · ${etiquetaMes(x)}</option>`).join('')}</select>`;
+}
 function devengoDe(c,tipo,hasta){
   tipo=tipo||'C';
   hasta=hasta||hoyISO();
@@ -987,7 +1001,6 @@ function consumoMes(c,y,m){
   let tot=0; Object.values(agg).forEach(a=>tot+=a.tot);
   return {agg,tot,sinPrecio:sinPrecioN};
 }
-const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 function desglose(cid,fliq){
   const c=C.find(x=>x.id===cid); if(!c)return '<div class="mini">?</div>';
   const d=new Date(fliq+'T12:00:00');
