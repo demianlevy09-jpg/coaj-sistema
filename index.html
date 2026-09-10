@@ -141,7 +141,7 @@ select.apagado{opacity:.45}
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v39</span></div></div><div class="hb" id="hbtns"></div></header>
+<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v40</span></div></div><div class="hb" id="hbtns"></div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -464,9 +464,9 @@ function nomCli(id){const c=C.find(x=>x.id===id);return c?(c.d||('Nº '+id)):('N
 let RES=[],MOSTR=30,FSEL=new Set(); // filtros seleccionados (varios a la vez)
 // Grupos de filtros: dentro de un grupo se suman (O); entre grupos se cruzan (Y).
 // Tipo: puesto = SOLO le cobrás vos · distrib = SOLO vía distribuidora · mixto = las dos cosas.
-const FGRUPOS={tipo:['puesto','distrib','mixto'],saldo:['deudores','favor'],estado:['inactivos','recup']};
+const FGRUPOS={tipo:['puesto','distrib','mixto','sinsub'],saldo:['deudores','favor'],estado:['inactivos','recup']};
 const FTEST={
-  puesto:c=>catDe(c)==='Cliente', distrib:c=>catDe(c)==='Suscriptor', mixto:c=>catDe(c)==='Mixto',
+  puesto:c=>catDe(c)==='Cliente', distrib:c=>catDe(c)==='Suscriptor', mixto:c=>catDe(c)==='Mixto', sinsub:c=>catDe(c)==='',
   deudores:(c,s)=>s>0.5, favor:(c,s)=>s<-0.5,
   inactivos:c=>!c.act, recup:c=>c.fic==='recuperado'
 };
@@ -475,7 +475,7 @@ function setF(f){
   document.querySelectorAll('.fch').forEach(x=>x.classList.toggle('on',x.dataset.f==='todos'?FSEL.size===0:FSEL.has(x.dataset.f)));
   buscar();
 }
-const FDEFS=[['todos','Todos'],['puesto','Del puesto'],['distrib','De la distribuidora'],['mixto','Mixtos'],['deudores','Deudores'],['favor','A favor'],['inactivos','Inactivos'],['recup','Ficha recuperada']];
+const FDEFS=[['todos','Todos'],['puesto','Del puesto'],['distrib','De la distribuidora'],['mixto','Mixtos'],['sinsub','Sin suscripción vigente'],['deudores','Deudores'],['favor','A favor'],['inactivos','Inactivos'],['recup','Ficha recuperada']];
 function pintarClientes(){
   $('v-clientes').innerHTML=`<div style="position:sticky;top:0;background:var(--papel);padding:8px 0;z-index:5">
   <input id="bq" type="search" placeholder="Dirección, nombre, Nº o publicación (ej: ole)…" autocomplete="off" oninput="buscar()">
