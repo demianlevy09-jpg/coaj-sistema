@@ -140,7 +140,7 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v35</span></div></div><div class="hb" id="hbtns"></div></header>
+<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v36</span></div></div><div class="hb" id="hbtns"></div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -449,7 +449,7 @@ function nomCli(id){const c=C.find(x=>x.id===id);return c?(c.d||('Nº '+id)):('N
 /* ------- CLIENTES ------- */
 let RES=[],MOSTR=30,FCLI='todos';
 function setF(f){FCLI=f;document.querySelectorAll('.fch').forEach(x=>x.classList.toggle('on',x.dataset.f===FCLI));buscar();}
-const FDEFS=[['todos','Todos'],['puesto','Del puesto'],['distrib','De la distribuidora'],['mixto','Mixtos'],['deudores','Deudores'],['favor','A favor'],['inactivos','Inactivos'],['recup','Ficha recuperada']];
+const FDEFS=[['todos','Todos'],['puesto','Del puesto'],['distrib','De la distribuidora'],['mixto','Mixtos'],['deudpuesto','Deudores del puesto'],['deudores','Deudores'],['favor','A favor'],['inactivos','Inactivos'],['recup','Ficha recuperada']];
 function pintarClientes(){
   $('v-clientes').innerHTML=`<div style="position:sticky;top:0;background:var(--papel);padding:8px 0;z-index:5">
   <input id="bq" type="search" placeholder="Dirección, nombre, Nº o publicación (ej: ole)…" autocomplete="off" oninput="buscar()">
@@ -465,6 +465,7 @@ function pasaFiltro(c,s){
     case 'distrib': return c.act&&(catDe(c)==='Suscriptor'||catDe(c)==='Mixto');
     case 'mixto': return catDe(c)==='Mixto';
     case 'deudores': return s>0.5;
+    case 'deudpuesto': {const k=catDe(c);return (k==='Cliente'||k==='Mixto')&&s>0.5;}
     case 'favor': return s<-0.5;
     case 'inactivos': return !c.act;
     case 'recup': return c.fic==='recuperado';
@@ -483,7 +484,7 @@ function buscar(){
   RES=base.sort((a,b)=>(b.c.act-a.c.act)||Math.abs(b.s)-Math.abs(a.s));
   MOSTR=30;pintarLista();
   const tot=RES.reduce((n,x)=>n+x.s,0);
-  $('bres').innerHTML=RES.length+' clientes · saldo neto '+(tot>=0?'debe ':'a favor ')+fmt(tot)+(FCLI==='deudores'&&!q?` &nbsp; <button class="btn chico sec" id="bimp" style="margin-top:0;padding:5px 10px;font-size:12px">🖨 Imprimir resúmenes (${RES.length}, 3 por hoja)</button>`:'');
+  $('bres').innerHTML=RES.length+' clientes · saldo neto '+(tot>=0?'debe ':'a favor ')+fmt(tot)+((FCLI==='deudores'||FCLI==='deudpuesto')&&!q?` &nbsp; <button class="btn chico sec" id="bimp" style="margin-top:0;padding:5px 10px;font-size:12px">🖨 Imprimir resúmenes (${RES.length}, 3 por hoja)</button>`:'');
   window.__dbg+=' → '+RES.length+' result.';
  }catch(e){
   window.__dbg='ERROR buscar: '+(e&&e.message);
