@@ -343,3 +343,31 @@ create or replace function public.exportar_todo() returns jsonb language sql sta
     'cierres', (select coalesce(jsonb_agg(to_jsonb(t)),'[]') from public.cierres t)
   );
 $$;
+
+-- ---------- 5. Resúmenes de cuenta (v35) ----------
+create table if not exists public.resumenes (
+  id bigserial primary key,
+  numero integer not null,
+  cliente_id integer not null references public.clientes(id),
+  periodo date not null,                 -- último día del mes resumido (ej. 2026-08-31)
+  saldo_anterior numeric(14,2) not null default 0,
+  consumo numeric(14,2) not null default 0,
+  cobros numeric(14,2) not null default 0,
+  ajustes numeric(14,2) not null default 0,
+  saldo numeric(14,2) not null,
+  detalle jsonb,                         -- desglose impreso (publicación, ejemplares, importe)
+  creado_en timestamptz default now(), creado_por uuid, modificado_en timestamptz, modificado_por uuid,
+  anulado boolean not null default false, anulado_en timestamptz, anulado_por uuid, origen text default 'app'
+);
+create index if not exists ix_res_cliente on public.resumenes(cliente_id, periodo);
+create sequence if not exists public.resumenes_numero_seq start 1;
+alter table public.resumenes alter column numero set default nextval('public.resumenes_numero_seq');
+drop trigger if exists tr_audit on public.resumenes; create trigger tr_audit before insert or update on public.resumenes for each row execute function public.audit_fila();
+drop trigger if exists tr_log on public.resumenes; create trigger tr_log after insert or update or delete on public.resumenes for each row execute function public.log_fila();
+alter table public.resumenes enable row level security;
+drop policy if exists p_select on public.resumenes; create policy p_select on public.resumenes for select to authenticated using (public.es_operador());
+drop policy if exists p_insert on public.resumenes; create policy p_insert on public.resumenes for insert to authenticated with check (public.es_operador());
+drop policy if exists p_update on public.resumenes; create policy p_update on public.resumenes for update to authenticated using (public.es_operador()) with check (public.es_operador());
+drop policy if exists p_delete on public.resumenes; create policy p_delete on public.resumenes for delete to authenticated using (public.es_admin());
+insert into public.config(clave, valor) values ('emisor', '{"nombre":"Morena Moncarz","domicilio":"Antonio Machado 514 piso 9, CABA, Buenos Aires","condicion":"Responsable Inscripto","alias":"moremoncarz","cvu":"0000003100082866797401","titular":"Morena Moncarz","titulo":"Resumen de cuenta — no válido como factura","leyenda":"Gracias por su pago. Ante cualquier duda, comuníquese con el puesto."}'::jsonb)
+on conflict (clave) do nothing;
