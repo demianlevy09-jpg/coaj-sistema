@@ -86,11 +86,12 @@ header .hb .btn.chico{margin-top:0;padding:8px 12px;font-size:13px}
   .hola h1{font-size:32px}
 }
 .card{background:var(--tarjeta);border:1px solid var(--linea);border-radius:12px;padding:14px 16px;margin-bottom:10px}
-h2{font-family:'Archivo',sans-serif;font-weight:700;font-size:13.5px;text-transform:uppercase;letter-spacing:.8px;color:var(--tinta2);margin:20px 0 8px}
-.stats{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 4px}
-.stat{background:var(--tarjeta);border:1px solid var(--linea);border-left:3px solid var(--azul);border-radius:10px;padding:10px 14px;flex:1;min-width:110px}
-.stat b{display:block;font-family:'Archivo',sans-serif;font-weight:700;font-size:18px;font-variant-numeric:tabular-nums}
-.stat i{font-style:normal;font-size:11px;color:var(--tinta2);text-transform:uppercase;letter-spacing:.4px}
+h2{display:flex;align-items:center;gap:8px;font-family:'Archivo',sans-serif;font-weight:700;font-size:12.5px;text-transform:uppercase;letter-spacing:1px;color:var(--tinta2);margin:26px 0 10px}
+h2::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--azul);flex:none}
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px;margin:8px 0 4px}
+.stat{background:var(--tarjeta);border:1px solid var(--linea);border-left:4px solid var(--azul);border-radius:12px;padding:14px 16px}
+.stat b{display:block;font-family:'Archivo',sans-serif;font-weight:800;font-size:22px;font-variant-numeric:tabular-nums;letter-spacing:-.3px}
+.stat i{display:block;font-style:normal;font-size:13px;color:var(--tinta2);margin-top:3px}
 .debe{color:var(--rojo)} .favor{color:var(--ok)} .aldia{color:var(--tinta2)}
 input,select{width:100%;font-size:16px;font-family:inherit;padding:12px;border:1.5px solid var(--linea);border-radius:9px;background:var(--tarjeta);color:var(--tinta);outline:none;margin-top:4px}
 input:focus,select:focus{border-color:var(--azul)}
@@ -98,7 +99,14 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
 .btn{display:inline-block;background:var(--azul);color:#fff;border:none;border-radius:9px;font-family:inherit;font-weight:700;font-size:16px;padding:13px 22px;cursor:pointer;margin-top:14px}
 .btn.sec{background:var(--tarjeta);color:var(--azul);border:1.5px solid var(--azul)}
 .btn.chico{font-size:14px;padding:9px 14px;margin-top:8px}
-.fila{background:var(--tarjeta);border:1px solid var(--linea);border-radius:10px;padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.fila{background:var(--tarjeta);border:1px solid var(--linea);border-radius:12px;padding:12px 16px;cursor:pointer;display:flex;align-items:center;gap:10px;margin-bottom:8px;transition:box-shadow .15s}
+.fila:hover{box-shadow:0 3px 10px rgba(20,30,60,.08)}
+.card.cabecera{border-left:4px solid var(--azul)}
+.gridcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px} .gridcards .card{margin:0}
+.lnk{color:var(--azul);cursor:pointer;text-decoration:none} .lnk:hover{text-decoration:underline}
+.filtros{align-items:center}
+@media (max-width:899px){.kpis,.stats{grid-template-columns:repeat(2,1fr)} .kpi b,.stat b{font-size:20px} .kpi.ancha{grid-column:span 2}}
+@media (min-width:900px){.card>label+input:not([type=search]),.card>label+select,.card>.grid2,.card>label+.acwrap,.card>.dias{max-width:600px}}
 .fila.sel{border-color:var(--azul);background:var(--azulsuave)}
 .chk{width:22px;height:22px;border:2px solid var(--azul);border-radius:6px;flex:none;position:relative}
 .chk.on{background:var(--azul)}
@@ -189,7 +197,7 @@ select.apagado{opacity:.45}
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v44</span></div></div><div class="hb" id="hbtns"></div></header>
+<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v45</span></div></div><div class="hb" id="hbtns"></div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -311,6 +319,7 @@ async function cargarTabla(col){
   if(col==='dist'){ DISTH=rows.filter(x=>x.historico).map(x=>({f:x.fecha,d:x.detalle||'',imp:Number(x.importe)})); rows=rows.filter(x=>!x.historico); }
   LIVE[col]=rows.map(DE_DB[col]);
   if(col==='feriados') FER=new Set(LIVE.feriados.map(r=>r.f));
+  if(col==='novedades') recalcActivos();
   if(col==='precios') armarPIDX();
   SCACHE={};
 }
@@ -324,6 +333,7 @@ async function cargarClientes(){
   const movs=await todo(()=>sb.from('movimientos').select('*').in('cliente_id',ids).eq('anulado',false).eq('origen','newspaper').order('fecha'));
   movs.forEach(x=>{const c=idx[x.cliente_id]; if(c) c.movs.push([x.fecha,x.tipo,x.tipo==='Cobro'?-Number(x.importe):Number(x.importe),x.medio||'']);});
   C.forEach(c=>{c.k=norm(c.d+' '+c.n+' '+c.id+' '+c.subs.map(x=>x[0]).join(' '));});
+  recalcActivos();
 }
 async function cargarConfig(){
   const{data,error}=await sb.from('config').select('*'); if(error)throw error;
@@ -347,7 +357,7 @@ async function boot(){
     $('cargando').innerHTML='No hay clientes activos cargados (o la sesión venció).<br><br><button class="btn" onclick="location.reload()">Recargar</button> <button class="btn sec" id="lsalir">Volver a entrar</button>';
     return;
   }
-  armarPIDX();
+  armarPIDX(); recalcActivos();
   $('cargando').hidden=true; $('app').hidden=false; $('tabs').hidden=false;
   $('estado-db').textContent='☁ guardado';
   pintarInicio(); pintarClientes(); pintarCaja(); pintarPrecios(); pintarNovedades(); pintarDist();
@@ -504,7 +514,7 @@ function pintarInicio(){
   <div class="kpis">
     <div class="kpi click ${sp.size?'amb':'gris'}" onclick="irTab('precios')"><i>Precios faltantes →</i><b>${sp.size} <small>publicaciones</small></b><i>${sp.size?'sin precio, no devengan':'al día ✓'}</i></div>
     <div class="kpi click ${deud.length?'amb':'gris'}" onclick="irClientes('deudores')"><i>Cobrar →</i><b>${deud.length} <small>clientes</small></b><i>${deud.length?'con deuda con el puesto':'nadie debe ✓'}</i></div>
-    <div class="kpi"><i>Carga rápida</i><div class="acc"><button class="btn chico" id="qcobrar">Cobrar a un cliente</button><button class="btn chico sec" id="qcaja">Movimiento de caja</button></div></div>
+    <div class="kpi ancha"><i>Carga rápida</i><div class="acc"><button class="btn chico" id="qcobrar">Cobrar a un cliente</button><button class="btn chico sec" id="qcaja">Movimiento de caja</button></div></div>
   </div>
 
   <div class="sec ok"><span class="dot"></span>Tengo</div>
@@ -552,7 +562,7 @@ function setF(f){
 }
 const FDEFS=[['todos','Todos'],['puesto','Del puesto'],['distrib','De la distribuidora'],['mixto','Mixtos'],['sinsub','Sin suscripción vigente'],['deudores','Deudores'],['favor','A favor'],['inactivos','Inactivos'],['recup','Ficha recuperada']];
 function pintarClientes(){
-  $('v-clientes').innerHTML=`<div style="position:sticky;top:0;background:var(--papel);padding:8px 0;z-index:5">
+  $('v-clientes').innerHTML=`${titulo('Clientes',C.filter(c=>c.act).length+' activos · tocá uno para ver su cuenta corriente')}<div style="position:sticky;top:0;background:var(--papel);padding:8px 0;z-index:5">
   <input id="bq" type="search" placeholder="Dirección, nombre, Nº o publicación (ej: ole)…" autocomplete="off" oninput="buscar()">
   ${toggleSaldoHTML()}
   <div class="fchips">${FDEFS.map(f=>`<button class="fch${(f[0]==='todos'?FSEL.size===0:FSEL.has(f[0]))?' on':''}" data-f="${f[0]}">${f[1]}</button>`).join('')}</div></div>
@@ -598,7 +608,7 @@ function pintarLista(){
     const vig=c.subs.filter(y=>y[3]==='V').length;
     const div=document.createElement('div');div.className='fila'+(SELMODE&&SELCLI.has(c.id)?' sel':'');div.dataset.cli=c.id;
     div.innerHTML=`${SELMODE?`<div class="chk${SELCLI.has(c.id)?' on':''}"></div>`:''}<div><div class="dom">${c.d||'(sin domicilio)'} <span class="mini">Nº ${c.id}</span></div><div class="nom">${c.n||''}</div></div>
-    <div class="der">${saldoHTML(s)}<div class="mini">${vig?vig+' susc.':(c.act?'sin reparto':'inactivo')}</div></div>`;
+    <div class="der">${saldoHTML(s)}<div class="mini">${!c.act?'dado de baja':(vig?vig+' susc.':'sin reparto')}</div></div>`;
     l.appendChild(div);
   });
   if(!RES.length) l.innerHTML='<div class="mini" style="text-align:center;padding:24px">Sin resultados. Probá con menos letras, o solo el número de puerta.</div>';
@@ -615,7 +625,7 @@ function catDe(c){
   return '';
 }
 function pillCat(c){
-  if(!c.act)return'<span class="pill p-inact">Inactivo</span>';
+  if(!c.act)return'<span class="pill p-inact">Dado de baja</span>';
   const k=catDe(c);
   if(k==='Suscriptor')return'<span class="pill p-susc">Suscriptor</span>';
   if(k==='Mixto')return'<span class="pill p-mix">Mixto</span>';
@@ -652,6 +662,7 @@ function ficha(id,mas){
     ${(()=>{const o=saldoDe(c,MODO_SALDO==='cierre'?hoyISO():cierreISO());return `<div class="mini" style="margin-top:2px">${MODO_SALDO==='cierre'?'Saldo a hoy':'Saldo al '+fecha(cierreISO())+' (mes vencido)'}: <b>${Math.abs(o)>0.5?fmt(o):'al día'}</b></div>`;})()}
     ${devengoDe(c,'C',hastaSaldo())>0?`<div class="mini" style="margin-top:4px">incluye ${fmt(devengoDe(c,'C',hastaSaldo()))} de consumo devengado automático desde el 01/09</div>`:''}
     ${devengoDe(c,'S')>0?`<div class="mini" style="margin-top:4px;color:var(--ok)">Vía distribuidora: repartido ${fmt(devengoDe(c,'S'))} de tapa desde el 01/09 → te genera ${fmt(devengoDe(c,'S')*CONFIG.comision/100)} de comisión (no es deuda del cliente)</div>`:''}
+    ${!c.act?`<div class="aviso" style="background:var(--rojosuave);color:var(--rojo)">Cliente dado de baja${(()=>{const n=LIVE.novedades.filter(x=>x.cli===id&&x.tipo==='Baja'&&!x.pub).sort((x,y)=>(y.desde||'').localeCompare(x.desde||''))[0];return n?' desde el '+fecha(n.desde):'';})()}: no devenga y no figura en el padrón. <button class="btn chico sec" id="freact" data-cli="${id}" style="margin:6px 0 0">Reactivar cliente</button></div>`:''}
     ${sinPrecio(c).length?`<div class="aviso">⚠ ${sinPrecio(c).map(x=>x[0]).join(', ')}: sin precio cargado, no devenga. Cargalo en Precios.</div>`:''}
     ${c.tel?`<div style="margin-top:8px;font-size:14.5px">Tel: <a style="color:var(--azul)" href="tel:${c.tel.replace(/[^0-9+]/g,'')}">${c.tel}</a></div>`:''}
     <div class="grid2">
@@ -722,8 +733,9 @@ function pintarCaja(){
   const porMedio={};
   LIVE.caja.forEach(r=>{porMedio[r.m]=(porMedio[r.m]||0)+(r.ing||0)-(r.egr||0);});
   const rows=[...LIVE.caja].sort((a,b)=>(b.ts||'').localeCompare(a.ts||''));
-  $('v-caja').innerHTML=`
-  <div class="stats">${Object.keys(porMedio).length?Object.entries(porMedio).map(([m,v])=>`<div class="stat"><b class="${v<0?'debe':''}">${fmt(v)}</b><i>${m}</i></div>`).join(''):'<div class="stat"><b>—</b><i>sin movimientos aún</i></div>'}</div>
+  const hoyC=hoyISO(), deHoy=LIVE.caja.filter(r=>(r.f||'').startsWith(hoyC)), netoHoy=deHoy.reduce((n,r)=>n+(r.ing||0)-(r.egr||0),0);
+  $('v-caja').innerHTML=`${titulo('Caja','Saldo por medio de pago y movimientos cargados acá')}
+  <div class="kpis">${Object.keys(porMedio).length?Object.entries(porMedio).map(([m,v])=>`<div class="kpi ${v<-0.5?'rojo':'ok'}"><i>Caja ${(m||'sin medio').toLowerCase()}</i><b>${fmt(v)}</b><i>saldo actual</i></div>`).join(''):'<div class="kpi gris"><i>Caja</i><b>—</b><i>sin movimientos aún</i></div>'}<div class="kpi ${deHoy.length?(netoHoy<0?'rojo':''):'gris'}"><i>Hoy</i><b>${deHoy.length?fmt(netoHoy):'—'}</b><i>${deHoy.length?deHoy.length+' movimientos':'sin movimientos hoy'}</i></div></div>
   <div class="card"><b>Cargar movimiento de caja</b>
     <label>Concepto</label><select id="cc">${CONCEPTOS_CAJA.map(c=>`<option>${c}</option>`).join('')}</select>
     <div class="grid2"><div><label>Ingreso $</label><input id="cing" type="number" inputmode="decimal" placeholder="0"></div>
@@ -769,7 +781,7 @@ function pintarPrecios(){
   const porPub={};
   todos.forEach(p=>{const k=p.pub+(p.dia!=null?' · '+DIAS[p.dia]:'');(porPub[k]=porPub[k]||[]).push(p);});
   const pubs=Object.keys(porPub).sort();
-  $('v-precios').innerHTML=`
+  $('v-precios').innerHTML=`${titulo('Precios',pubs.length+' publicaciones con precio · los cambios se cargan como nueva vigencia')}
   <div class="card"><b>Nueva vigencia de precio</b>
     <label>Publicación</label><input id="ppub" list="dl-pubs" placeholder="ej: PAGINA 12"><datalist id="dl-pubs">${pubs.map(p=>`<option>${p}</option>`).join('')}</datalist>
     <label>Día (para diarios con precio distinto por día)</label><select id="pdia"><option value="">Todos / único</option>${DIAS.map((d,i)=>`<option value="${i}">${d}</option>`).join('')}</select>
@@ -779,7 +791,7 @@ function pintarPrecios(){
     <div class="mini" style="margin-top:8px">Nunca se pisa un precio viejo: se agrega la vigencia nueva y la historia queda (sirve para recalcular meses).</div></div>
   <h2>Precios por publicación</h2>
   <input id="pfil" type="search" placeholder="Filtrar publicación…" style="margin-bottom:8px">
-  <div id="plist">${pubs.map(p=>{const v=porPub[p].sort((a,b)=>(a.desde||'').localeCompare(b.desde||''));const u=v[v.length-1];
+  <div id="plist" class="gridcards">${pubs.map(p=>{const v=porPub[p].sort((a,b)=>(a.desde||'').localeCompare(b.desde||''));const u=v[v.length-1];
    return`<div class="card"><b>${p}</b> <span class="monto" style="float:right">${fmt(u.precio)}</span>
    <div class="mini" style="margin-top:4px">desde ${fecha(u.desde)}${v.length>1?' · antes: '+v.slice(-3,-1).map(x=>fmt(x.precio)+' ('+fecha(x.desde)+')').join(', '):''}${u.nuevo?' · <b>cargado acá</b>':''}</div></div>`;}).join('')}</div>`;
 }
@@ -791,34 +803,76 @@ async function addPrecio(){
 }
 
 /* ------- NOVEDADES ------- */
+const NTIPOS=[['altacli','Cliente nuevo'],['altasub','Alta de suscripción'],['susp','Suspensión'],['rean','Reanudación'],['bajasub','Baja de suscripción'],['bajacli','Baja de cliente'],['precio','Cambio de precio']];
+let NTIPO='susp';
+function titulo(t,sub){return `<div class="hola"><h1>${t}</h1>${sub?`<div class="mini">${sub}</div>`:''}</div>`;}
 function pintarNovedades(){
   const rows=[...LIVE.novedades].sort((a,b)=>(b.ts||'').localeCompare(a.ts||''));
+  const hoy=hoyISO(), mes=hoy.slice(0,7);
+  const delMes=rows.filter(n=>(n.ts||'').startsWith(mes));
+  const suspAct=C.reduce((n,c)=>n+c.subs.filter(x=>x[3]==='V'&&suspendida(c.id,x[0],hoy)).length,0);
+  const bajas=C.filter(c=>!c.act).length;
   $('v-novedades').innerHTML=`
-  <div class="card"><b>Nueva novedad</b> <span class="mini">alta · baja · suspensión · reanudación</span>
-    <label>Cliente (Nº o dirección)</label><div class="acwrap"><input id="ncli" placeholder="ej: 230 o Dragones 2280 9 B" autocomplete="off" oninput="sugCli(this)" onfocus="sugCli(this)"><div class="ac" id="ncli-ac" hidden></div></div>
-    <div class="mini" id="ncli-info" style="margin-top:4px"></div>
-    <label>Tipo</label><select id="ntipo"><option>Suspensión</option><option>Reanudación</option><option>Alta</option><option>Baja</option></select>
-    <label>Publicación</label><input id="npub" list="npubs" placeholder="ej: LA NACION (solo domingo)" autocomplete="off"><datalist id="npubs"></datalist>
-    <div class="grid2"><div><label>Desde</label><input id="ndesde" type="date" value="${hoyISO()}"></div>
-    <div><label>Hasta (si aplica)</label><input id="nhasta" type="date"></div></div>
-    <label>Nota</label><input id="nnota" placeholder="ej: avisó por WhatsApp">
-    <button class="btn" id="nok">Guardar</button></div>
-  <h2>Feriados sin reparto</h2>
+  ${titulo('Novedades','Altas, bajas y suspensiones. Cada una queda en la ficha del cliente y mueve el devengo desde su fecha.')}
+  <div class="kpis">
+    <div class="kpi"><i>Este mes</i><b>${delMes.length} <small>novedades</small></b><i>${delMes.filter(n=>n.tipo==='Alta').length} altas · ${delMes.filter(n=>n.tipo==='Baja').length} bajas · ${delMes.filter(n=>n.tipo==='Suspensión').length} suspensiones</i></div>
+    <div class="kpi ${suspAct?'amb':'gris'}"><i>Suspendidas hoy</i><b>${suspAct} <small>suscripciones</small></b><i>no devengan mientras dure</i></div>
+    <div class="kpi ${bajas?'rojo':'gris'} click" onclick="irClientes('inactivos')"><i>Clientes dados de baja →</i><b>${bajas} <small>clientes</small></b><i>fuera del padrón, con su saldo guardado</i></div>
+    <div class="kpi ${FER.size?'':'gris'}"><i>Feriados sin reparto</i><b>${FER.size} <small>cargados</small></b><i>${[...FER].filter(f=>f>=hoy).length} por venir</i></div>
+  </div>
+  <div class="sec"><span class="dot"></span>Nueva novedad</div>
+  <div class="card">
+    <div class="fchips" style="margin-top:0">${NTIPOS.map(t=>`<button class="fch${NTIPO===t[0]?' on':''}" data-nt="${t[0]}">${t[1]}</button>`).join('')}</div>
+    <div id="nform"></div>
+  </div>
+  <div class="sec"><span class="dot"></span>Novedades cargadas</div>
+  <div class="filtros"><select id="nfil" style="max-width:220px"><option value="">Tipo: todas</option><option>Alta</option><option>Baja</option><option>Suspensión</option><option>Reanudación</option></select>
+  <input id="nft" type="search" placeholder="Buscar cliente o publicación…" style="margin-top:0"></div>
+  <div class="card" id="nlist"></div>
+  <div class="sec amb"><span class="dot"></span>Feriados sin reparto</div>
   <div class="card"><div class="mini" style="margin-bottom:6px">Los días que cargues acá no se devenga nada: ni a los clientes ni comisión de la distribuidora.</div>
     <div class="grid2"><div><label>Fecha</label><input id="fefec" type="date"></div><div><label>Motivo</label><input id="fedet" placeholder="ej: feriado nacional, paro"></div></div>
     <button class="btn chico" id="feok">Agregar feriado</button>
     <div style="margin-top:8px">${[...LIVE.feriados].sort((a,b)=>(b.f||'').localeCompare(a.f||'')).map(r=>`<div class="mov"><span class="f">${fecha(r.f)}</span><span class="t">${r.d||'sin reparto'}</span><button class="del" data-feid="${r.id}">✕</button></div>`).join('')||'<div class="mini">Ningún feriado cargado.</div>'}</div>
-  </div>
-  <h2>Novedades cargadas</h2>
-  <div class="filtros"><select id="nfil"><option value="">Tipo: todas</option><option>Suspensión</option><option>Reanudación</option><option>Alta</option><option>Baja</option></select></div>
-  <input id="nft" type="search" placeholder="Buscar cliente o publicación…" style="margin-bottom:8px">
-  <div class="card" id="nlist"></div>`;
+  </div>`;
+  pintarNForm();
   window.pintaN=function(){
     const ft=$('nfil').value,q=norm($('nft').value);
     const rs=rows.filter(n=>(!ft||n.tipo===ft)&&(!q||norm(nomCli(n.cli)+' '+(n.pub||'')+' '+(n.nota||'')).includes(q)));
-    $('nlist').innerHTML=rs.length?rs.map(n=>`<div class="mov"><span class="f">${fecha(n.desde)}</span><span class="t"><b>${n.tipo}</b> ${nomCli(n.cli)} · ${n.pub||''} ${n.nota?('· '+n.nota):''}</span><button class="del" data-nid="${n.id}">✕</button></div>`).join(''):'<div class="mini">Ninguna todavía. Acá va lo del cuaderno: suspensiones, altas y bajas desde el 12/08. Cada novedad queda también en la ficha del cliente.</div>';
+    $('nlist').innerHTML=rs.length?rs.slice(0,80).map(n=>`<div class="mov"><span class="f">${fecha(n.desde)}</span><span class="t"><b>${n.tipo}${!n.pub&&(n.tipo==='Baja'||n.tipo==='Reanudación')?' de cliente':''}</b> <a class="lnk" onclick="ficha(${n.cli})">${nomCli(n.cli)}</a>${n.pub?' · '+n.pub:''}${n.dias?' · '+n.dias.map(d=>DIAS[d]).join(''):''}${n.hasta?' · hasta '+fecha(n.hasta):''}${n.nota?' <span class="mini">· '+n.nota+'</span>':''}</span><button class="del" data-nid="${n.id}">✕</button></div>`).join(''):'<div class="mini">Ninguna todavía con ese filtro.</div>';
   }
   pintaN();
+}
+function pintarNForm(){
+  const hoy=hoyISO();
+  const allPubs=[...new Set([...PRECIOS,...LIVE.precios].map(p=>p.pub))].sort();
+  const fCli=`<label>Cliente (Nº, dirección o nombre)</label><div class="acwrap"><input id="ncli" placeholder="ej: 230 o Dragones 2280 9 B" autocomplete="off" oninput="sugCli(this)" onfocus="sugCli(this)"><div class="ac" id="ncli-ac" hidden></div></div><div class="mini" id="ncli-info" style="margin-top:4px"></div><datalist id="npubs"></datalist>`;
+  const fPubCli=(req)=>`<label>Publicación${req?'':' <span class="mini">(vacío = todas las del cliente)</span>'}</label><input id="npub" list="npubs" placeholder="${req?'ej: CLARIN':'todas'}" autocomplete="off">`;
+  const fPubAll=`<label>Publicación</label><input id="npub" list="dl-allpubs" placeholder="ej: CLARIN" autocomplete="off"><datalist id="dl-allpubs">${allPubs.map(p=>`<option value="${p}">`).join('')}</datalist>`;
+  const fSub=`<label>Días que la recibe</label><div class="dias diasel" id="ndias">${DIAS.map((d,i)=>`<div class="dia" data-di="${i}">${d}</div>`).join('')}</div>
+    <div class="grid2"><div><label>¿Quién cobra?</label><select id="nvia"><option value="C">Le cobrás vos (cuenta corriente)</option><option value="S">Vía distribuidora (suscripción)</option></select></div>
+    <div><label>Ejemplares por día</label><input id="nqty" type="number" value="1" min="1"></div></div>`;
+  const fDesde=(l)=>`<label>${l||'Desde'}</label><input id="ndesde" type="date" value="${hoy}">`;
+  const fNota=`<label>Nota</label><input id="nnota" placeholder="ej: avisó por WhatsApp">`;
+  let h='';
+  switch(NTIPO){
+    case 'altacli': h=`<div class="mini" style="margin:6px 0 2px">Crea la ficha del cliente y, si querés, su primera suscripción. Le toca el próximo número libre.</div>
+      <label>Domicilio *</label><input id="ncdom" placeholder="ej: Dragones 2280 9 B">
+      <div class="grid2"><div><label>Nombre</label><input id="ncnom" placeholder="ej: García"></div><div><label>Teléfono</label><input id="nctel" type="tel" placeholder="11 …"></div></div>
+      <label>Particularidad de entrega</label><input id="ncpart" placeholder="ej: bajo puerta, con bolsa siempre">
+      <label>Observaciones</label><input id="ncobs" placeholder="opcional">
+      <div class="sec" style="margin:18px 0 4px"><span class="dot"></span>Primera suscripción <span class="mini" style="text-transform:none;letter-spacing:0">(opcional)</span></div>
+      ${fPubAll}${fSub}${fDesde('Recibe desde')}
+      <button class="btn" id="nok">Crear cliente</button>`; break;
+    case 'altasub': h=`${fCli}${fPubAll}${fSub}${fDesde('Recibe desde')}<button class="btn" id="nok">Guardar alta</button>`; break;
+    case 'susp': h=`${fCli}${fPubCli(false)}<div class="grid2"><div>${fDesde('Suspender desde')}</div><div><label>Hasta <span class="mini">(inclusive; vacío = hasta que se reanude)</span></label><input id="nhasta" type="date"></div></div>${fNota}<button class="btn" id="nok">Guardar suspensión</button>`; break;
+    case 'rean': h=`${fCli}${fPubCli(false)}${fDesde('Vuelve a recibir desde')}${fNota}<button class="btn" id="nok">Guardar reanudación</button>`; break;
+    case 'bajasub': h=`${fCli}${fPubCli(true)}${fDesde('Deja de recibirla desde')}${fNota}<button class="btn" id="nok">Dar de baja la suscripción</button>`; break;
+    case 'bajacli': h=`<div class="aviso" style="margin:8px 0 0">La baja saca al cliente del padrón activo (deja de devengar todo desde la fecha). Su ficha y su saldo quedan guardados: lo ves con el filtro "Inactivos" y se puede reactivar.</div>
+      ${fCli}${fDesde('Baja desde')}${fNota}<button class="btn" id="nok" style="background:var(--rojo)">Dar de baja al cliente</button>`; break;
+    case 'precio': h=`<div class="mini" style="margin:8px 0">Los cambios de precio se cargan en <b>Precios</b> como una nueva vigencia (publicación, día y fecha desde la que rige). Nunca se pisa el precio anterior.</div><button class="btn chico" onclick="irTab('precios')">Ir a Precios →</button>`; break;
+  }
+  $('nform').innerHTML=h;
 }
 function buscarCli(q,n){
   q=norm((q||'').trim()); if(!q) return [];
@@ -831,27 +885,87 @@ function sugCli(inp){
   inp.dataset.cli=''; $('ncli-info').textContent=''; $('npubs').innerHTML='';
   const rs=buscarCli(inp.value);
   if(!rs.length){box.hidden=true;return;}
-  box.innerHTML=rs.map(c=>`<div class="aci" onmousedown="elegirCli(${c.id})"><b>${c.d}</b> <span class="mini">${c.n?c.n+' · ':''}Nº ${c.id}${c.act?'':' · inactivo'}</span></div>`).join('');
+  box.innerHTML=rs.map(c=>`<div class="aci" onmousedown="elegirCli(${c.id})"><b>${c.d}</b> <span class="mini">${c.n?c.n+' · ':''}Nº ${c.id}${c.act?'':' · dado de baja'}</span></div>`).join('');
   box.hidden=false;
 }
 function elegirCli(id){
   const c=C.find(x=>x.id===id); if(!c)return;
   const inp=$('ncli'); inp.value=c.d+' · Nº '+c.id; inp.dataset.cli=String(c.id); $('ncli-ac').hidden=true;
+  const hoy=hoyISO();
   const vig=c.subs.filter(x=>x[3]==='V');
-  $('npubs').innerHTML=[...new Set(c.subs.map(x=>x[0]))].map(pn=>`<option value="${pn}">`).join('');
-  $('ncli-info').innerHTML=(vig.length?'Recibe: '+vig.map(x=>x[0]+(x[1]?' ('+x[1]+')':'')).join(' · '):'Sin suscripciones vigentes')+(c.part?' · <i>'+c.part+'</i>':'');
+  const altas=LIVE.novedades.filter(n=>n.cli===c.id&&n.tipo==='Alta'&&n.dias);
+  const pubs=[...new Set([...c.subs.map(x=>x[0]),...altas.map(n=>n.pub)])];
+  $('npubs').innerHTML=pubs.map(pn=>`<option value="${pn}">`).join('');
+  const s=saldoDe(c);
+  $('ncli-info').innerHTML=(vig.length||altas.length?'Recibe: '+[...vig.map(x=>x[0]+(x[1]?' ('+x[1]+')':'')+(suspendida(c.id,x[0],hoy)?' <span class="tag-susp">suspendida</span>':'')),...altas.map(n=>n.pub+' ('+n.dias.map(d=>DIAS[d]).join('')+')')].join(' · '):'Sin suscripciones vigentes')
+    +(c.part?' · <i>'+c.part+'</i>':'')+(Math.abs(s)>0.5?' · saldo <b class="'+(s>0?'debe':'favor')+'">'+fmt(s)+(s>0?' (debe)':' (a favor)')+'</b>':'')+(c.act?'':' · <b class="debe">dado de baja</b>');
 }
 document.addEventListener('mousedown',e=>{if(!e.target.closest('.acwrap')){const b=$('ncli-ac');if(b)b.hidden=true;}});
-async function addNov(){
+function cliElegido(){
   let cli=parseInt($('ncli').dataset.cli)||null;
-  if(!cli){const rs=buscarCli($('ncli').value,2);if(rs.length===1||(rs.length&&/^\d+$/.test($('ncli').value.trim())))cli=rs[0].id;else if(rs.length>1){toast('Hay varios clientes que coinciden: elegí uno de la lista');return;}}
-  if(!cli||!C.find(x=>x.id===cli)){toast('No encontré ese cliente');return;}
-  const r={id:nid(),ts:new Date().toISOString(),cli,tipo:$('ntipo').value,pub:$('npub').value,desde:$('ndesde').value,hasta:$('nhasta').value,nota:$('nnota').value};
-  try{ await guardar('novedades',[...LIVE.novedades,r]); toast('Novedad guardada ✓ '+nomCli(cli)); pintarNovedades(); }catch(e){toast('Error: '+((e&&e.message)||e));}
+  if(!cli){const rs=buscarCli($('ncli').value,2);if(rs.length===1||(rs.length&&/^\d+$/.test($('ncli').value.trim())))cli=rs[0].id;else if(rs.length>1){toast('Hay varios clientes que coinciden: elegí uno de la lista');return null;}}
+  if(!cli||!C.find(x=>x.id===cli)){toast('No encontré ese cliente');return null;}
+  return cli;
 }
+function leerSub(){
+  const pub=($('npub').value||'').trim().toUpperCase();
+  const dias=[...document.querySelectorAll('#ndias .dia.on')].map(x=>parseInt(x.dataset.di));
+  return {pub,dias,via:$('nvia').value,qty:parseInt($('nqty').value)||1,desde:$('ndesde').value};
+}
+async function addNov(){
+  const ts=new Date().toISOString(), desde=$('ndesde')?$('ndesde').value:hoyISO(), nota=$('nnota')?$('nnota').value:'';
+  try{
+    if(NTIPO==='altacli'){
+      const dom=$('ncdom').value.trim(); if(!dom){toast('Poné el domicilio');return;}
+      const sub=leerSub();
+      if(sub.pub&&!sub.dias.length){toast('Marcá los días de la suscripción (o dejá la publicación vacía)');return;}
+      if(!sub.pub&&sub.dias.length){toast('Poné la publicación');return;}
+      const fila={domicilio:dom,nombre:$('ncnom').value.trim(),telefono:$('nctel').value.trim(),particularidad:$('ncpart').value.trim(),observaciones:$('ncobs').value.trim(),activo:true,ficha:'actual',saldo_inicial:0,saldo_inicial_fecha:hoyISO()};
+      const{data,error}=await sb.from('clientes').insert(fila).select('id').single(); if(error)throw new Error(error.message);
+      const id=data.id;
+      await cargarClientes();
+      if(sub.pub){ await guardar('novedades',[...LIVE.novedades,{id:nid(),ts,cli:id,tipo:'Alta',pub:sub.pub,desde:sub.desde,hasta:'',dias:sub.dias,via:sub.via,qty:sub.qty,nota:'alta de cliente'}]); }
+      recalcActivos(); SCACHE={};
+      toast('Cliente creado ✓ Nº '+id); pintarInicio(); pintarClientes(); pintarNovedades(); ficha(id); return;
+    }
+    const cli=cliElegido(); if(!cli)return;
+    let r=null;
+    if(NTIPO==='altasub'){
+      const sub=leerSub(); if(!sub.pub){toast('Poné la publicación');return;} if(!sub.dias.length){toast('Marcá al menos un día');return;}
+      r={id:nid(),ts,cli,tipo:'Alta',pub:sub.pub,desde:sub.desde,hasta:'',dias:sub.dias,via:sub.via,qty:sub.qty,nota:'alta desde Novedades'};
+    }else if(NTIPO==='susp'){
+      r={id:nid(),ts,cli,tipo:'Suspensión',pub:($('npub').value||'').trim(),desde,hasta:$('nhasta').value||'',nota};
+      if(r.hasta&&r.hasta<r.desde){toast('"Hasta" no puede ser anterior a "Desde"');return;}
+    }else if(NTIPO==='rean'){
+      r={id:nid(),ts,cli,tipo:'Reanudación',pub:($('npub').value||'').trim(),desde,hasta:'',nota};
+    }else if(NTIPO==='bajasub'){
+      const pub=($('npub').value||'').trim(); if(!pub){toast('Poné qué publicación se da de baja');return;}
+      r={id:nid(),ts,cli,tipo:'Baja',pub,desde,hasta:'',nota};
+    }else if(NTIPO==='bajacli'){
+      const c=C.find(x=>x.id===cli), s=saldoDe(c);
+      if(!confirm('¿Dar de baja a '+nomCli(cli)+' desde el '+fecha(desde)+'?'+(Math.abs(s)>0.5?'\n\nTiene saldo '+fmt(s)+(s>0?' (te debe)':' (a favor)')+'. Queda guardado en su ficha.':'')))return;
+      r={id:nid(),ts,cli,tipo:'Baja',pub:'',desde,hasta:'',nota:('baja de cliente'+(nota?' · '+nota:''))};
+    }else return;
+    await guardar('novedades',[...LIVE.novedades,r]);
+    recalcActivos(); SCACHE={};
+    toast('Novedad guardada ✓ '+nomCli(cli)); pintarInicio(); pintarClientes(); pintarNovedades();
+  }catch(e){toast('Error: '+((e&&e.message)||e));}
+}
+async function reactivarCliente(cli){
+  if(!confirm('¿Reactivar a '+nomCli(cli)+' desde hoy? Vuelve al padrón y sus suscripciones retoman el devengo.'))return;
+  const r={id:nid(),ts:new Date().toISOString(),cli,tipo:'Reanudación',pub:'',desde:hoyISO(),hasta:'',nota:'reactivación del cliente'};
+  try{ await guardar('novedades',[...LIVE.novedades,r]); recalcActivos(); SCACHE={}; toast('Cliente reactivado ✓'); pintarInicio(); pintarClientes(); ficha(cli); }catch(e){toast('Error: '+((e&&e.message)||e));}
+}
+// Baja de cliente = novedad "Baja" sin publicación; "Reanudación" sin publicación lo reactiva. No toca clientes.activo (el padrón de 166 sigue siendo la base).
+function bajaVigente(c,dia){
+  dia=dia||hoyISO(); let b=false;
+  LIVE.novedades.filter(n=>n.cli===c.id&&!n.pub&&(n.tipo==='Baja'||n.tipo==='Reanudación')&&(n.desde||'')<=dia).sort((x,y)=>(x.desde||'').localeCompare(y.desde||'')||(x.ts||'').localeCompare(y.ts||'')).forEach(n=>{b=(n.tipo==='Baja');});
+  return b;
+}
+function recalcActivos(){ C.forEach(c=>{c.act=bajaVigente(c)?0:1;}); }
 async function borrarNov(id){
   if(!confirm('¿Borrar?'))return;
-  try{ await guardar('novedades',LIVE.novedades.filter(r=>r.id!==id)); toast('Borrada'); pintarNovedades(); }catch(e){toast('Error: '+((e&&e.message)||e));}
+  try{ await guardar('novedades',LIVE.novedades.filter(r=>r.id!==id)); recalcActivos(); SCACHE={}; toast('Borrada'); pintarNovedades(); }catch(e){toast('Error: '+((e&&e.message)||e));}
 }
 /* ------- DISTRIBUIDORA ------- */
 function pintarDist(){
@@ -862,11 +976,11 @@ function pintarDist(){
   const comi=comisionDevengada();
   const saldoNuevo=cargado-comi;
   const rows=[...LIVE.dist].sort((a,b)=>(b.ts||'').localeCompare(a.ts||''));
-  $('v-dist').innerHTML=`
-  <div class="stats">
-    <div class="stat"><b class="${saldoNuevo>0.5?'debe':(saldoNuevo<-0.5?'favor':'aldia')}">${fmt(saldoNuevo)}</b><i>${saldoNuevo>0.5?'le debés':(saldoNuevo<-0.5?'te debe':'al día')}</i></div>
-    <div class="stat"><b>${fmt(repTot)}</b><i>valor tapa repartido a suscriptores desde el 01/09</i></div>
-    <div class="stat"><b class="favor">${fmt(comi)}</b><i>comisión devengada a tu favor (${CONFIG.comision}% de tapa)</i></div>
+  $('v-dist').innerHTML=`${titulo('Distribuidora','Cuenta corriente con la distribuidora: liquidaciones, pagos y la comisión que te genera el reparto')}
+  <div class="kpis">
+    <div class="kpi ${saldoNuevo>0.5?'rojo':(saldoNuevo<-0.5?'ok':'gris')}"><i>${saldoNuevo>0.5?'Le debés':(saldoNuevo<-0.5?'Te debe':'Saldo')}</i><b>${fmt(saldoNuevo)}</b><i>${saldoNuevo>0.5||saldoNuevo<-0.5?'saldo de la CC':'al día'}</i></div>
+    <div class="kpi"><i>Tapa repartida a suscriptores</i><b>${fmt(repTot)}</b><i>desde el 01/09</i></div>
+    <div class="kpi ok"><i>Comisión devengada</i><b>${fmt(comi)}</b><i>${CONFIG.comision}% del precio de tapa, a tu favor</i></div>
   </div>
   <div class="mini" style="margin:2px 0 8px">Saldo = movimientos cargados acá (${cargado<0?'−':''}${fmt(cargado)}) − comisión devengada por el reparto a suscriptores (${fmt(comi)}). Cada entrega a un suscriptor suma comisión a tu favor automáticamente.</div>
   <div class="card"><b>Comisión sobre precio de tapa</b>
@@ -956,7 +1070,8 @@ async function apiUsuarios(body){
 async function pintarUsuarios(){
   if(!esAdmin()){ver('inicio');return;}
   $('v-usuarios').innerHTML=`
-  <button class="btn chico sec" id="uvolver">← Volver</button>
+  <button class="volver" id="uvolver">← Volver</button>
+  ${titulo('Usuarios y ajustes','Quién entra al sistema y los datos del resumen de cuenta')}
   <h2>Usuarios del sistema</h2>
   <div class="card"><b>Crear usuario</b>
     <label>Email</label><input id="uemail" type="email" autocomplete="off" placeholder="socio@gmail.com">
@@ -1130,6 +1245,7 @@ document.addEventListener('click',function(e){
   if(tab){ver(tab.dataset.v);const p={inicio:pintarInicio,caja:pintarCaja,precios:pintarPrecios,novedades:pintarNovedades,dist:pintarDist}[tab.dataset.v];if(p)p();return;}
   const fch=e.target.closest('.fch');
   if(fch&&fch.dataset.f){setF(fch.dataset.f);return;}
+  if(fch&&fch.dataset.nt){NTIPO=fch.dataset.nt;document.querySelectorAll('.fch[data-nt]').forEach(x=>x.classList.toggle('on',x.dataset.nt===NTIPO));pintarNForm();return;}
   const del=e.target.closest('.del');
   if(del){
     if(del.dataset.mid) borrarMov(del.dataset.mid,parseInt(del.dataset.cli));
@@ -1204,6 +1320,7 @@ document.addEventListener('click',function(e){
     case 'fvolver': ver('clientes');buscar();break;
     case 'fmas': {const y=window.scrollY;ficha(parseInt(b.dataset.cli),true);window.scrollTo(0,y);break;}
     case 'fbc': formCobro(parseInt(b.dataset.cli));break;
+    case 'freact': reactivarCliente(parseInt(b.dataset.cli));break;
     case 'fbl': formLiq(parseInt(b.dataset.cli));break;
     case 'fres': imprimirResumenes([parseInt(b.dataset.cli)]);break;
     case 'bimp': {const ids=RES.filter(x=>saldoDe(x.c,cierreISO())>0.5).map(x=>x.c.id); if(!ids.length){toast('Nadie con saldo deudor al '+fecha(cierreISO()));break;} imprimirResumenes(ids);break;}
