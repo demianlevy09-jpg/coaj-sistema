@@ -59,6 +59,9 @@ header .hb .btn.chico{margin-top:0;padding:8px 12px;font-size:13px}
 .kpi.gris{border-left-style:dashed} .kpi.gris b{color:var(--tinta2);opacity:.75}
 .kpi.punteado{border-style:dashed;border-left-style:solid}
 .kpi .acc{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px} .kpi .acc .btn{margin-top:0}
+.acwrap{position:relative}
+.ac{position:absolute;left:0;right:0;top:100%;z-index:30;background:var(--tarjeta);border:1px solid var(--linea);border-radius:10px;box-shadow:0 8px 24px rgba(20,30,60,.12);max-height:280px;overflow:auto;margin-top:4px}
+.aci{padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--linea);font-size:15px} .aci:last-child{border-bottom:none} .aci:hover{background:var(--azulsuave)}
 @media (min-width:900px){
   body{padding:0}
   .wrap{max-width:none;margin:0;padding:26px 40px 60px 292px}
@@ -792,9 +795,10 @@ function pintarNovedades(){
   const rows=[...LIVE.novedades].sort((a,b)=>(b.ts||'').localeCompare(a.ts||''));
   $('v-novedades').innerHTML=`
   <div class="card"><b>Nueva novedad</b> <span class="mini">alta · baja · suspensión · reanudación</span>
-    <label>Cliente (Nº o dirección)</label><input id="ncli" placeholder="ej: 230 o Dragones 2280 9 B">
+    <label>Cliente (Nº o dirección)</label><div class="acwrap"><input id="ncli" placeholder="ej: 230 o Dragones 2280 9 B" autocomplete="off" oninput="sugCli(this)" onfocus="sugCli(this)"><div class="ac" id="ncli-ac" hidden></div></div>
+    <div class="mini" id="ncli-info" style="margin-top:4px"></div>
     <label>Tipo</label><select id="ntipo"><option>Suspensión</option><option>Reanudación</option><option>Alta</option><option>Baja</option></select>
-    <label>Publicación</label><input id="npub" placeholder="ej: LA NACION (solo domingo)">
+    <label>Publicación</label><input id="npub" list="npubs" placeholder="ej: LA NACION (solo domingo)" autocomplete="off"><datalist id="npubs"></datalist>
     <div class="grid2"><div><label>Desde</label><input id="ndesde" type="date" value="${hoyISO()}"></div>
     <div><label>Hasta (si aplica)</label><input id="nhasta" type="date"></div></div>
     <label>Nota</label><input id="nnota" placeholder="ej: avisó por WhatsApp">
@@ -816,11 +820,31 @@ function pintarNovedades(){
   }
   pintaN();
 }
+function buscarCli(q,n){
+  q=norm((q||'').trim()); if(!q) return [];
+  if(/^\d+$/.test(q)){const c=C.find(x=>x.id===parseInt(q));return c?[c]:[];}
+  const p=q.split(/\s+/);
+  return C.filter(c=>p.every(t=>(c.k||'').includes(t))).sort((a,b)=>b.act-a.act).slice(0,n||8);
+}
+function sugCli(inp){
+  const box=$('ncli-ac'); if(!box)return;
+  inp.dataset.cli=''; $('ncli-info').textContent=''; $('npubs').innerHTML='';
+  const rs=buscarCli(inp.value);
+  if(!rs.length){box.hidden=true;return;}
+  box.innerHTML=rs.map(c=>`<div class="aci" onmousedown="elegirCli(${c.id})"><b>${c.d}</b> <span class="mini">${c.n?c.n+' · ':''}Nº ${c.id}${c.act?'':' · inactivo'}</span></div>`).join('');
+  box.hidden=false;
+}
+function elegirCli(id){
+  const c=C.find(x=>x.id===id); if(!c)return;
+  const inp=$('ncli'); inp.value=c.d+' · Nº '+c.id; inp.dataset.cli=String(c.id); $('ncli-ac').hidden=true;
+  const vig=c.subs.filter(x=>x[3]==='V');
+  $('npubs').innerHTML=[...new Set(c.subs.map(x=>x[0]))].map(pn=>`<option value="${pn}">`).join('');
+  $('ncli-info').innerHTML=(vig.length?'Recibe: '+vig.map(x=>x[0]+(x[1]?' ('+x[1]+')':'')).join(' · '):'Sin suscripciones vigentes')+(c.part?' · <i>'+c.part+'</i>':'');
+}
+document.addEventListener('mousedown',e=>{if(!e.target.closest('.acwrap')){const b=$('ncli-ac');if(b)b.hidden=true;}});
 async function addNov(){
-  const q=norm($('ncli').value.trim());
-  let cli=null;
-  if(/^\d+$/.test(q)) cli=parseInt(q);
-  else if(q.length>3){const c=C.find(x=>x.k.includes(q));cli=c?c.id:null;}
+  let cli=parseInt($('ncli').dataset.cli)||null;
+  if(!cli){const rs=buscarCli($('ncli').value,2);if(rs.length===1||(rs.length&&/^\d+$/.test($('ncli').value.trim())))cli=rs[0].id;else if(rs.length>1){toast('Hay varios clientes que coinciden: elegí uno de la lista');return;}}
   if(!cli||!C.find(x=>x.id===cli)){toast('No encontré ese cliente');return;}
   const r={id:nid(),ts:new Date().toISOString(),cli,tipo:$('ntipo').value,pub:$('npub').value,desde:$('ndesde').value,hasta:$('nhasta').value,nota:$('nnota').value};
   try{ await guardar('novedades',[...LIVE.novedades,r]); toast('Novedad guardada ✓ '+nomCli(cli)); pintarNovedades(); }catch(e){toast('Error: '+((e&&e.message)||e));}
