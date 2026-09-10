@@ -30,7 +30,13 @@
 *{box-sizing:border-box}
 body{background:var(--papel);color:var(--tinta);font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:16px;margin:0;padding:0 0 86px}
 .wrap{max-width:640px;margin:0 auto;padding:0 14px}
-header{padding:16px 0 8px;display:flex;align-items:baseline;gap:8px}
+header{padding:14px 0 8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+header .hl{display:flex;flex-direction:column;gap:2px;flex:1;min-width:180px}
+header .hb{display:flex;gap:6px;margin-left:auto}
+header .hb .btn.chico{margin-top:0;padding:8px 12px;font-size:13px}
+.segm{display:inline-flex;border:1.5px solid var(--azul);border-radius:99px;overflow:hidden;margin:6px 0 8px}
+.segm button{border:none;background:transparent;color:var(--azul);font-family:inherit;font-weight:600;font-size:13px;padding:7px 14px;cursor:pointer}
+.segm button.on{background:var(--azul);color:#fff}
 .marca{font-family:'Archivo',sans-serif;font-weight:900;font-size:24px;letter-spacing:-.5px}
 .marca span{color:var(--azul)}
 .mini{font-size:12px;color:var(--tinta2)}
@@ -110,7 +116,7 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini" id="estado-db"></div><div class="mini" id="lat">v33</div></header>
+<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v34</span></div></div><div class="hb" id="hbtns"></div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -265,7 +271,7 @@ async function boot(){
   }
   armarPIDX();
   $('cargando').hidden=true; $('app').hidden=false; $('tabs').hidden=false;
-  $('estado-db').textContent='guardado en la nube ✓';
+  $('estado-db').textContent='☁ guardado';
   pintarInicio(); pintarClientes(); pintarCaja(); pintarPrecios(); pintarNovedades(); pintarDist();
 }
 // guardar(col, filas): compara con lo que hay en memoria → inserta las nuevas y anula las que faltan, fila por fila (sin pisar a otros usuarios)
@@ -330,7 +336,7 @@ let MODO_SALDO='vivo'; try{MODO_SALDO=localStorage.getItem('modoSaldo')||'vivo';
 function cierreISO(){const h=hoyISO();const d=new Date(h+'T12:00:00');d.setDate(0);return d.toISOString().slice(0,10);} // último día del mes anterior (según fecha de Argentina)
 function hastaSaldo(){return MODO_SALDO==='cierre'?cierreISO():hoyISO();}
 function setModoSaldo(m){MODO_SALDO=m;try{localStorage.setItem('modoSaldo',m);}catch(_){}pintarInicio();pintarClientes();}
-function toggleSaldoHTML(){return `<div class="fchips" style="margin:0 0 6px"><button class="fch${MODO_SALDO==='vivo'?' on':''}" onclick="setModoSaldo('vivo')">Saldo hoy</button><button class="fch${MODO_SALDO==='cierre'?' on':''}" onclick="setModoSaldo('cierre')">Saldo al ${fecha(cierreISO())} (mes vencido)</button></div>`;}
+function toggleSaldoHTML(){return `<div class="segm"><button class="${MODO_SALDO==='vivo'?'on':''}" onclick="setModoSaldo('vivo')">Saldo a hoy</button><button class="${MODO_SALDO==='cierre'?'on':''}" onclick="setModoSaldo('cierre')">Al ${fecha(cierreISO())} (mes vencido)</button></div>`;}
 function devengoDe(c,tipo,hasta){
   tipo=tipo||'C';
   hasta=hasta||hoyISO();
@@ -1010,11 +1016,11 @@ async function iniciarApp(){
       if(hs==='usuarios'){if(esAdmin()){ver('usuarios');pintarUsuarios();}return;}
       if(VISTAS.includes(hs)&&hs!=='ficha'){ver(hs);const p={caja:pintarCaja,precios:pintarPrecios,novedades:pintarNovedades,dist:pintarDist}[hs];if(p)p();}
     })();
-    const hdrEl=document.querySelector('header');
+    const hdrEl=document.getElementById('hbtns');
     if(hdrEl&&!document.getElementById('lsalir')){
-      if(esAdmin()){const x=document.createElement('button');x.id='qexport';x.className='btn chico sec';x.style.marginLeft='auto';x.textContent='Backup';x.onclick=exportarTodo;hdrEl.appendChild(x);const u=document.createElement('button');u.id='qusuarios';u.className='btn chico sec';u.textContent='Usuarios';hdrEl.appendChild(u);}
-      const b=document.createElement('button');b.id='lsalir';b.className='btn chico sec';if(!esAdmin())b.style.marginLeft='auto';b.textContent='Salir';hdrEl.appendChild(b);
-      if(PERFIL&&PERFIL.rol) $('estado-db').textContent='guardado en la nube ✓ · '+(USUARIO.email||'')+' ('+PERFIL.rol+')';
+      if(esAdmin()){const x=document.createElement('button');x.id='qexport';x.className='btn chico sec';x.textContent='Backup';x.title='Descargar una copia de todos los datos';x.onclick=exportarTodo;hdrEl.appendChild(x);const u=document.createElement('button');u.id='qusuarios';u.className='btn chico sec';u.textContent='Usuarios';hdrEl.appendChild(u);}
+      const b=document.createElement('button');b.id='lsalir';b.className='btn chico sec';b.textContent='Salir';hdrEl.appendChild(b);
+      if(PERFIL&&PERFIL.rol){const e=$('estado-db');e.textContent='☁ guardado · '+(PERFIL.rol==='admin'?'admin':'operador');e.title=USUARIO.email||'';}
     }
   }catch(e){$('cargando').innerHTML='Error: '+(e.message||e);}
 }
