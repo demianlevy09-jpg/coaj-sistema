@@ -104,6 +104,40 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
 .card.cabecera{border-left:4px solid var(--azul)}
 .gridcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px} .gridcards .card{margin:0}
 .lnk{color:var(--azul);cursor:pointer;text-decoration:none} .lnk:hover{text-decoration:underline}
+/* reparto */
+.vgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;align-items:start}
+.vcol{background:var(--tarjeta);border:1px solid var(--linea);border-radius:12px;overflow:hidden}
+.vhead{padding:12px 14px;border-bottom:1px solid var(--linea);background:var(--azulsuave)}
+.vhead b{font-family:'Archivo',sans-serif;font-size:17px}
+.vtot{margin-top:2px;color:var(--tinta)}
+.vlist{padding:8px;min-height:60px}
+.vlist.over{background:var(--azulsuave)}
+.parada{border:1px solid var(--linea);border-radius:10px;padding:8px 10px;margin-bottom:6px;background:var(--tarjeta)}
+.parada.drg{opacity:.4}
+.phead{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.phead b{flex:1;font-size:15px}
+.grip{cursor:grab;color:var(--tinta2);font-size:15px;user-select:none}
+.pmove{display:flex;gap:2px}
+.mini-btn{border:1px solid var(--linea);background:var(--tarjeta);color:var(--tinta2);border-radius:6px;font-size:13px;line-height:1;padding:4px 7px;cursor:pointer;font-family:inherit}
+.mini-btn:hover{color:var(--azul);border-color:var(--azul)}
+.pcli{display:flex;align-items:baseline;gap:8px;padding:4px 0 4px 4px;border-top:1px dashed var(--linea);font-size:14px;flex-wrap:wrap}
+.pcli .un{min-width:52px;font-weight:600;font-variant-numeric:tabular-nums}
+.pcli .pe{font-weight:600;color:var(--azul)}
+.pcli .pp{color:var(--ambar);font-size:12.5px;flex-basis:100%;padding-left:60px}
+.pcli .mini-btn{margin-left:auto}
+.sel-v{margin-left:auto}
+@media (max-width:899px){.grip{display:none} .tab{font-size:11px}}
+@media (min-width:900px){.pmove{display:none}}
+/* hoja de reparto impresa */
+.hoja{page-break-after:always;break-after:page;font:10.5pt/1.3 'IBM Plex Sans',Arial,sans-serif;color:#000;padding:2mm 0}
+.hoja:last-child{page-break-after:auto;break-after:auto}
+.hoja .hh{display:flex;justify-content:space-between;gap:6mm;border-bottom:1.5px solid #000;padding-bottom:2mm;margin-bottom:2mm;font-size:11pt}
+.hoja .hh b{font-size:13pt}
+.hoja .ht{text-align:right;font-size:10pt}
+.hoja .hp{break-inside:avoid;padding:1.2mm 0;border-bottom:1px solid #bbb}
+.hoja .hpe{font-weight:700;font-size:11pt}
+.hoja .hpc{display:grid;grid-template-columns:5mm 18mm 1fr 1fr;gap:2mm;padding:.4mm 0 .4mm 3mm}
+.hoja .hpp{font-size:9pt;color:#333}
 .filtros{align-items:center}
 @media (max-width:899px){.kpis,.stats{grid-template-columns:repeat(2,1fr)} .kpi b,.stat b{font-size:20px} .kpi.ancha{grid-column:span 2}}
 @media (min-width:900px){.card>label+input:not([type=search]),.card>label+select,.card>.grid2,.card>label+.acwrap,.card>.dias{max-width:600px}}
@@ -159,6 +193,7 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
   body{background:#fff!important;color:#000!important;margin:0}
   #appwrap,#tabs,#login,.toast{display:none!important}
   #print-area{display:block!important}
+  body.print-hojas #print-area .hoja{display:block}
   @page{size:A4 portrait;margin:5mm 8mm}
   html,body{height:auto!important;overflow:visible!important}
 }
@@ -197,7 +232,7 @@ select.apagado{opacity:.45}
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v45</span></div></div><div class="hb" id="hbtns"></div></header>
+<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v46</span></div></div><div class="hb" id="hbtns"></div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -206,6 +241,7 @@ select.apagado{opacity:.45}
   <div id="v-precios" hidden></div>
   <div id="v-novedades" hidden></div>
   <div id="v-dist" hidden></div>
+  <div id="v-reparto" hidden></div>
   <div id="v-ficha" hidden></div>
   <div id="v-usuarios" hidden></div>
 </div>
@@ -218,6 +254,7 @@ select.apagado{opacity:.45}
   <button class="tab" data-v="caja"><span class="ic">$</span><span class="tl-c">Caja</span><span class="tl-l">Caja</span></button>
   <button class="tab" data-v="precios"><span class="ic">%</span><span class="tl-c">Precios</span><span class="tl-l">Precios</span></button>
   <button class="tab" data-v="novedades"><span class="ic">✎</span><span class="tl-c">Noved.</span><span class="tl-l">Novedades</span></button>
+  <button class="tab" data-v="reparto"><span class="ic">➤</span><span class="tl-c">Reparto</span><span class="tl-l">Reparto</span></button>
   <button class="tab" data-v="dist"><span class="ic">⇄</span><span class="tl-c">Distrib.</span><span class="tl-l">Distribuidora</span></button>
   </div>
   <div class="sb-foot" id="sb-foot"></div>
@@ -271,7 +308,7 @@ document.addEventListener('click',async e=>{
 
 let db=null, C=[], PRECIOS=[], CAJAH=[], LISTAS={medios:[],conceptos:[],tipos:[]};
 const CONCEPTOS_CAJA=['Cobro a cliente','Venta mostrador','Cobro distribuidora','Pago a distribuidora','Pago a empleado','Gasto','Retiro','Cambio inicial','Transferencia entre cuentas','Otro'];
-let LIVE={movs:[],caja:[],precios:[],novedades:[],dist:[],feriados:[],devol:[]};
+let LIVE={movs:[],caja:[],precios:[],novedades:[],dist:[],feriados:[],devol:[],reparto:[],vueltas:[]};
 let FER=new Set(); // fechas ISO sin reparto
 let CONFIG={comision:32}; // % del precio de tapa que le corresponde a COHAJ por lo repartido a suscriptores (dato de Demian 09/09: 32%)
 let DISTH=[];
@@ -286,7 +323,7 @@ function toast(m){const t=$('toast');t.textContent=m;t.classList.add('ver');setT
 const dget=snap=>(snap&&typeof snap.data==='function')?snap.data():snap;
 
 /* ------- capa de datos: tablas de Supabase (v33) ------- */
-const TABLAS={movs:'movimientos',caja:'caja',precios:'precios',novedades:'novedades',dist:'dist_movimientos',feriados:'feriados',devol:'devoluciones'};
+const TABLAS={movs:'movimientos',caja:'caja',precios:'precios',novedades:'novedades',dist:'dist_movimientos',feriados:'feriados',devol:'devoluciones',reparto:'reparto',vueltas:'vueltas'};
 const A_DB={
   movs:r=>({cliente_id:r.cli,fecha:r.f,tipo:r.tipo,importe:r.imp,medio:r.medio||'',nota:r.nota||''}),
   caja:r=>({fecha:r.f,concepto:r.c,detalle:r.d||'',ingreso:r.ing||0,egreso:r.egr||0,medio:r.m||'Efectivo',movimiento_id:r.mid||null}),
@@ -294,7 +331,9 @@ const A_DB={
   novedades:r=>({cliente_id:r.cli,tipo:r.tipo,publicacion:r.pub||'',desde:r.desde||null,hasta:r.hasta||null,dias:r.dias||null,via:r.via||null,cantidad:r.qty||null,nota:r.nota||''}),
   dist:r=>({distribuidor_id:r.dist||1,fecha:r.f,detalle:r.d||'',importe:r.imp}),
   feriados:r=>({fecha:r.f,motivo:r.d||''}),
-  devol:r=>({distribuidor_id:1,fecha:r.f,publicacion:r.pub,cantidad:r.qty,nota:r.nota||''})
+  devol:r=>({distribuidor_id:1,fecha:r.f,publicacion:r.pub,cantidad:r.qty,nota:r.nota||''}),
+  reparto:r=>({cliente_id:r.cli,dia:r.dia,vuelta:r.vuelta,orden:r.orden||0}),
+  vueltas:r=>({nombre:r.nombre,repartidor:r.repartidor||'',orden:r.orden||0,activo:r.activo!==false})
 };
 const DE_DB={
   movs:x=>({id:String(x.id),ts:x.creado_en,cli:x.cliente_id,tipo:x.tipo,imp:Number(x.importe),f:x.fecha,medio:x.medio||'',nota:x.nota||'',fijo:x.fijo?1:0}),
@@ -303,7 +342,9 @@ const DE_DB={
   novedades:x=>({id:String(x.id),ts:x.creado_en,cli:x.cliente_id,tipo:x.tipo,pub:x.publicacion||'',desde:x.desde||'',hasta:x.hasta||'',dias:x.dias||null,via:x.via||null,qty:x.cantidad||null,nota:x.nota||''}),
   dist:x=>({id:String(x.id),ts:x.creado_en,f:x.fecha,d:x.detalle||'',imp:Number(x.importe),dist:x.distribuidor_id}),
   feriados:x=>({id:x.fecha,f:x.fecha,d:x.motivo||''}),
-  devol:x=>({id:String(x.id),ts:x.creado_en,f:x.fecha,pub:x.publicacion,qty:x.cantidad,nota:x.nota||'',dist:x.distribuidor_id})
+  devol:x=>({id:String(x.id),ts:x.creado_en,f:x.fecha,pub:x.publicacion,qty:x.cantidad,nota:x.nota||'',dist:x.distribuidor_id}),
+  reparto:x=>({id:String(x.id),cli:x.cliente_id,dia:x.dia,vuelta:x.vuelta,orden:x.orden||0}),
+  vueltas:x=>({id:x.nombre,nombre:x.nombre,repartidor:x.repartidor||'',orden:x.orden||0,activo:x.activo!==false})
 };
 async function todo(mk){ // trae todas las filas paginando de a 1000
   let out=[],from=0;
@@ -312,13 +353,14 @@ async function todo(mk){ // trae todas las filas paginando de a 1000
 }
 async function cargarTabla(col){
   const t=TABLAS[col];
-  let rows=await todo(()=>sb.from(t).select('*').eq('anulado',false).order(t==='feriados'?'fecha':'id',{ascending:true}));
+  let rows=await todo(()=>sb.from(t).select('*').eq('anulado',false).order(t==='feriados'?'fecha':(t==='vueltas'?'orden':'id'),{ascending:true}));
   if(col==='movs'){ const ids=new Set(C.map(c=>c.id)); rows=rows.filter(x=>x.origen!=='newspaper'&&ids.has(x.cliente_id)); }
   if(col==='caja'){ CAJAH=rows.filter(x=>x.origen==='newspaper').map(x=>({f:x.fecha+(x.hora?' '+String(x.hora).slice(0,5):''),c:x.concepto,d:x.detalle||'',i:Number(x.ingreso)||0,e:Number(x.egreso)||0,m:x.medio||''})); rows=rows.filter(x=>x.origen!=='newspaper'); }
   if(col==='precios'){ PRECIOS=rows.filter(x=>x.origen==='newspaper').map(DE_DB.precios); rows=rows.filter(x=>x.origen!=='newspaper'); }
   if(col==='dist'){ DISTH=rows.filter(x=>x.historico).map(x=>({f:x.fecha,d:x.detalle||'',imp:Number(x.importe)})); rows=rows.filter(x=>!x.historico); }
   LIVE[col]=rows.map(DE_DB[col]);
   if(col==='feriados') FER=new Set(LIVE.feriados.map(r=>r.f));
+  if(col==='vueltas') VUELTAS=LIVE.vueltas;
   if(col==='novedades') recalcActivos();
   if(col==='precios') armarPIDX();
   SCACHE={};
@@ -349,6 +391,7 @@ async function boot(){
     await cargarConfig();
     await cargarClientes();
     await Promise.all(['precios','caja','movs','novedades','dist','feriados','devol'].map(cargarTabla));
+    try{ await cargarTabla('vueltas'); await cargarTabla('reparto'); REPARTO_OK=true; }catch(e){ REPARTO_OK=false; console.warn('reparto',e); }
   }catch(e){
     $('cargando').innerHTML='No pude leer los datos: '+((e&&e.message)||e)+'<br><br><button class="btn" onclick="location.reload()">Recargar</button> <button class="btn sec" id="lsalir">Volver a entrar</button>';
     return;
@@ -483,7 +526,7 @@ function saldoHTML(s){
 }
 
 /* ------- navegación ------- */
-const VISTAS=['inicio','clientes','caja','precios','novedades','dist','ficha','usuarios'];
+const VISTAS=['inicio','clientes','caja','precios','novedades','dist','reparto','ficha','usuarios'];
 function ver(v){
   if(v!=='ficha'){try{history.replaceState(null,'','#'+v);}catch(_){}}
   VISTAS.forEach(x=>$('v-'+x).hidden=(x!==v));
@@ -967,6 +1010,170 @@ async function borrarNov(id){
   if(!confirm('¿Borrar?'))return;
   try{ await guardar('novedades',LIVE.novedades.filter(r=>r.id!==id)); recalcActivos(); SCACHE={}; toast('Borrada'); pintarNovedades(); }catch(e){toast('Error: '+((e&&e.message)||e));}
 }
+/* ------- REPARTO (v46): vueltas, paradas en orden, paquetes ------- */
+let VUELTAS=[], REPARTO_OK=true, RDIA=null, RDRAG=null;
+const DIAS_L=['lunes','martes','miércoles','jueves','viernes','sábado','domingo'];
+function wdDe(iso){return (new Date(iso+'T12:00:00').getDay()+6)%7;}
+function fechaParaDia(wd){ // próxima fecha (hoy inclusive) que cae en ese día de semana
+  const h=hoyISO(); const d=new Date(h+'T12:00:00'); const cur=(d.getDay()+6)%7; d.setDate(d.getDate()+((wd-cur+7)%7)); return d.toISOString().slice(0,10);
+}
+function edificioDe(dom){ const m=(dom||'').match(/^(.*?\s\d+)(\s.*)?$/); return m?{ed:m[1],un:(m[2]||'').trim()}:{ed:dom||'',un:''}; }
+// qué recibe un cliente en una fecha (según suscripciones + altas cargadas − suspensiones/bajas/feriados)
+function entregasDe(c,iso){
+  const wd=wdDe(iso); const out=[], res=[];
+  if(FER.has(iso)) return {out,res};
+  c.subs.filter(x=>x[3]==='V').forEach(x=>{
+    const dd=FDIAS[norm(x[1])]; if(!dd||!dd.includes(wd)) return;
+    if((x[4]||'').slice(0,10)>iso) return;
+    if(suspendida(c.id,x[0],iso)) return;
+    const q=x[5]||1; (q<0?res:out).push({pub:x[0],qty:Math.abs(q),via:x[2]});
+  });
+  LIVE.novedades.filter(n=>n.cli===c.id&&n.tipo==='Alta'&&n.dias&&n.dias.includes(wd)&&(n.desde||'')<=iso&&!suspendida(c.id,n.pub,iso)).forEach(n=>out.push({pub:n.pub,qty:n.qty||1,via:n.via||'C'}));
+  return {out,res};
+}
+function vueltasActivas(){ return VUELTAS.filter(v=>v.activo!==false).sort((a,b)=>(a.orden||0)-(b.orden||0)); }
+function pintarReparto(){
+  const el=$('v-reparto');
+  if(!REPARTO_OK){ el.innerHTML=titulo('Reparto','')+'<div class="aviso">Falta crear las tablas de reparto en la base (archivo <b>supabase/2026-09-10_reparto.sql</b>). Corrélo en el SQL Editor de Supabase y recargá.</div>'; return; }
+  if(RDIA==null) RDIA=wdDe(hoyISO());
+  const iso=fechaParaDia(RDIA);
+  const feriado=FER.has(iso);
+  // armar paradas del día
+  const asig={}; LIVE.reparto.filter(r=>r.dia===RDIA).forEach(r=>asig[r.cli]=r);
+  const porV={}; vueltasActivas().forEach(v=>porV[v.nombre]=[]);
+  const sinV=[], reservas=[], totPub={};
+  let nCli=0;
+  C.filter(c=>c.act).forEach(c=>{
+    const e=entregasDe(c,iso);
+    e.res.forEach(r=>reservas.push({c,...r}));
+    if(!e.out.length) return;
+    nCli++;
+    e.out.forEach(x=>totPub[x.pub]=(totPub[x.pub]||0)+x.qty);
+    const a=asig[c.id];
+    if(a&&porV[a.vuelta]) porV[a.vuelta].push({c,ent:e.out,orden:a.orden,rid:a.id});
+    else sinV.push({c,ent:e.out});
+  });
+  const agrupar=list=>{ // paradas = edificios consecutivos en orden
+    list.sort((a,b)=>a.orden-b.orden||edificioDe(a.c.d).ed.localeCompare(edificioDe(b.c.d).ed));
+    const paradas=[]; list.forEach(x=>{const ed=edificioDe(x.c.d).ed; const last=paradas[paradas.length-1]; if(last&&last.ed===ed) last.cl.push(x); else paradas.push({ed,cl:[x]});}); return paradas;
+  };
+  const totStr=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]).map(([p,n])=>`<b>${n}</b> ${p}`).join(' · ')||'—';
+  const nParadas=Object.values(porV).reduce((n,l)=>n+agrupar([...l]).length,0);
+  let h=titulo('Reparto',`${DIAS_L[RDIA][0].toUpperCase()+DIAS_L[RDIA].slice(1)} ${fecha(iso)} · ${nCli} clientes en ${nParadas} paradas · ${Object.values(totPub).reduce((a,b)=>a+b,0)} ejemplares`);
+  h+=`<div class="fchips" style="margin:0 0 12px">${DIAS.map((d,i)=>`<button class="fch${i===RDIA?' on':''}" data-rdia="${i}">${DIAS_L[i]}</button>`).join('')}<button class="fch" id="rimpall" style="margin-left:auto">🖨 Imprimir todas las vueltas</button></div>`;
+  if(feriado) h+=`<div class="aviso" style="margin-bottom:12px">${fecha(iso)} está cargado como feriado sin reparto: no se entrega nada ese día.</div>`;
+  h+=`<div class="kpis">
+    <div class="kpi ancha"><i>Para armar los paquetes</i><b style="font-size:17px;line-height:1.5">${totStr(totPub)}</b><i>total del día, todas las vueltas</i></div>
+    <div class="kpi ${sinV.length?'amb':'gris'}"><i>Sin vuelta asignada</i><b>${sinV.length} <small>clientes</small></b><i>${sinV.length?'asignalos abajo':'todos asignados ✓'}</i></div>
+    <div class="kpi ${reservas.length?'':'gris'}"><i>Reservas en la parada</i><b>${reservas.length} <small>ejemplares</small></b><i>los retiran en el puesto</i></div>
+  </div>`;
+  h+=`<div class="sec"><span class="dot"></span>Vueltas del ${DIAS_L[RDIA]} <span class="mini" style="text-transform:none;letter-spacing:0">— arrastrá las paradas para cambiar el orden o pasarlas a otra vuelta; ⇄ mueve un cliente</span></div>`;
+  h+=`<div class="vgrid">`;
+  vueltasActivas().forEach(v=>{
+    const list=porV[v.nombre]; const paradas=agrupar(list);
+    const tot={}; list.forEach(x=>x.ent.forEach(e=>tot[e.pub]=(tot[e.pub]||0)+e.qty));
+    const nEj=Object.values(tot).reduce((a,b)=>a+b,0);
+    h+=`<div class="vcol" data-vuelta="${v.nombre}">
+      <div class="vhead"><div><b>${v.nombre}</b> <span class="mini lnk" data-rrep="${v.nombre}" title="Cambiar repartidor">${v.repartidor||'sin repartidor'} ✎</span></div>
+        <div class="mini">${paradas.length} paradas · ${nEj} ejemplares</div>
+        <div class="mini vtot">${totStr(tot)}</div>
+        <button class="btn chico sec" data-rimp="${v.nombre}" style="margin-top:6px">🖨 Hoja</button></div>
+      <div class="vlist" data-vuelta="${v.nombre}">`;
+    paradas.forEach((p,i)=>{
+      h+=`<div class="parada" draggable="true" data-ed="${p.ed}" data-vuelta="${v.nombre}" data-clis="${p.cl.map(x=>x.c.id).join(',')}">
+        <div class="phead"><span class="grip">☰</span><b>${p.ed}</b><span class="mini">${i+1}</span>
+          <span class="pmove"><button class="mini-btn" data-pmv="up" title="Subir">↑</button><button class="mini-btn" data-pmv="down" title="Bajar">↓</button></span></div>
+        ${p.cl.map(x=>`<div class="pcli"><span class="un">${edificioDe(x.c.d).un||''}</span><span class="pe">${x.ent.map(e=>(e.qty>1?e.qty+'× ':'')+e.pub).join(' + ')}</span>${x.c.part?`<span class="pp">${x.c.part}</span>`:''}<button class="mini-btn" data-mv="${x.c.id}" title="Mover a otra vuelta">⇄</button></div>`).join('')}
+      </div>`;
+    });
+    if(!paradas.length) h+='<div class="mini" style="padding:14px 6px;text-align:center">Sin paradas este día. Arrastrá acá una parada o asigná clientes.</div>';
+    h+=`</div></div>`;
+  });
+  h+=`</div>`;
+  if(sinV.length){
+    h+=`<div class="sec amb"><span class="dot"></span>Sin vuelta asignada (${sinV.length})</div><div class="card">${sinV.sort((a,b)=>a.c.d.localeCompare(b.c.d)).map(x=>`<div class="pcli"><span class="un" style="min-width:0"><b>${x.c.d}</b></span><span class="pe">${x.ent.map(e=>(e.qty>1?e.qty+'× ':'')+e.pub).join(' + ')}</span><select class="sel-v" data-asig="${x.c.id}" style="width:auto;margin:0;padding:6px 8px;font-size:13px"><option value="">Asignar a…</option>${vueltasActivas().map(v=>`<option>${v.nombre}</option>`).join('')}</select></div>`).join('')}</div>`;
+  }
+  if(reservas.length){
+    h+=`<div class="sec"><span class="dot"></span>Reservas en la parada (${reservas.length})</div><div class="card"><div class="mini" style="margin-bottom:6px">Se los guardan en el puesto, no van en ninguna vuelta.</div>${reservas.map(r=>`<div class="pcli"><span class="un" style="min-width:0"><b>${r.c.d}</b>${r.c.n?' · '+r.c.n:''}</span><span class="pe">${r.qty>1?r.qty+'× ':''}${r.pub}</span></div>`).join('')}</div>`;
+  }
+  h+=`<div class="card" style="margin-top:14px"><b>Vueltas y repartidores</b><div class="mini" style="margin:4px 0 8px">Tocá el nombre del repartidor para cambiarlo. Las vueltas vienen de NewsPaper; se pueden agregar más.</div>
+    ${VUELTAS.sort((a,b)=>(a.orden||0)-(b.orden||0)).map(v=>`<div class="mov"><span class="t"><b>${v.nombre}</b> · <span class="lnk" data-rrep="${v.nombre}">${v.repartidor||'sin repartidor'} ✎</span></span><span class="mini">${LIVE.reparto.filter(r=>r.vuelta===v.nombre).length} asignaciones</span><button class="mini-btn" data-rvact="${v.nombre}" title="${v.activo===false?'Activar':'Desactivar'}">${v.activo===false?'○':'●'}</button></div>`).join('')}
+    <div style="display:flex;gap:8px;align-items:center;margin-top:8px"><input id="rnv" placeholder="Nueva vuelta (ej: Moto 1)" style="margin:0;max-width:220px"><input id="rnr" placeholder="Repartidor" style="margin:0;max-width:180px"><button class="btn chico" id="rnvok" style="margin:0">Agregar</button></div></div>`;
+  el.innerHTML=h;
+  // drag & drop (escritorio)
+  el.querySelectorAll('.parada').forEach(p=>{
+    p.addEventListener('dragstart',e=>{RDRAG=p;p.classList.add('drg');e.dataTransfer.effectAllowed='move';});
+    p.addEventListener('dragend',()=>{p.classList.remove('drg');el.querySelectorAll('.vlist').forEach(l=>l.classList.remove('over'));});
+    p.addEventListener('dragover',e=>{e.preventDefault(); if(!RDRAG||RDRAG===p)return; const r=p.getBoundingClientRect(); const antes=(e.clientY-r.top)<r.height/2; p.parentElement.insertBefore(RDRAG,antes?p:p.nextSibling);});
+  });
+  el.querySelectorAll('.vlist').forEach(l=>{
+    l.addEventListener('dragover',e=>{e.preventDefault();l.classList.add('over'); if(RDRAG&&!l.contains(RDRAG)&&!e.target.closest('.parada')) l.appendChild(RDRAG);});
+    l.addEventListener('dragleave',()=>l.classList.remove('over'));
+    l.addEventListener('drop',e=>{e.preventDefault();l.classList.remove('over');guardarOrdenDOM();});
+  });
+}
+// lee el DOM y guarda vuelta+orden de todos los clientes del día (upsert por cliente/día)
+async function guardarOrdenDOM(){
+  const rows=[];
+  document.querySelectorAll('#v-reparto .vlist').forEach(l=>{
+    const vuelta=l.dataset.vuelta;
+    [...l.querySelectorAll('.parada')].forEach((p,i)=>{
+      (p.dataset.clis||'').split(',').filter(Boolean).forEach(id=>rows.push({cliente_id:parseInt(id),dia:RDIA,vuelta,orden:(i+1)*10}));
+    });
+  });
+  try{
+    const{error}=await sb.from('reparto').upsert(rows,{onConflict:'cliente_id,dia'}); if(error)throw new Error(error.message);
+    await cargarTabla('reparto'); toast('Orden guardado ✓'); pintarReparto();
+  }catch(e){toast('Error: '+((e&&e.message)||e)); pintarReparto();}
+}
+async function asignarVuelta(cli,vuelta,todos){
+  const dias=todos?[0,1,2,3,4,5,6]:[RDIA];
+  const rows=dias.map(d=>{const max=LIVE.reparto.filter(r=>r.dia===d&&r.vuelta===vuelta).reduce((m,r)=>Math.max(m,r.orden||0),0); return {cliente_id:cli,dia:d,vuelta,orden:max+10};});
+  try{ const{error}=await sb.from('reparto').upsert(rows,{onConflict:'cliente_id,dia'}); if(error)throw new Error(error.message); await cargarTabla('reparto'); toast(nomCli(cli)+' → '+vuelta+' ✓'); pintarReparto(); }catch(e){toast('Error: '+((e&&e.message)||e));}
+}
+function moverCliente(cli){
+  const c=C.find(x=>x.id===cli); const act=(LIVE.reparto.find(r=>r.cli===cli&&r.dia===RDIA)||{}).vuelta||'';
+  const opts=vueltasActivas().filter(v=>v.nombre!==act).map(v=>v.nombre);
+  const v=prompt('Mover '+(c?c.d:cli)+' de '+(act||'sin vuelta')+' a:\n'+opts.map((o,i)=>(i+1)+') '+o).join('\n')+'\n\nEscribí el número:');
+  if(v===null)return; const sel=opts[parseInt(v)-1]; if(!sel){toast('Opción inválida');return;}
+  const todos=confirm('¿Aplicar a TODOS los días de la semana?\n\nAceptar = todos los días · Cancelar = solo '+DIAS_L[RDIA]);
+  asignarVuelta(cli,sel,todos);
+}
+async function editarRepartidor(nombre){
+  const v=VUELTAS.find(x=>x.nombre===nombre); const r=prompt('Repartidor de '+nombre+':',v?v.repartidor||'':''); if(r===null)return;
+  try{ const{error}=await sb.from('vueltas').update({repartidor:r.trim()}).eq('nombre',nombre); if(error)throw new Error(error.message); await cargarTabla('vueltas'); toast('Guardado ✓'); pintarReparto(); }catch(e){toast('Error: '+((e&&e.message)||e));}
+}
+async function toggleVuelta(nombre){
+  const v=VUELTAS.find(x=>x.nombre===nombre); if(!v)return;
+  try{ const{error}=await sb.from('vueltas').update({activo:v.activo===false}).eq('nombre',nombre); if(error)throw new Error(error.message); await cargarTabla('vueltas'); pintarReparto(); }catch(e){toast('Error: '+((e&&e.message)||e));}
+}
+async function nuevaVuelta(){
+  const n=$('rnv').value.trim(), r=$('rnr').value.trim(); if(!n){toast('Poné el nombre de la vuelta');return;}
+  try{ const{error}=await sb.from('vueltas').insert({nombre:n,repartidor:r,orden:VUELTAS.length+1}); if(error)throw new Error(error.message); await cargarTabla('vueltas'); toast('Vuelta creada ✓'); pintarReparto(); }catch(e){toast('Error: '+((e&&e.message)||e));}
+}
+function moverParada(p,dir){
+  const sib=dir==='up'?p.previousElementSibling:p.nextElementSibling; if(!sib||!sib.classList.contains('parada'))return;
+  if(dir==='up') p.parentElement.insertBefore(p,sib); else p.parentElement.insertBefore(sib,p);
+  guardarOrdenDOM();
+}
+function hojaHTML(vnombre,iso){
+  const v=VUELTAS.find(x=>x.nombre===vnombre)||{nombre:vnombre};
+  const asig={}; LIVE.reparto.filter(r=>r.dia===RDIA&&r.vuelta===vnombre).forEach(r=>asig[r.cli]=r);
+  const list=[]; const tot={};
+  C.filter(c=>c.act&&asig[c.id]).forEach(c=>{const e=entregasDe(c,iso); if(!e.out.length)return; e.out.forEach(x=>tot[x.pub]=(tot[x.pub]||0)+x.qty); list.push({c,ent:e.out,orden:asig[c.id].orden});});
+  list.sort((a,b)=>a.orden-b.orden||a.c.d.localeCompare(b.c.d));
+  const paradas=[]; list.forEach(x=>{const ed=edificioDe(x.c.d).ed; const last=paradas[paradas.length-1]; if(last&&last.ed===ed) last.cl.push(x); else paradas.push({ed,cl:[x]});});
+  return `<div class="hoja"><div class="hh"><div><b>COHAJ · Reparto del ${DIAS_L[RDIA]} ${fecha(iso)}</b><div>Vuelta <b>${v.nombre}</b>${v.repartidor?' · '+v.repartidor:''}</div></div><div class="ht">${Object.entries(tot).sort((a,b)=>b[1]-a[1]).map(([p,n])=>`<b>${n}</b> ${p}`).join(' · ')||'—'}<div>${paradas.length} paradas · ${list.length} clientes</div></div></div>
+  ${paradas.map((p,i)=>`<div class="hp"><div class="hpe">${i+1}. ${p.ed}</div>${p.cl.map(x=>`<div class="hpc"><span class="hq">☐</span><span class="hu">${edificioDe(x.c.d).un||''}</span><span class="he">${x.ent.map(e=>(e.qty>1?e.qty+'× ':'')+e.pub).join(' + ')}</span><span class="hpp">${x.c.part||''}</span></div>`).join('')}</div>`).join('')}
+  ${paradas.length?'':'<div>Sin paradas.</div>'}</div>`;
+}
+function imprimirHojas(nombres){
+  const iso=fechaParaDia(RDIA);
+  $('print-area').innerHTML=nombres.map(n=>hojaHTML(n,iso)).join('');
+  document.body.classList.add('print-hojas');
+  setTimeout(()=>{window.print();setTimeout(()=>document.body.classList.remove('print-hojas'),500);},50);
+}
+
 /* ------- DISTRIBUIDORA ------- */
 function pintarDist(){
   const mesAct=hoyISO().slice(0,7);
@@ -1242,9 +1449,15 @@ document.addEventListener('click',function(e){
   NEV++;
   const t=e.target.closest?e.target:null; if(!t)return;
   const tab=e.target.closest('.tab');
-  if(tab){ver(tab.dataset.v);const p={inicio:pintarInicio,caja:pintarCaja,precios:pintarPrecios,novedades:pintarNovedades,dist:pintarDist}[tab.dataset.v];if(p)p();return;}
+  if(tab){ver(tab.dataset.v);const p={inicio:pintarInicio,caja:pintarCaja,precios:pintarPrecios,novedades:pintarNovedades,dist:pintarDist,reparto:pintarReparto}[tab.dataset.v];if(p)p();return;}
   const fch=e.target.closest('.fch');
   if(fch&&fch.dataset.f){setF(fch.dataset.f);return;}
+  if(fch&&fch.dataset.rdia!=null){RDIA=parseInt(fch.dataset.rdia);pintarReparto();return;}
+  const rrep=e.target.closest('[data-rrep]'); if(rrep){editarRepartidor(rrep.dataset.rrep);return;}
+  const rimp=e.target.closest('[data-rimp]'); if(rimp){imprimirHojas([rimp.dataset.rimp]);return;}
+  const rva=e.target.closest('[data-rvact]'); if(rva){toggleVuelta(rva.dataset.rvact);return;}
+  const mvb=e.target.closest('[data-mv]'); if(mvb){moverCliente(parseInt(mvb.dataset.mv));return;}
+  const pmv=e.target.closest('[data-pmv]'); if(pmv){moverParada(pmv.closest('.parada'),pmv.dataset.pmv);return;}
   if(fch&&fch.dataset.nt){NTIPO=fch.dataset.nt;document.querySelectorAll('.fch[data-nt]').forEach(x=>x.classList.toggle('on',x.dataset.nt===NTIPO));pintarNForm();return;}
   const del=e.target.closest('.del');
   if(del){
@@ -1321,6 +1534,8 @@ document.addEventListener('click',function(e){
     case 'fmas': {const y=window.scrollY;ficha(parseInt(b.dataset.cli),true);window.scrollTo(0,y);break;}
     case 'fbc': formCobro(parseInt(b.dataset.cli));break;
     case 'freact': reactivarCliente(parseInt(b.dataset.cli));break;
+    case 'rimpall': imprimirHojas(vueltasActivas().map(v=>v.nombre));break;
+    case 'rnvok': nuevaVuelta();break;
     case 'fbl': formLiq(parseInt(b.dataset.cli));break;
     case 'fres': imprimirResumenes([parseInt(b.dataset.cli)]);break;
     case 'bimp': {const ids=RES.filter(x=>saldoDe(x.c,cierreISO())>0.5).map(x=>x.c.id); if(!ids.length){toast('Nadie con saldo deudor al '+fecha(cierreISO()));break;} imprimirResumenes(ids);break;}
@@ -1353,6 +1568,7 @@ document.addEventListener('input',function(e){
 document.addEventListener('change',function(e){
   if(e.target.id==='fcc'||e.target.id==='fcm'){if(window.pintaC)pintaC();}
   if(e.target.id==='nfil'){if(window.pintaN)pintaN();}
+  if(e.target.dataset&&e.target.dataset.asig&&e.target.value){const todos=confirm('¿Asignar a TODOS los días de la semana?\n\nAceptar = todos · Cancelar = solo este día');asignarVuelta(parseInt(e.target.dataset.asig),e.target.value,todos);}
 });
 
 
@@ -1366,7 +1582,7 @@ async function iniciarApp(){
       const mf=hs.match(/^ficha-(\d+)$/);
       if(mf){ficha(parseInt(mf[1]));return;}
       if(hs==='usuarios'){if(esAdmin()){ver('usuarios');pintarUsuarios();}return;}
-      if(VISTAS.includes(hs)&&hs!=='ficha'){ver(hs);const p={caja:pintarCaja,precios:pintarPrecios,novedades:pintarNovedades,dist:pintarDist}[hs];if(p)p();}
+      if(VISTAS.includes(hs)&&hs!=='ficha'){ver(hs);const p={caja:pintarCaja,precios:pintarPrecios,novedades:pintarNovedades,dist:pintarDist,reparto:pintarReparto}[hs];if(p)p();}
     })();
     const hdrEl=document.getElementById('hbtns');
     if(hdrEl&&!document.getElementById('lsalir')){
