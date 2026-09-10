@@ -507,7 +507,7 @@ function pintarInicio(){
   <div class="sec ok"><span class="dot"></span>Tengo</div>
   <div class="kpis">
     <div class="kpi ok punteado click" onclick="irClientes('deudores')"><i>Me deben</i><b>${fmt(tot)}</b><i>${deud.length} clientes con saldo deudor</i></div>
-    <div class="kpi ok click" onclick="irTab('caja')"><i>Caja de hoy</i><b>${cajaHoy.length?fmt(ing-egr):'—'}</b><i>${cajaHoy.length?cajaHoy.length+' movimientos':'sin movimientos hoy'}</i></div>
+    ${(()=>{const pm={};LIVE.caja.forEach(r=>{pm[r.m||'Sin medio']=(pm[r.m||'Sin medio']||0)+(r.ing||0)-(r.egr||0);});const ents=Object.entries(pm).filter(([m,v])=>Math.abs(v)>0.5||m==='Efectivo');return ents.length?ents.map(([m,v])=>`<div class="kpi ${v<-0.5?'rojo':'ok'} click" onclick="irTab('caja')"><i>Caja ${m.toLowerCase()}</i><b>${fmt(v)}</b><i>${cajaHoy.length?'hoy: '+fmt(ing-egr)+' ('+cajaHoy.length+' mov.)':'sin movimientos hoy'}</i></div>`).join(''):`<div class="kpi gris click" onclick="irTab('caja')"><i>Caja</i><b>—</b><i>sin movimientos aún</i></div>`;})()}
     <div class="kpi ok click" onclick="irTab('dist')"><i>Comisión devengada</i><b>${fmt(com)}</b><i>${CONFIG.comision}% de tapa repartida a suscriptores</i></div>
     ${sd<-0.5?`<div class="kpi ok click" onclick="irTab('dist')"><i>La distribuidora me debe</i><b>${fmt(-sd)}</b><i>saldo de la CC</i></div>`:''}
   </div>
