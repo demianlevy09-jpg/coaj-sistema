@@ -100,6 +100,30 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
 .desglose .dl{display:flex;justify-content:space-between;padding:3px 0}
 .desglose .tot{border-top:1px solid var(--linea);margin-top:6px;padding-top:6px;font-weight:700}
 .diasel .dia{cursor:pointer;width:38px;height:34px;font-size:13px}
+/* ------- resumen de cuenta (impresión) ------- */
+#print-area{display:none}
+@media print{
+  body{background:#fff!important;color:#000!important;margin:0}
+  #appwrap,#tabs,#login,.toast{display:none!important}
+  #print-area{display:block!important}
+  @page{size:A4 portrait;margin:8mm 10mm}
+}
+.res{box-sizing:border-box;height:92mm;padding:4mm 5mm;border-bottom:1px dashed #999;font:10.5pt/1.3 'IBM Plex Sans',Arial,sans-serif;color:#000;page-break-inside:avoid;break-inside:avoid;position:relative;background:#fff}
+.res:nth-child(3n){page-break-after:always;break-after:page;border-bottom:none}
+.res .rh{display:flex;justify-content:space-between;align-items:flex-start;gap:8mm;border-bottom:1.5px solid #000;padding-bottom:2mm;margin-bottom:2mm}
+.res .rh .em b{font-size:12pt}
+.res .rh .em div,.res .rh .nr div{font-size:9pt}
+.res .rh .nr{text-align:right;white-space:nowrap}
+.res .rt{font-weight:700;font-size:11pt;letter-spacing:.2px;margin:0 0 1.5mm}
+.res .cl{display:flex;justify-content:space-between;gap:6mm;margin-bottom:2mm}
+.res .cl b{font-size:11.5pt}
+.res table{width:100%;border-collapse:collapse;font-size:9.5pt}
+.res td{padding:.6mm 0}
+.res td:last-child{text-align:right;white-space:nowrap}
+.res tr.tot td{border-top:1.5px solid #000;font-weight:900;font-size:13pt;padding-top:1.5mm}
+.res .pago{margin-top:2mm;padding-top:1.5mm;border-top:1px solid #000;font-size:9.5pt;display:flex;justify-content:space-between;gap:6mm}
+.res .pago b{font-family:monospace;font-size:10pt}
+.res .ley{font-size:8pt;color:#333;margin-top:1mm}
 </style>
 </head>
 <body>
@@ -116,7 +140,7 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v34</span></div></div><div class="hb" id="hbtns"></div></header>
+<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v35</span></div></div><div class="hb" id="hbtns"></div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -138,6 +162,7 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
   <button class="tab" data-v="dist"><span class="ic">⇄</span>Distrib.</button>
 </nav>
 <div class="toast" id="toast"></div>
+<div id="print-area"></div>
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.min.js"></script>
@@ -458,7 +483,7 @@ function buscar(){
   RES=base.sort((a,b)=>(b.c.act-a.c.act)||Math.abs(b.s)-Math.abs(a.s));
   MOSTR=30;pintarLista();
   const tot=RES.reduce((n,x)=>n+x.s,0);
-  $('bres').textContent=RES.length+' clientes · saldo neto '+(tot>=0?'debe ':'a favor ')+fmt(tot);
+  $('bres').innerHTML=RES.length+' clientes · saldo neto '+(tot>=0?'debe ':'a favor ')+fmt(tot)+(FCLI==='deudores'&&!q?` &nbsp; <button class="btn chico sec" id="bimp" style="margin-top:0;padding:5px 10px;font-size:12px">🖨 Imprimir resúmenes (${RES.length}, 3 por hoja)</button>`:'');
   window.__dbg+=' → '+RES.length+' result.';
  }catch(e){
   window.__dbg='ERROR buscar: '+(e&&e.message);
@@ -531,6 +556,7 @@ function ficha(id,mas){
     <div class="grid2">
       <button class="btn chico" id="fbc" data-cli="${id}">＋ Cobro</button>
       <button class="btn chico sec" id="fbl" data-cli="${id}">＋ Ajuste</button>
+      <button class="btn chico sec" id="fres" data-cli="${id}">🖨 Resumen ${MESES[new Date(cierreISO()+'T12:00:00').getMonth()]}</button>
     </div>
     <div id="fform"></div>
   </div>`;
@@ -817,7 +843,8 @@ async function pintarUsuarios(){
     <div class="mini" style="margin-top:8px">Queda habilitado al instante, sin confirmar mail. Pasale el email y la contraseña.</div>
   </div>
   <h2>Usuarios existentes</h2>
-  <div class="card" id="ulist"><div class="mini">Cargando…</div></div>`;
+  <div class="card" id="ulist"><div class="mini">Cargando…</div></div>
+  <h2>Resumen de cuenta</h2>${formEmisorHTML()}`;
   try{
     const{usuarios}=await apiUsuarios({accion:'listar'});
     $('ulist').innerHTML=usuarios.length?usuarios.map(u=>`<div class="card" style="margin-bottom:8px">
@@ -850,15 +877,84 @@ async function borrarUsuario(id,email){
   try{ await apiUsuarios({accion:'borrar',id}); toast('Borrado'); pintarUsuarios(); }catch(e){toast(e.message||e);}
 }
 
+/* ------- RESUMEN DE CUENTA (imprimible, 3 por A4) ------- */
+function emisor(){ return Object.assign({nombre:'',domicilio:'',condicion:'',alias:'',cvu:'',titular:'',titulo:'Resumen de cuenta — no válido como factura',leyenda:''},(CONFIG.raw&&CONFIG.raw.emisor)||{}); }
+function armarResumen(c,periodo){ // periodo = último día del mes (ISO)
+  const d=new Date(periodo+'T12:00:00'); const y=d.getFullYear(), m=d.getMonth();
+  const ini=`${y}-${String(m+1).padStart(2,'0')}-01`;
+  const saldo=saldoDe(c,periodo);
+  const cm=consumoMes(c,y,m);
+  const enMes=f=>f&&f.slice(0,10)>=ini&&f.slice(0,10)<=periodo;
+  let cobros=0, ajustes=0;
+  c.movs.forEach(x=>{ if(!enMes(x[0]))return; if(x[1]==='Cobro') cobros+=-x[2]; else if(x[1]==='Ajuste') ajustes+=x[2]; });
+  LIVE.movs.forEach(x=>{ if(x.cli!==c.id||!enMes(x.f))return; if(x.tipo==='Cobro') cobros+=x.imp; else if(x.tipo==='Ajuste') ajustes+=x.imp; });
+  const anterior=saldo-cm.tot-ajustes+cobros;
+  const detalle=Object.entries(cm.agg).map(([pub,a])=>({pub,n:a.n,tot:a.tot}));
+  return {cliente_id:c.id,periodo,saldo_anterior:+anterior.toFixed(2),consumo:+cm.tot.toFixed(2),cobros:+cobros.toFixed(2),ajustes:+ajustes.toFixed(2),saldo:+saldo.toFixed(2),detalle};
+}
+function htmlResumen(c,r){
+  const e=emisor(); const d=new Date(r.periodo+'T12:00:00');
+  const per=MESES[d.getMonth()]+' '+d.getFullYear();
+  const f=n=>(n<0?'−':'')+'$'+Math.abs(n).toLocaleString('es-AR',{maximumFractionDigits:0});
+  const det=(r.detalle||[]).map(x=>`<tr><td>&nbsp;&nbsp;${x.pub} · ${x.n} ejemplares</td><td>${f(x.tot)}</td></tr>`).join('');
+  return `<div class="res">
+    <div class="rh"><div class="em"><b>${e.nombre}</b><div>${e.domicilio}</div><div>${e.condicion}</div></div>
+      <div class="nr"><div>Resumen Nº <b>${String(r.numero||'').padStart(6,'0')}</b></div><div>Emitido: ${fecha(hoyISO())}</div><div>Período: <b>${per}</b></div></div></div>
+    <div class="rt">${e.titulo}</div>
+    <div class="cl"><div><b>${c.d}</b><br>${c.n||''}</div><div style="text-align:right">Cliente Nº ${c.id}</div></div>
+    <table>
+      <tr><td>Saldo anterior</td><td>${f(r.saldo_anterior)}</td></tr>
+      <tr><td>Consumo de ${per}</td><td>${f(r.consumo)}</td></tr>${det}
+      ${r.ajustes?`<tr><td>Ajustes</td><td>${f(r.ajustes)}</td></tr>`:''}
+      ${r.cobros?`<tr><td>Pagos recibidos en ${per}</td><td>−${f(r.cobros)}</td></tr>`:''}
+      <tr class="tot"><td>Saldo al ${fecha(r.periodo)}</td><td>${f(r.saldo)}</td></tr>
+    </table>
+    <div class="pago"><div>Transferencia: Alias <b>${e.alias}</b> · CVU <b>${e.cvu}</b><br>Titular: ${e.titular}</div><div style="text-align:right">Efectivo: en el puesto</div></div>
+    ${e.leyenda?`<div class="ley">${e.leyenda}</div>`:''}
+  </div>`;
+}
+async function imprimirResumenes(ids){
+  const periodo=cierreISO();
+  toast('Armando '+ids.length+' resumen'+(ids.length>1?'es':'')+'…');
+  try{
+    const {data:prev,error}=await sb.from('resumenes').select('*').in('cliente_id',ids).eq('periodo',periodo).eq('anulado',false).order('numero',{ascending:false});
+    if(error)throw error;
+    const ya={}; (prev||[]).forEach(r=>{ if(!ya[r.cliente_id]) ya[r.cliente_id]=r; });
+    const nuevos=[];
+    for(const id of ids){ const c=C.find(x=>x.id===id); if(!c||ya[id])continue; nuevos.push(armarResumen(c,periodo)); }
+    if(nuevos.length){
+      const {data:ins,error:e2}=await sb.from('resumenes').insert(nuevos).select('*'); if(e2)throw e2;
+      ins.forEach(r=>{ya[r.cliente_id]=r;});
+    }
+    const html=ids.map(id=>{const c=C.find(x=>x.id===id); const r=ya[id]; return (c&&r)?htmlResumen(c,{...r,saldo_anterior:+r.saldo_anterior,consumo:+r.consumo,cobros:+r.cobros,ajustes:+r.ajustes,saldo:+r.saldo}):'';}).join('');
+    $('print-area').innerHTML=html;
+    setTimeout(()=>{window.print();},150);
+    if(nuevos.length) toast(nuevos.length+' resumen'+(nuevos.length>1?'es nuevos':' nuevo')+' guardado'+(nuevos.length>1?'s':''));
+  }catch(e){toast('Error: '+((e&&e.message)||e));}
+}
+async function guardarEmisor(){
+  const v={nombre:$('emn').value.trim(),domicilio:$('emd').value.trim(),condicion:$('emc').value.trim(),alias:$('ema').value.trim(),cvu:$('emv').value.trim(),titular:$('emt').value.trim(),titulo:$('emti').value.trim(),leyenda:$('eml').value.trim()};
+  try{ const{error}=await sb.from('config').upsert({clave:'emisor',valor:v}); if(error)throw error; CONFIG.raw=CONFIG.raw||{}; CONFIG.raw.emisor=v; toast('Datos del resumen guardados ✓'); }catch(e){toast('Error: '+((e&&e.message)||e));}
+}
+function formEmisorHTML(){
+  const e=emisor();
+  return `<div class="card"><b>Datos del resumen de cuenta</b><div class="mini" style="margin:4px 0 6px">Aparecen en el encabezado y al pie de cada resumen impreso.</div>
+    <label>Nombre / razón social</label><input id="emn" value="${e.nombre}">
+    <label>Domicilio</label><input id="emd" value="${e.domicilio}">
+    <label>Condición (ej. Responsable Inscripto)</label><input id="emc" value="${e.condicion}">
+    <div class="grid2"><div><label>Alias</label><input id="ema" value="${e.alias}"></div><div><label>CVU</label><input id="emv" value="${e.cvu}"></div></div>
+    <label>Titular de la cuenta</label><input id="emt" value="${e.titular}">
+    <label>Título del documento</label><input id="emti" value="${e.titulo}">
+    <label>Leyenda al pie</label><input id="eml" value="${e.leyenda}">
+    <button class="btn chico" id="emok">Guardar</button></div>`;
+}
+
 /* ------- latido de diagnóstico ------- */
 let NEV=0;
 window.addEventListener('error',e=>{const l=$('lat');if(l)l.textContent='v34 · ⚠ '+(e.message||'error');});
 /* ------- desglose de una liquidación (reconstrucción) ------- */
-function desglose(cid,fliq){
-  const c=C.find(x=>x.id===cid); if(!c)return '<div class="mini">?</div>';
-  const d=new Date(fliq+'T12:00:00');
-  let y=d.getFullYear(),m=d.getMonth();
-  if(d.getDate()<=5){m--;if(m<0){m=11;y--;}}
+// consumo de un mes (solo lo que cobra COHAJ): {agg:{pub:{n,tot,sp}}, tot}
+function consumoMes(c,y,m){
   const ini=new Date(y,m,1), fin=new Date(y,m+1,0);
   const agg={}; let sinPrecioN=0;
   let dd=new Date(ini);
@@ -881,7 +977,17 @@ function desglose(cid,fliq){
     }
     dd.setDate(dd.getDate()+1);
   }
-  const meses=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  let tot=0; Object.values(agg).forEach(a=>tot+=a.tot);
+  return {agg,tot,sinPrecio:sinPrecioN};
+}
+const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+function desglose(cid,fliq){
+  const c=C.find(x=>x.id===cid); if(!c)return '<div class="mini">?</div>';
+  const d=new Date(fliq+'T12:00:00');
+  let y=d.getFullYear(),m=d.getMonth();
+  if(d.getDate()<=5){m--;if(m<0){m=11;y--;}}
+  const {agg}=consumoMes(c,y,m);
+  const meses=MESES;
   const ks=Object.keys(agg);
   if(!ks.length)return '<div class="mini">No pude reconstruir este período: las suscripciones vigentes hoy no alcanzan a ese mes (pudo haber cambios que NewsPaper ya no conserva).</div>';
   let tot=0;
@@ -977,6 +1083,9 @@ document.addEventListener('click',function(e){
     case 'fmas': {const y=window.scrollY;ficha(parseInt(b.dataset.cli),true);window.scrollTo(0,y);break;}
     case 'fbc': formCobro(parseInt(b.dataset.cli));break;
     case 'fbl': formLiq(parseInt(b.dataset.cli));break;
+    case 'fres': imprimirResumenes([parseInt(b.dataset.cli)]);break;
+    case 'bimp': {const ids=RES.filter(x=>saldoDe(x.c,cierreISO())>0.5).map(x=>x.c.id); if(!ids.length){toast('Nadie con saldo deudor al '+fecha(cierreISO()));break;} imprimirResumenes(ids);break;}
+    case 'emok': guardarEmisor();break;
     case 'fok': addMov(parseInt(b.dataset.cli),b.dataset.tipo);break;
     case 'cok': addCaja();break;
     case 'pok': addPrecio();break;
