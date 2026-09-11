@@ -126,7 +126,7 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
 .pcli .pp{color:var(--ambar);font-size:12.5px;flex-basis:100%;padding-left:60px}
 .pcli .mini-btn{margin-left:auto}
 .sel-v{margin-left:auto}
-@media (max-width:899px){.grip{display:none} .tab{font-size:11px} .tabs .tab.sec{display:none} .massheet{position:fixed;left:8px;right:8px;bottom:70px;background:var(--tarjeta);border:1px solid var(--linea);border-radius:14px;box-shadow:0 10px 30px rgba(20,30,60,.18);z-index:25;padding:6px} .massheet .tab{display:flex;align-items:center;gap:10px;width:100%;text-align:left;font-size:15px;padding:12px 14px;color:var(--tinta)} .massheet .tab .ic{display:inline;font-size:16px;margin:0;width:22px;text-align:center}}
+@media (max-width:899px){.grip{display:none} .tab{font-size:11px} .tabs .tab.tsec{display:none} .massheet{position:fixed;left:8px;right:8px;bottom:70px;background:var(--tarjeta);border:1px solid var(--linea);border-radius:14px;box-shadow:0 10px 30px rgba(20,30,60,.18);z-index:25;padding:6px} .massheet .tab{display:flex;align-items:center;gap:10px;width:100%;text-align:left;font-size:15px;padding:12px 14px;color:var(--tinta)} .massheet .tab .ic{display:inline;font-size:16px;margin:0;width:22px;text-align:center}}
 @media (min-width:900px){.tab.mas,.massheet{display:none!important}}
 @media (min-width:900px){.pmove{display:none}}
 /* hoja de reparto impresa */
@@ -233,7 +233,7 @@ select.apagado{opacity:.45}
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v47</span></div></div><div class="hb" id="hbtns"></div></header>
+<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v48</span></div></div><div class="hb" id="hbtns"></div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -258,11 +258,11 @@ select.apagado{opacity:.45}
   <button class="tab" data-v="caja"><span class="ic">$</span><span class="tl-c">Caja</span><span class="tl-l">Caja</span></button>
   <button class="tab" data-v="reparto"><span class="ic">➤</span><span class="tl-c">Reparto</span><span class="tl-l">Reparto</span></button>
   <button class="tab" data-v="ventas"><span class="ic">▣</span><span class="tl-c">Ventas</span><span class="tl-l">Ventas</span></button>
-  <button class="tab sec" data-v="stock"><span class="ic">▤</span><span class="tl-c">Stock</span><span class="tl-l">Stock</span></button>
-  <button class="tab sec" data-v="compras"><span class="ic">⇩</span><span class="tl-c">Compras</span><span class="tl-l">Compras e ingresos</span></button>
-  <button class="tab sec" data-v="novedades"><span class="ic">✎</span><span class="tl-c">Noved.</span><span class="tl-l">Novedades</span></button>
-  <button class="tab sec" data-v="precios"><span class="ic">%</span><span class="tl-c">Precios</span><span class="tl-l">Precios</span></button>
-  <button class="tab sec" data-v="dist"><span class="ic">⇄</span><span class="tl-c">Distrib.</span><span class="tl-l">Distribuidores</span></button>
+  <button class="tab tsec" data-v="stock"><span class="ic">▤</span><span class="tl-c">Stock</span><span class="tl-l">Stock</span></button>
+  <button class="tab tsec" data-v="compras"><span class="ic">⇩</span><span class="tl-c">Compras</span><span class="tl-l">Compras e ingresos</span></button>
+  <button class="tab tsec" data-v="novedades"><span class="ic">✎</span><span class="tl-c">Noved.</span><span class="tl-l">Novedades</span></button>
+  <button class="tab tsec" data-v="precios"><span class="ic">%</span><span class="tl-c">Precios</span><span class="tl-l">Precios</span></button>
+  <button class="tab tsec" data-v="dist"><span class="ic">⇄</span><span class="tl-c">Distrib.</span><span class="tl-l">Distribuidores</span></button>
   <button class="tab mas" id="tabmas"><span class="ic">⋯</span><span class="tl-c">Más</span></button>
   </div>
   <div id="massheet" class="massheet" hidden>
