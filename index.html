@@ -104,6 +104,10 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
 .card.cabecera{border-left:4px solid var(--azul)}
 .gridcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px} .gridcards .card{margin:0}
 .lnk{color:var(--azul);cursor:pointer;text-decoration:none} .lnk:hover{text-decoration:underline}
+.tab[hidden]{display:none!important}
+.permgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:4px 12px;margin-top:6px}
+.chkl{display:flex;align-items:center;gap:8px;font-weight:500;color:var(--tinta);margin:0;font-size:14px;text-transform:none}
+.chkl input{width:auto;margin:0}
 /* reparto */
 .vgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;align-items:start}
 .vcol{background:var(--tarjeta);border:1px solid var(--linea);border-radius:12px;overflow:hidden}
@@ -130,7 +134,8 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
 .card>.pcli{grid-template-columns:1fr auto auto}
 .card>.pcli select.sel-v{grid-column:3}
 .tots{display:flex;flex-wrap:wrap;gap:6px 14px;margin:6px 0 4px;font-size:14px}
-.tots b{font-family:'Archivo',sans-serif;font-size:18px;color:var(--tinta)}
+.tots b{display:inline;font-family:'Archivo',sans-serif;font-size:18px;color:var(--tinta);margin:0}
+.kpi.ancha{grid-column:span 2}
 .vgrid{grid-template-columns:repeat(auto-fill,minmax(340px,1fr))}
 .vgrid.vacias{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
 .vgrid.vacias .vhead{padding:8px 12px}
@@ -242,7 +247,7 @@ select.apagado{opacity:.45}
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v48</span></div></div><div class="hb" id="hbtns"></div></header>
+<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v49</span></div></div><div class="hb" id="hbtns"></div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -563,12 +568,34 @@ function saldoHTML(s){
 const VISTAS=['inicio','clientes','caja','precios','novedades','dist','reparto','ventas','stock','compras','ficha','usuarios'];
 const PINTAR={inicio:pintarInicio,caja:pintarCaja,precios:pintarPrecios,novedades:pintarNovedades,dist:pintarDist,reparto:pintarReparto,ventas:pintarVentas,stock:pintarStock,compras:pintarCompras};
 function ver(v){
+  if(PERFIL&&v!=='ficha'&&v!=='usuarios'&&!puede(v)){ v=primeraVista(); }
+  if(v==='ficha'&&PERFIL&&!puede('clientes')){ v=primeraVista(); }
   if(v!=='ficha'){try{history.replaceState(null,'','#'+v);}catch(_){}}
   VISTAS.forEach(x=>$('v-'+x).hidden=(x!==v));
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.v===v));
   window.scrollTo(0,0);
 }
 
+
+/* ------- PERMISOS (v49): roles y secciones por usuario ------- */
+const SECCIONES=[['inicio','Inicio'],['clientes','Clientes y cuentas corrientes'],['caja','Caja'],['reparto','Reparto'],['ventas','Ventas'],['stock','Stock'],['compras','Compras e ingresos'],['novedades','Novedades'],['precios','Precios'],['dist','Distribuidores']];
+const ROLES={
+  admin:{n:'Administrador',d:'Todo, incluidos usuarios, backup y ajustes',p:null},
+  operador:{n:'Operador',d:'Todas las secciones; no administra usuarios',p:SECCIONES.map(s=>s[0])},
+  canillita:{n:'Canillita',d:'Atiende el puesto: cobros, caja, ventas, stock, novedades y reparto',p:['inicio','clientes','caja','ventas','stock','novedades','reparto']},
+  repartidor:{n:'Repartidor',d:'Solo Reparto, y solo sus vueltas',p:['reparto']},
+  personalizado:{n:'Personalizado',d:'Elegís sección por sección',p:[]}
+};
+function permisosDe(pf){ pf=pf||PERFIL||{}; if(pf.rol==='admin') return SECCIONES.map(s=>s[0]); if(pf.rol==='personalizado'||(pf.permisos&&Object.keys(pf.permisos).length)) return SECCIONES.map(s=>s[0]).filter(k=>pf.permisos&&pf.permisos[k]); const r=ROLES[pf.rol]; return r&&r.p?r.p:ROLES.operador.p; }
+function puede(sec){ if(!PERFIL) return true; if(sec==='usuarios') return esAdmin(); return permisosDe(PERFIL).includes(sec); }
+function primeraVista(){ const p=permisosDe(PERFIL); return p[0]||'inicio'; }
+function misVueltas(){ return (PERFIL&&PERFIL.rol!=='admin'&&Array.isArray(PERFIL.vueltas)&&PERFIL.vueltas.length)?PERFIL.vueltas:null; }
+function aplicarPermisos(){
+  document.querySelectorAll('.tab[data-v]').forEach(t=>{ t.hidden=!puede(t.dataset.v); });
+  const hoy=location.hash.slice(1);
+  if(!puede('inicio')||(hoy&&VISTAS.includes(hoy)&&!puede(hoy.replace(/^ficha-.*/,'clientes')))){ const v=primeraVista(); ver(v); const p=PINTAR[v]; if(p&&v!=='inicio')p(); }
+}
+function nombreRol(pf){ const r=ROLES[(pf||{}).rol]; return r?r.n:((pf||{}).rol||'operador'); }
 
 /* ------- INICIO ------- */
 function pintarInicio(){
@@ -1068,7 +1095,7 @@ function entregasDe(c,iso){
   LIVE.novedades.filter(n=>n.cli===c.id&&n.tipo==='Alta'&&n.dias&&n.dias.includes(wd)&&(n.desde||'')<=iso&&!suspendida(c.id,n.pub,iso)).forEach(n=>out.push({pub:n.pub,qty:n.qty||1,via:n.via||'C'}));
   return {out,res};
 }
-function vueltasActivas(){ return VUELTAS.filter(v=>v.activo!==false).sort((a,b)=>(a.orden||0)-(b.orden||0)); }
+function vueltasActivas(){ const mv=misVueltas(); return VUELTAS.filter(v=>v.activo!==false&&(!mv||mv.includes(v.nombre))).sort((a,b)=>(a.orden||0)-(b.orden||0)); }
 function pintarReparto(){
   const el=$('v-reparto');
   if(!REPARTO_OK){ el.innerHTML=titulo('Reparto','')+'<div class="aviso">Falta crear las tablas de reparto en la base (archivo <b>supabase/2026-09-10_reparto.sql</b>). Corrélo en el SQL Editor de Supabase y recargá.</div>'; return; }
@@ -1135,9 +1162,10 @@ function pintarReparto(){
   if(reservas.length){
     h+=`<div class="sec"><span class="dot"></span>Reservas en la parada (${reservas.length})</div><div class="card"><div class="mini" style="margin-bottom:6px">Se los guardan en el puesto, no van en ninguna vuelta.</div>${reservas.map(r=>`<div class="pcli"><span class="un" style="min-width:0"><b>${r.c.d}</b>${r.c.n?' · '+r.c.n:''}</span><span class="pe">${r.qty>1?r.qty+'× ':''}${r.pub}</span></div>`).join('')}</div>`;
   }
-  h+=`<div class="card" style="margin-top:14px"><b>Vueltas y repartidores</b><div class="mini" style="margin:4px 0 8px">Tocá el nombre del repartidor para cambiarlo. Las vueltas vienen de NewsPaper; se pueden agregar más.</div>
+  if(!misVueltas()) h+=`<div class="card" style="margin-top:14px"><b>Vueltas y repartidores</b><div class="mini" style="margin:4px 0 8px">Tocá el nombre del repartidor para cambiarlo. Las vueltas vienen de NewsPaper; se pueden agregar más.</div>
     ${VUELTAS.sort((a,b)=>(a.orden||0)-(b.orden||0)).map(v=>`<div class="mov"><span class="t"><b>${v.nombre}</b> · <span class="lnk" data-rrep="${v.nombre}">${v.repartidor||'sin repartidor'} ✎</span></span><span class="mini">${LIVE.reparto.filter(r=>r.vuelta===v.nombre).length} asignaciones</span><button class="mini-btn" data-rvact="${v.nombre}" title="${v.activo===false?'Activar':'Desactivar'}">${v.activo===false?'○':'●'}</button></div>`).join('')}
     <div style="display:flex;gap:8px;align-items:center;margin-top:8px"><input id="rnv" placeholder="Nueva vuelta (ej: Moto 1)" style="margin:0;max-width:220px"><input id="rnr" placeholder="Repartidor" style="margin:0;max-width:180px"><button class="btn chico" id="rnvok" style="margin:0">Agregar</button></div></div>`;
+  if(misVueltas()) h=h.replace(/<div class="sec amb"><span class="dot"><\/span>Sin vuelta asignada[\s\S]*?<\/div><div class="card">[\s\S]*?<\/div>/,'');
   el.innerHTML=h;
   // drag & drop (escritorio)
   el.querySelectorAll('.parada').forEach(p=>{
@@ -1602,38 +1630,80 @@ async function apiUsuarios(body){
   if(data&&data.error)throw new Error(data.error);
   return data;
 }
+let PERFILES=[];
+function formPermisosHTML(pref,pf){
+  pf=pf||{rol:'operador',permisos:null,vueltas:null};
+  const rol=pf.rol||'operador';
+  const perms=permisosDe(pf);
+  return `<label>Rol</label><select id="${pref}-rol" onchange="rolCambio('${pref}')">${Object.entries(ROLES).filter(([k])=>k!=='admin').map(([k,r])=>`<option value="${k}"${rol===k?' selected':''}>${r.n} — ${r.d}</option>`).join('')}</select>
+  <div class="mini" style="margin-top:6px">Secciones que ve:</div>
+  <div class="permgrid" id="${pref}-perms">${SECCIONES.map(s=>`<label class="chkl"><input type="checkbox" data-sec="${s[0]}" ${perms.includes(s[0])?'checked':''} ${rol==='personalizado'?'':'disabled'}>${s[1]}</label>`).join('')}</div>
+  <div id="${pref}-vbox" ${rol==='repartidor'?'':'hidden'}><div class="mini" style="margin-top:8px">Vueltas que le corresponden (si no marcás ninguna, ve todas):</div>
+  <div class="permgrid">${VUELTAS.map(v=>`<label class="chkl"><input type="checkbox" data-vu="${v.nombre}" ${(pf.vueltas||[]).includes(v.nombre)?'checked':''}>${v.nombre}${v.repartidor?' <span class="mini">('+v.repartidor+')</span>':''}</label>`).join('')||'<span class="mini">No hay vueltas cargadas.</span>'}</div></div>`;
+}
+function rolCambio(pref){
+  const rol=$(pref+'-rol').value; const preset=ROLES[rol]&&ROLES[rol].p;
+  document.querySelectorAll('#'+pref+'-perms input').forEach(i=>{ i.disabled=rol!=='personalizado'; if(rol!=='personalizado') i.checked=(preset||[]).includes(i.dataset.sec); });
+  $(pref+'-vbox').hidden=rol!=='repartidor';
+}
+function leerPermisos(pref){
+  const rol=$(pref+'-rol').value;
+  const permisos={}; document.querySelectorAll('#'+pref+'-perms input').forEach(i=>{permisos[i.dataset.sec]=i.checked;});
+  const vueltas=[...document.querySelectorAll('#'+pref+'-vbox input:checked')].map(i=>i.dataset.vu);
+  return {rol,permisos:rol==='personalizado'?permisos:null,vueltas:rol==='repartidor'&&vueltas.length?vueltas:null};
+}
 async function pintarUsuarios(){
   if(!esAdmin()){ver('inicio');return;}
   $('v-usuarios').innerHTML=`
   <button class="volver" id="uvolver">← Volver</button>
-  ${titulo('Usuarios y ajustes','Quién entra al sistema y los datos del resumen de cuenta')}
-  <h2>Usuarios del sistema</h2>
-  <div class="card"><b>Crear usuario</b>
-    <label>Email</label><input id="uemail" type="email" autocomplete="off" placeholder="socio@gmail.com">
+  ${titulo('Usuarios y ajustes','Quién entra al sistema, qué ve cada uno, y los datos del resumen de cuenta')}
+  <h2>Crear usuario</h2>
+  <div class="card">
+    <div class="grid2"><div><label>Nombre</label><input id="unombre" placeholder="ej: Gastón"></div><div><label>Email</label><input id="uemail" type="email" autocomplete="off" placeholder="gaston@gmail.com"></div></div>
     <label>Contraseña (mín. 6)</label><input id="upass" type="text" autocomplete="off" placeholder="la que le vas a pasar">
+    ${formPermisosHTML('un')}
     <button class="btn" id="uok">Crear usuario</button>
-    <div class="mini" style="margin-top:8px">Queda habilitado al instante, sin confirmar mail. Pasale el email y la contraseña.</div>
+    <div class="mini" style="margin-top:8px">Queda habilitado al instante, sin confirmar mail. Pasale el email y la contraseña. Los permisos se pueden cambiar después.</div>
   </div>
   <h2>Usuarios existentes</h2>
-  <div class="card" id="ulist"><div class="mini">Cargando…</div></div>
+  <div id="ulist"><div class="card mini">Cargando…</div></div>
   <h2>Resumen de cuenta</h2>${formEmisorHTML()}`;
   try{
-    const{usuarios}=await apiUsuarios({accion:'listar'});
-    $('ulist').innerHTML=usuarios.length?usuarios.map(u=>`<div class="card" style="margin-bottom:8px">
-      <b>${u.email||'(sin email)'}</b> ${u.admin?'<span class="pill p-susc">admin</span>':''} ${u.bloqueado?'<span class="pill p-warn">bloqueado</span>':''} ${!u.confirmado?'<span class="pill p-warn">sin confirmar</span>':''}
-      <div class="mini" style="margin-top:4px">Creado ${fecha(u.creado)} · Último ingreso ${u.ultimo?fecha(u.ultimo):'nunca'}</div>
-      ${u.admin?'':`<div style="display:flex;gap:6px;flex-wrap:wrap">
+    const[{usuarios},pfs]=await Promise.all([apiUsuarios({accion:'listar'}),sb.from('perfiles').select('*')]);
+    PERFILES=pfs.data||[];
+    $('ulist').innerHTML=usuarios.length?usuarios.map(u=>{const pf=PERFILES.find(p=>p.id===u.id)||{rol:u.admin?'admin':'operador'};
+      return `<div class="card" style="margin-bottom:8px" id="ucard-${u.id}">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="font-size:16px">${pf.nombre||u.email||'(sin email)'}</b><span class="mini">${u.email||''}</span>
+        <span class="pill ${pf.rol==='admin'?'p-susc':(pf.rol==='repartidor'?'p-mix':'p-cli')}">${nombreRol(pf)}</span>${u.bloqueado?'<span class="pill p-warn">bloqueado</span>':''}${!u.confirmado?'<span class="pill p-warn">sin confirmar</span>':''}${pf.activo===false?'<span class="pill p-warn">perfil inactivo</span>':''}</div>
+      <div class="mini" style="margin-top:4px">Ve: ${pf.rol==='admin'?'todo':permisosDe(pf).map(k=>(SECCIONES.find(s=>s[0]===k)||[k,k])[1]).join(', ')||'nada'}${pf.vueltas&&pf.vueltas.length?' · vueltas: '+pf.vueltas.join(', '):''} · Creado ${fecha(u.creado)} · Último ingreso ${u.ultimo?fecha(u.ultimo):'nunca'}</div>
+      ${u.admin?'':`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+        <button class="btn chico sec" id="uperm" data-uid="${u.id}">Permisos</button>
         <button class="btn chico sec" id="uclave" data-uid="${u.id}" data-email="${u.email}">Cambiar clave</button>
         <button class="btn chico sec" id="ubloq" data-uid="${u.id}" data-email="${u.email}" data-bloq="${u.bloqueado?'1':'0'}">${u.bloqueado?'Desbloquear':'Bloquear'}</button>
         <button class="btn chico sec" id="uborrar" data-uid="${u.id}" data-email="${u.email}" style="color:var(--rojo);border-color:var(--rojo)">Borrar</button>
-      </div>`}
-    </div>`).join(''):'<div class="mini">No hay usuarios.</div>';
+      </div><div id="uperm-${u.id}"></div>`}
+    </div>`;}).join(''):'<div class="card mini">No hay usuarios.</div>';
   }catch(e){ $('ulist').innerHTML='<div class="aviso">'+(e.message||e)+'</div>'; }
 }
+function abrirPermisos(uid){
+  const box=$('uperm-'+uid); if(!box)return; if(box.innerHTML){box.innerHTML='';return;}
+  const pf=PERFILES.find(p=>p.id===uid)||{rol:'operador'};
+  box.innerHTML=`<div style="border-top:1px solid var(--linea);margin-top:10px;padding-top:6px"><label>Nombre</label><input id="up-nombre-${uid}" value="${pf.nombre||''}">${formPermisosHTML('up'+uid.replace(/-/g,''),pf)}<button class="btn chico" id="upermok" data-uid="${uid}" style="margin-top:10px">Guardar permisos</button></div>`;
+}
+async function guardarPermisos(uid){
+  const pref='up'+uid.replace(/-/g,''); const p=leerPermisos(pref); const nombre=($('up-nombre-'+uid)||{}).value||'';
+  try{ const{error}=await sb.from('perfiles').update({nombre:nombre.trim(),rol:p.rol,permisos:p.permisos,vueltas:p.vueltas}).eq('id',uid); if(error)throw new Error(error.message); toast('Permisos guardados ✓ (aplican cuando el usuario recargue)'); pintarUsuarios(); }catch(e){toast('Error: '+((e&&e.message)||e));}
+}
 async function crearUsuario(){
-  const email=$('uemail').value.trim(),password=$('upass').value;
+  const email=$('uemail').value.trim(),password=$('upass').value,nombre=$('unombre').value.trim();
   if(!email||password.length<6){toast('Email y contraseña de 6 o más');return;}
-  try{ await apiUsuarios({accion:'crear',email,password}); toast('Usuario creado ✓'); pintarUsuarios(); }catch(e){toast(e.message||e);}
+  const p=leerPermisos('un');
+  try{
+    const r=await apiUsuarios({accion:'crear',email,password});
+    const id=r&&r.id;
+    if(id){ await new Promise(res=>setTimeout(res,600)); const{error}=await sb.from('perfiles').upsert({id,email:email.toLowerCase(),nombre:nombre||email.split('@')[0],rol:p.rol,permisos:p.permisos,vueltas:p.vueltas},{onConflict:'id'}); if(error) toast('Usuario creado, pero no pude guardar el rol: '+error.message); }
+    toast('Usuario creado ✓'); pintarUsuarios();
+  }catch(e){toast(e.message||e);}
 }
 async function cambiarClave(id,email){
   const password=prompt('Nueva contraseña para '+email+' (mín. 6):'); if(password===null)return;
@@ -1872,6 +1942,8 @@ document.addEventListener('click',function(e){
     case 'dmas': masDist();break;
     case 'uvolver': ver('inicio');pintarInicio();break;
     case 'uok': crearUsuario();break;
+    case 'uperm': abrirPermisos(b.dataset.uid);break;
+    case 'upermok': guardarPermisos(b.dataset.uid);break;
     case 'uclave': cambiarClave(b.dataset.uid,b.dataset.email);break;
     case 'ubloq': bloquearUsuario(b.dataset.uid,b.dataset.email,b.dataset.bloq==='1');break;
     case 'uborrar': borrarUsuario(b.dataset.uid,b.dataset.email);break;
@@ -1936,12 +2008,13 @@ async function iniciarApp(){
       if(hs==='usuarios'){if(esAdmin()){ver('usuarios');pintarUsuarios();}return;}
       if(VISTAS.includes(hs)&&hs!=='ficha'){ver(hs);const p=PINTAR[hs];if(p&&hs!=='inicio')p();}
     })();
+    aplicarPermisos();
     const hdrEl=document.getElementById('hbtns');
     if(hdrEl&&!document.getElementById('lsalir')){
       if(esAdmin()){const x=document.createElement('button');x.id='qexport';x.className='btn chico sec';x.textContent='Backup';x.title='Descargar una copia de todos los datos';x.onclick=exportarTodo;hdrEl.appendChild(x);const u=document.createElement('button');u.id='qusuarios';u.className='btn chico sec';u.textContent='Usuarios';hdrEl.appendChild(u);}
       const b=document.createElement('button');b.id='lsalir';b.className='btn chico sec';b.textContent='Salir';hdrEl.appendChild(b);
-      if(PERFIL&&PERFIL.rol){const e=$('estado-db');e.textContent='☁ guardado · '+(PERFIL.rol==='admin'?'admin':'operador');e.title=USUARIO.email||'';}
-      const su=$('sb-user');if(su){su.textContent=nombreUsuario()+' · '+(PERFIL&&PERFIL.rol==='admin'?'admin':'operador')+' · '+$('lat').textContent;su.title=USUARIO.email||'';}
+      if(PERFIL&&PERFIL.rol){const e=$('estado-db');e.textContent='☁ guardado · '+nombreRol(PERFIL).toLowerCase();e.title=USUARIO.email||'';}
+      const su=$('sb-user');if(su){su.textContent=nombreUsuario()+' · '+nombreRol(PERFIL).toLowerCase()+' · '+$('lat').textContent;su.title=USUARIO.email||'';}
     }
     ubicarBotones();
   }catch(e){$('cargando').innerHTML='Error: '+(e.message||e);}
