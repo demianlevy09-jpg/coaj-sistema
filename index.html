@@ -120,11 +120,20 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
 .pmove{display:flex;gap:2px}
 .mini-btn{border:1px solid var(--linea);background:var(--tarjeta);color:var(--tinta2);border-radius:6px;font-size:13px;line-height:1;padding:4px 7px;cursor:pointer;font-family:inherit}
 .mini-btn:hover{color:var(--azul);border-color:var(--azul)}
-.pcli{display:flex;align-items:baseline;gap:8px;padding:4px 0 4px 4px;border-top:1px dashed var(--linea);font-size:14px;flex-wrap:wrap}
-.pcli .un{min-width:52px;font-weight:600;font-variant-numeric:tabular-nums}
-.pcli .pe{font-weight:600;color:var(--azul)}
-.pcli .pp{color:var(--ambar);font-size:12.5px;flex-basis:100%;padding-left:60px}
-.pcli .mini-btn{margin-left:auto}
+.pcli{display:grid;grid-template-columns:auto auto 1fr auto;align-items:baseline;gap:4px 10px;padding:5px 0 5px 4px;border-top:1px dashed var(--linea);font-size:14px}
+.pcli .un{font-weight:600;font-variant-numeric:tabular-nums;min-width:34px}
+.pcli .un:empty{min-width:0;margin-right:-10px}
+.pcli .pe{font-weight:600;color:var(--azul);white-space:nowrap}
+.pcli .pp{color:var(--ambar);font-size:12.5px}
+.pcli .mini-btn{grid-column:4}
+.pcli select.sel-v{grid-column:4}
+.card>.pcli{grid-template-columns:1fr auto auto}
+.card>.pcli select.sel-v{grid-column:3}
+.tots{display:flex;flex-wrap:wrap;gap:6px 14px;margin:6px 0 4px;font-size:14px}
+.tots b{font-family:'Archivo',sans-serif;font-size:18px;color:var(--tinta)}
+.vgrid{grid-template-columns:repeat(auto-fill,minmax(340px,1fr))}
+.vgrid.vacias{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+.vgrid.vacias .vhead{padding:8px 12px}
 .sel-v{margin-left:auto}
 @media (max-width:899px){.grip{display:none} .tab{font-size:11px} .tabs .tab.tsec{display:none} .massheet{position:fixed;left:8px;right:8px;bottom:70px;background:var(--tarjeta);border:1px solid var(--linea);border-radius:14px;box-shadow:0 10px 30px rgba(20,30,60,.18);z-index:25;padding:6px} .massheet .tab{display:flex;align-items:center;gap:10px;width:100%;text-align:left;font-size:15px;padding:12px 14px;color:var(--tinta)} .massheet .tab .ic{display:inline;font-size:16px;margin:0;width:22px;text-align:center}}
 @media (min-width:900px){.tab.mas,.massheet{display:none!important}}
@@ -1091,14 +1100,16 @@ function pintarReparto(){
   h+=`<div class="fchips" style="margin:0 0 12px">${DIAS.map((d,i)=>`<button class="fch${i===RDIA?' on':''}" data-rdia="${i}">${DIAS_L[i]}</button>`).join('')}<button class="fch" id="rimpall" style="margin-left:auto">🖨 Imprimir todas las vueltas</button></div>`;
   if(feriado) h+=`<div class="aviso" style="margin-bottom:12px">${fecha(iso)} está cargado como feriado sin reparto: no se entrega nada ese día.</div>`;
   h+=`<div class="kpis">
-    <div class="kpi ancha"><i>Para armar los paquetes</i><b style="font-size:17px;line-height:1.5">${totStr(totPub)}</b><i>total del día, todas las vueltas</i></div>
+    <div class="kpi ancha"><i>Para armar los paquetes · total del día</i><div class="tots">${Object.entries(totPub).sort((a,b)=>b[1]-a[1]).map(([p,n])=>`<span><b>${n}</b> ${p}</span>`).join('')||'<span class="mini">nada que repartir</span>'}</div></div>
     <div class="kpi ${sinV.length?'amb':'gris'}"><i>Sin vuelta asignada</i><b>${sinV.length} <small>clientes</small></b><i>${sinV.length?'asignalos abajo':'todos asignados ✓'}</i></div>
     <div class="kpi ${reservas.length?'':'gris'}"><i>Reservas en la parada</i><b>${reservas.length} <small>ejemplares</small></b><i>los retiran en el puesto</i></div>
   </div>`;
   h+=`<div class="sec"><span class="dot"></span>Vueltas del ${DIAS_L[RDIA]} <span class="mini" style="text-transform:none;letter-spacing:0">— arrastrá las paradas para cambiar el orden o pasarlas a otra vuelta; ⇄ mueve un cliente</span></div>`;
   h+=`<div class="vgrid">`;
+  const vacias=[];
   vueltasActivas().forEach(v=>{
     const list=porV[v.nombre]; const paradas=agrupar(list);
+    if(!paradas.length){vacias.push(v);return;}
     const tot={}; list.forEach(x=>x.ent.forEach(e=>tot[e.pub]=(tot[e.pub]||0)+e.qty));
     const nEj=Object.values(tot).reduce((a,b)=>a+b,0);
     h+=`<div class="vcol" data-vuelta="${v.nombre}">
@@ -1114,10 +1125,10 @@ function pintarReparto(){
         ${p.cl.map(x=>`<div class="pcli"><span class="un">${edificioDe(x.c.d).un||''}</span><span class="pe">${x.ent.map(e=>(e.qty>1?e.qty+'× ':'')+e.pub).join(' + ')}</span>${x.c.part?`<span class="pp">${x.c.part}</span>`:''}<button class="mini-btn" data-mv="${x.c.id}" title="Mover a otra vuelta">⇄</button></div>`).join('')}
       </div>`;
     });
-    if(!paradas.length) h+='<div class="mini" style="padding:14px 6px;text-align:center">Sin paradas este día. Arrastrá acá una parada o asigná clientes.</div>';
     h+=`</div></div>`;
   });
   h+=`</div>`;
+  if(vacias.length) h+=`<div class="mini" style="margin:14px 0 6px">Vueltas sin paradas el ${DIAS_L[RDIA]} (arrastrá una parada acá para usarlas):</div><div class="vgrid vacias">${vacias.map(v=>`<div class="vcol" data-vuelta="${v.nombre}"><div class="vhead"><b>${v.nombre}</b> <span class="mini lnk" data-rrep="${v.nombre}">${v.repartidor||'sin repartidor'} ✎</span></div><div class="vlist" data-vuelta="${v.nombre}"><div class="mini" style="padding:10px 6px;text-align:center">Soltá acá</div></div></div>`).join('')}</div>`;
   if(sinV.length){
     h+=`<div class="sec amb"><span class="dot"></span>Sin vuelta asignada (${sinV.length})</div><div class="card">${sinV.sort((a,b)=>a.c.d.localeCompare(b.c.d)).map(x=>`<div class="pcli"><span class="un" style="min-width:0"><b>${x.c.d}</b></span><span class="pe">${x.ent.map(e=>(e.qty>1?e.qty+'× ':'')+e.pub).join(' + ')}</span><select class="sel-v" data-asig="${x.c.id}" style="width:auto;margin:0;padding:6px 8px;font-size:13px"><option value="">Asignar a…</option>${vueltasActivas().map(v=>`<option>${v.nombre}</option>`).join('')}</select></div>`).join('')}</div>`;
   }
