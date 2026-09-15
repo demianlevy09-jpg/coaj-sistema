@@ -2000,11 +2000,11 @@ function formEmisorHTML(){
 
 /* ------- latido de diagnóstico ------- */
 let NEV=0;
-window.addEventListener('error',e=>{const l=$('lat');if(l)l.textContent='v34 · ⚠ '+(e.message||'error');});
+window.addEventListener('error',e=>{const l=$('lat');if(l)l.textContent='⚠ '+(e.message||'error');});
 /* ------- desglose de una liquidación (reconstrucción) ------- */
 // consumo de un mes (solo lo que cobra COHAJ): {agg:{pub:{n,tot,sp}}, tot}
 function consumoMes(c,y,m){ // misma regla que devengoDe (via C): suscripciones vigentes + altas cargadas acá − suspensiones − feriados
-  const ini=new Date(y,m,1), fin=new Date(y,m+1,0);
+  const ini=new Date(y,m,1,12), fin=new Date(y,m+1,0,12); // mediodía: toISOString da el mismo día en cualquier huso
   const agg={}; let sinPrecioN=0;
   const items=c.subs.filter(x=>x[3]==='V'&&x[2]==='C').map(x=>({t:x[0],days:FD(x[1]),desde:(x[4]||'').slice(0,10),q:Math.abs(x[5])||1,alta:altaDe(x)}));
   let dd=new Date(ini);

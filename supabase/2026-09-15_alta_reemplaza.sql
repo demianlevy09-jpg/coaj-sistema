@@ -53,5 +53,5 @@ select a.cliente_id, a.publicacion, a.id as id_a, a.via as via_a, b.id as id_b, 
 from public.suscripciones a join public.suscripciones b
   on b.cliente_id=a.cliente_id and b.id>a.id and upper(trim(b.publicacion))=upper(trim(a.publicacion))
  and (a.dias is null or b.dias is null or a.dias && b.dias)
-where not a.anulado and not b.anulado and (a.hasta is null or a.hasta>current_date) and (b.hasta is null or b.hasta>current_date)
+where not a.anulado and not b.anulado and (a.hasta is null or a.hasta>public.hoy_ar()) and (b.hasta is null or b.hasta>public.hoy_ar())
   and a.cliente_id in (select id from public.clientes where activo);
