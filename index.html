@@ -250,7 +250,7 @@ select.apagado{opacity:.45}
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v58</span></div></div><div class="hb" id="hbtns"></div></header>
+<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v59</span></div></div><div class="hb" id="hbtns"></div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -355,6 +355,18 @@ const hoyISO=()=>{try{return new Intl.DateTimeFormat('en-CA',{timeZone:'America/
 const fecha=s=>{if(!s)return'';const[a,m,d]=s.slice(0,10).split('-');return d+'/'+m+'/'+a.slice(2);};
 const DIAS=['Lu','Ma','Mi','Ju','Vi','Sa','Do','Fer']; // 7 = "Fer": solo los días feriados (con diario)
 const DIAS7=DIAS.slice(0,7);
+// Días de una suscripción a partir de su texto ("Sábado y domingo", "Miércoles, Jueves, Viernes, Sábado", "Lu Ma Vi", "Feriados"...). null si no se entiende ("Sin día determinado").
+const FD_CACHE={};
+function FD(fr){
+  const k=norm(fr||'').trim(); if(!k) return null;
+  if(FDIAS[k]) return FDIAS[k];
+  if(k in FD_CACHE) return FD_CACHE[k];
+  const one={'lu':0,'lun':0,'lunes':0,'ma':1,'mar':1,'martes':1,'mi':2,'mie':2,'miercoles':2,'ju':3,'jue':3,'jueves':3,'vi':4,'vie':4,'viernes':4,'sa':5,'sab':5,'sabado':5,'sabados':5,'do':6,'dom':6,'domingo':6,'domingos':6,'fer':7,'feriado':7,'feriados':7};
+  const toks=k.replace(/\b(y|e)\b/g,',').split(/[,\s]+/).filter(Boolean);
+  const out=[]; let ok=toks.length>0;
+  toks.forEach(t=>{ const d=one[t]; if(d==null){ok=false;return;} if(!out.includes(d)) out.push(d); });
+  FD_CACHE[k]=ok?out.sort((a,b)=>a-b):null; return FD_CACHE[k];
+}
 // ¿Le toca a esta suscripción (days) el día `dia` (weekday wd)? Incluye el caso "Fer": feriado cargado con diario.
 function tocaDia(days,wd,dia){ if(!days) return false; if(days.includes(wd)) return true; return days.includes(7)&&FER.has(dia)&&!feriadoTotal(dia); }
 const FDIAS={'lunes':[0],'martes':[1],'miercoles':[2],'jueves':[3],'viernes':[4],'sabado':[5],'domingo':[6],'feriados':[7],'feriado':[7],'solo feriados':[7],'dias feriados':[7],'todos los dias':[0,1,2,3,4,5,6],'de lunes a viernes':[0,1,2,3,4],'lunes a viernes':[0,1,2,3,4],'de lunes a sabado':[0,1,2,3,4,5],'lunes a sabado':[0,1,2,3,4,5],'sabado y domingo':[5,6],'lunes y jueves':[0,3],'lunes, miercoles y viernes':[0,2,4],'martes y viernes':[1,4],'martes y jueves':[1,3],'jueves y sabado':[3,5]};
@@ -418,7 +430,7 @@ async function cargarClientes(){
   const idx={}; C.forEach(c=>idx[c.id]=c);
   const ids=C.map(c=>c.id);
   const subs=await todo(()=>sb.from('suscripciones').select('*').in('cliente_id',ids).eq('anulado',false).order('id'));
-  subs.forEach(x=>{const c=idx[x.cliente_id]; if(c) c.subs.push([x.publicacion,x.dias_texto||'',x.via,x.hasta?x.hasta:'V',x.desde||'',x.cantidad||1]);});
+  subs.forEach(x=>{const c=idx[x.cliente_id]; if(!c) return; let txt=x.dias_texto||''; if(FD(txt)==null&&x.dias&&x.dias.length) txt=x.dias.map(d=>DIAS[d]||'').join(' '); c.subs.push([x.publicacion,txt,x.via,x.hasta?x.hasta:'V',x.desde||'',x.cantidad||1]);});
   const movs=await todo(()=>sb.from('movimientos').select('*').in('cliente_id',ids).eq('anulado',false).eq('origen','newspaper').order('fecha'));
   movs.forEach(x=>{const c=idx[x.cliente_id]; if(c) c.movs.push([x.fecha,x.tipo,x.tipo==='Cobro'?-Number(x.importe):Number(x.importe),x.medio||'']);});
   C.forEach(c=>{c.k=norm(c.d+' '+c.n+' '+c.id+' '+c.subs.map(x=>x[0]).join(' '));});
@@ -540,7 +552,7 @@ function devengoDe(c,tipo,hasta){
   const ck='d'+tipo+c.id+'|'+hasta;
   if(SCACHE[ck]!=null) return SCACHE[ck];
   let tot=0; const porPub={};
-  const items=c.subs.filter(x=>x[3]==='V'&&x[2]===tipo).map(x=>({t:x[0],days:FDIAS[norm(x[1])],desde:(x[4]||'').slice(0,10),q:Math.abs(x[5])||1}));
+  const items=c.subs.filter(x=>x[3]==='V'&&x[2]===tipo).map(x=>({t:x[0],days:FD(x[1]),desde:(x[4]||'').slice(0,10),q:Math.abs(x[5])||1}));
   LIVE.novedades.filter(n=>n.cli===c.id&&n.tipo==='Alta'&&n.dias&&((n.via||'C')===tipo)).forEach(n=>items.push({t:n.pub,days:n.dias,desde:(n.desde||'').slice(0,10),q:n.qty||1}));
   if(items.length){
     const hoy=hasta;
@@ -571,7 +583,7 @@ function saldoDe(c,hasta){
   return s;
 }
 function sinPrecio(c){
-  return c.subs.filter(x=>x[3]==='V'&&x[2]==='C'&&FDIAS[norm(x[1])]&&!precioDe(x[0],(()=>{const dd=FDIAS[norm(x[1])]||[0];const d0=dd.find(d=>d<7);return d0==null?0:d0;})(),hoyISO()));
+  return c.subs.filter(x=>x[3]==='V'&&x[2]==='C'&&FD(x[1])&&!precioDe(x[0],(()=>{const dd=FD(x[1])||[0];const d0=dd.find(d=>d<7);return d0==null?0:d0;})(),hoyISO()));
 }
 function saldoHTML(s){
   if(s>0.5)return`<span class="monto debe">${fmt(s)}</span>`;
@@ -739,7 +751,7 @@ function pintarLista(){
 function catDe(c){
   const hoy=hoyISO();
   const vias=new Set();
-  c.subs.forEach(x=>{ if(x[3]==='V'&&!suspendida(c.id,x[0],hoy,FDIAS[norm(x[1])])) vias.add(x[2]==='S'?'S':'C'); });
+  c.subs.forEach(x=>{ if(x[3]==='V'&&!suspendida(c.id,x[0],hoy,FD(x[1]))) vias.add(x[2]==='S'?'S':'C'); });
   LIVE.novedades.filter(n=>n.cli===c.id&&n.tipo==='Alta'&&n.dias&&!suspendida(c.id,n.pub,hoy,n.dias)).forEach(n=>vias.add((n.via||'C')==='S'?'S':'C'));
   if(vias.has('S')&&vias.has('C'))return 'Mixto';
   if(vias.has('S'))return 'Suscriptor';
@@ -755,7 +767,7 @@ function pillCat(c){
   return'<span class="pill p-inact">Sin suscripción vigente</span>';
 }
 function diasHTML(fr){
-  const dd=FDIAS[norm(fr)];
+  const dd=FD(fr);
   if(!dd)return fr?`<div class="mini" style="margin-top:6px">${fr}</div>`:'';
   return diasHTMLArr(dd);
 }
@@ -764,7 +776,7 @@ function diasHTMLArr(dd){ return '<div class="dias">'+DIAS.map((d,i)=>`<div clas
 function agruparSubs(rows){
   const g=[]; const idx={};
   rows.forEach(x=>{
-    const dd=FDIAS[norm(x[1])];
+    const dd=FD(x[1]);
     const k=dd?x[0]+'|'+x[2]:null;
     if(!k){ g.push({pub:x[0],via:x[2],dias:null,txt:x[1]||'',desde:x[4],qty:Math.abs(x[5])||1,rows:[x]}); return; }
     if(idx[k]==null){ idx[k]=g.length; g.push({pub:x[0],via:x[2],dias:[],txt:'',desde:x[4],qty:Math.abs(x[5])||1,rows:[]}); }
@@ -783,7 +795,7 @@ function ficha(id,mas){
   const hoy0=hoyISO();
   const vig=[],susp=[];
   c.subs.forEach(x=>{
-    if(x[3]==='V'&&!suspendida(c.id,x[0],hoy0,FDIAS[norm(x[1])])) vig.push(x);
+    if(x[3]==='V'&&!suspendida(c.id,x[0],hoy0,FD(x[1]))) vig.push(x);
     else susp.push(x);
   });
   susp.sort((a,b)=>(b[3]||'').localeCompare(a[3]||''));
@@ -823,7 +835,7 @@ function ficha(id,mas){
   else if(!altas.length) h+='<div class="card mini">Sin publicaciones vigentes.</div>';
   h+=`<div id="altabox"><button class="btn chico" id="altabtn" data-cli="${id}">＋ Alta de suscripción nueva</button></div>`;
   const altasTodas=LIVE.novedades.filter(n=>n.cli===id&&n.tipo==='Alta'&&n.dias);
-  const reactivada=x=>x[3]!=='V'&&altasTodas.some(n=>n.pub===x[0]&&(n.desde||'')>=(x[3]||'').slice(0,10)&&(!(FDIAS[norm(x[1])]||[]).length||n.dias.some(d=>(FDIAS[norm(x[1])]||[]).includes(d))));
+  const reactivada=x=>x[3]!=='V'&&altasTodas.some(n=>n.pub===x[0]&&(n.desde||'')>=(x[3]||'').slice(0,10)&&(!(FD(x[1])||[]).length||n.dias.some(d=>(FD(x[1])||[]).includes(d))));
   const suspVis=susp.filter(x=>!reactivada(x));
   const suspG=(()=>{ const out=[]; const byEstado={}; suspVis.forEach(x=>{const k=x[3]==='V'?'V':(x[3]||'').slice(0,10); (byEstado[k]=byEstado[k]||[]).push(x);}); Object.keys(byEstado).sort((a,b)=>b.localeCompare(a)).forEach(k=>{ agruparSubs(byEstado[k]).forEach(e=>out.push(e)); }); return out; })();
   if(suspG.length){h+=`<h2>Suspendidas (${suspG.length})</h2><div class="card">`+suspG.slice(0,12).map((e,ix)=>{
@@ -985,7 +997,7 @@ function pintarNovedades(){
   const rows=[...LIVE.novedades].sort((a,b)=>(b.ts||'').localeCompare(a.ts||''));
   const hoy=hoyISO(), mes=hoy.slice(0,7);
   const delMes=rows.filter(n=>(n.ts||'').startsWith(mes));
-  const suspAct=C.reduce((n,c)=>n+c.subs.filter(x=>x[3]==='V'&&suspendida(c.id,x[0],hoy,FDIAS[norm(x[1])])).length,0);
+  const suspAct=C.reduce((n,c)=>n+c.subs.filter(x=>x[3]==='V'&&suspendida(c.id,x[0],hoy,FD(x[1]))).length,0);
   const bajas=C.filter(c=>!c.act).length;
   $('v-novedades').innerHTML=`
   ${titulo('Novedades','Altas, bajas y suspensiones. Cada una queda en la ficha del cliente y mueve el devengo desde su fecha.')}
@@ -1103,7 +1115,7 @@ function elegirCli(id){
   const diasDe=pn=>[...new Set([...c.subs.filter(x=>x[0]===pn&&x[3]==='V').map(x=>x[1]||''),...altas.filter(n=>n.pub===pn).map(n=>n.dias.map(d=>DIAS[d]).join(''))])].filter(Boolean).join(' / ');
   $('npubs').innerHTML=pubs.map(pn=>`<option value="${pn}">${diasDe(pn)}</option>`).join('');
   const s=saldoDe(c);
-  $('ncli-info').innerHTML=(vig.length||altas.length?'Recibe: '+[...vig.map(x=>x[0]+(x[1]?' ('+x[1]+')':'')+(suspendida(c.id,x[0],hoy,FDIAS[norm(x[1])])?' <span class="tag-susp">suspendida</span>':'')),...altas.map(n=>n.pub+' ('+n.dias.map(d=>DIAS[d]).join('')+')')].join(' · '):'Sin suscripciones vigentes')
+  $('ncli-info').innerHTML=(vig.length||altas.length?'Recibe: '+[...vig.map(x=>x[0]+(x[1]?' ('+x[1]+')':'')+(suspendida(c.id,x[0],hoy,FD(x[1]))?' <span class="tag-susp">suspendida</span>':'')),...altas.map(n=>n.pub+' ('+n.dias.map(d=>DIAS[d]).join('')+')')].join(' · '):'Sin suscripciones vigentes')
     +(c.part?' · <i>'+c.part+'</i>':'')+(Math.abs(s)>0.5?' · saldo <b class="'+(s>0?'debe':'favor')+'">'+fmt(s)+(s>0?' (debe)':' (a favor)')+'</b>':'')+(c.act?'':' · <b class="debe">dado de baja</b>');
 }
 document.addEventListener('mousedown',e=>{if(!e.target.closest('.acwrap')){document.querySelectorAll('.ac').forEach(b=>b.hidden=true);}});
@@ -1189,7 +1201,7 @@ function entregasDe(c,iso){
   const wd=wdDe(iso); const out=[], res=[];
   if(feriadoTotal(iso)) return {out,res};
   c.subs.filter(x=>x[3]==='V').forEach(x=>{
-    const dd=FDIAS[norm(x[1])]; if(!tocaDia(dd,wd,iso)) return;
+    const dd=FD(x[1]); if(!tocaDia(dd,wd,iso)) return;
     if((x[4]||'').slice(0,10)>iso) return;
     if(!feriadoSale(iso,x[0])) return;
     if(suspendida(c.id,x[0],iso)) return;
@@ -1913,7 +1925,7 @@ window.addEventListener('error',e=>{const l=$('lat');if(l)l.textContent='v34 · 
 function consumoMes(c,y,m){ // misma regla que devengoDe (via C): suscripciones vigentes + altas cargadas acá − suspensiones − feriados
   const ini=new Date(y,m,1), fin=new Date(y,m+1,0);
   const agg={}; let sinPrecioN=0;
-  const items=c.subs.filter(x=>x[3]==='V'&&x[2]==='C').map(x=>({t:x[0],days:FDIAS[norm(x[1])],desde:(x[4]||'').slice(0,10),q:Math.abs(x[5])||1}));
+  const items=c.subs.filter(x=>x[3]==='V'&&x[2]==='C').map(x=>({t:x[0],days:FD(x[1]),desde:(x[4]||'').slice(0,10),q:Math.abs(x[5])||1}));
   LIVE.novedades.filter(n=>n.cli===c.id&&n.tipo==='Alta'&&n.dias&&((n.via||'C')==='C')).forEach(n=>items.push({t:n.pub,days:n.dias,desde:(n.desde||'').slice(0,10),q:n.qty||1}));
   let dd=new Date(ini);
   while(dd<=fin){
@@ -1925,7 +1937,7 @@ function consumoMes(c,y,m){ // misma regla que devengoDe (via C): suscripciones 
         if(!feriadoSale(dia,x[0]))continue;
         const desde=(x[4]||'').slice(0,10), hasta=x[3]==='V'?'9999':(x[3]||'');
         if(!desde||desde>dia||hasta<dia)continue;
-        if(!tocaDia(FDIAS[norm(x[1])],wd,dia))continue;
+        if(!tocaDia(FD(x[1]),wd,dia))continue;
         const p=precioDe(x[0],wd,dia), k=x[0], qn=Math.abs(x[5])||1;
         agg[k]=agg[k]||{n:0,tot:0,sp:0}; agg[k].n+=qn;
         if(p)agg[k].tot+=p*qn; else {agg[k].sp++;sinPrecioN++;}
