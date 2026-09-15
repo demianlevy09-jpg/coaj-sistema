@@ -1,0 +1,4 @@
+-- 15/09/2026 (CORRIDO): Pino 1 + Pino 2 + Pino 5 → una sola vuelta "Pino" (pedido de Demian). Paradas renumeradas por día
+-- (primero las de Pino 1 en su orden, después Pino 2, después Pino 5). Las vueltas viejas quedan activo=false, anulado=true (no se borran por la FK).
+-- perfiles.vueltas de repartidores: 'Pino 1/2/5' → 'Pino'.
+-- Ver el SQL ejecutado en la Biblia; este archivo es solo registro.
