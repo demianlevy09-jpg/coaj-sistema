@@ -257,7 +257,7 @@ select.apagado{opacity:.45}
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v64</span></div></div><div class="hb" id="hbtns"></div></header>
+<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v65</span></div></div><div class="hb" id="hbtns"></div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -352,11 +352,16 @@ let FER=new Set(); // fechas ISO cargadas como feriado
 let FERP={}; // fecha -> lista normalizada de publicaciones que NO salen ese día (vacía/null = no sale nada)
 // ¿Sale esta publicación ese día? (feriado total: no; feriado parcial: solo si no está en la lista de "no salen")
 function feriadoSale(dia,pub){ if(!FER.has(dia)) return true; const sp=FERP[dia]; if(sp==null) return false; return !sp.includes(norm(pub)); }
+const altaDe=x=>x[6]==='app'?(x[4]||'').slice(0,10):undefined; // suscripciones creadas desde la app: las suspensiones anteriores a su alta no las afectan
 function feriadoTotal(dia){ return FER.has(dia)&&FERP[dia]==null; }
 let CONFIG={comision:32}; // % del precio de tapa que le corresponde a COHAJ por lo repartido a suscriptores (dato de Demian 09/09: 32%)
 let DISTH=[];
 const $=id=>document.getElementById(id);
 const fmt=n=>'$'+Math.abs(n).toLocaleString('es-AR',{maximumFractionDigits:0});
+const esc=v=>typeof v==='string'?v.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'):v;
+const unesc=v=>typeof v==='string'?v.replace(/&quot;/g,'"').replace(/&gt;/g,'>').replace(/&lt;/g,'<').replace(/&amp;/g,'&'):v;
+const escObj=o=>{ if(!o||typeof o!=='object') return o; for(const k in o){ const v=o[k]; if(typeof v==='string') o[k]=esc(v); else if(Array.isArray(v)) o[k]=v.map(x=>typeof x==='string'?esc(x):x); } return o; };
+const unescObj=o=>{ if(!o||typeof o!=='object') return o; for(const k in o){ const v=o[k]; if(typeof v==='string') o[k]=unesc(v); else if(Array.isArray(v)) o[k]=v.map(x=>typeof x==='string'?unesc(x):x); } return o; };
 const norm=s=>(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 const hoyISO=()=>{try{return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Argentina/Buenos_Aires',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());}catch(_){return new Date().toISOString().slice(0,10);}};
 const fecha=s=>{if(!s)return'';const[a,m,d]=s.slice(0,10).split('-');return d+'/'+m+'/'+a.slice(2);};
@@ -420,10 +425,10 @@ async function cargarTabla(col){
   const t=TABLAS[col];
   let rows=await todo(()=>sb.from(t).select('*').eq('anulado',false).order(ORDEN_COL[col]||'id',{ascending:true}));
   if(col==='movs'){ const ids=new Set(C.map(c=>c.id)); rows=rows.filter(x=>x.origen!=='newspaper'&&ids.has(x.cliente_id)); }
-  if(col==='caja'){ CAJAH=rows.filter(x=>x.origen==='newspaper').map(x=>({f:x.fecha+(x.hora?' '+String(x.hora).slice(0,5):''),c:x.concepto,d:x.detalle||'',i:Number(x.ingreso)||0,e:Number(x.egreso)||0,m:x.medio||''})); rows=rows.filter(x=>x.origen!=='newspaper'); }
-  if(col==='precios'){ PRECIOS=rows.filter(x=>x.origen==='newspaper').map(DE_DB.precios); rows=rows.filter(x=>x.origen!=='newspaper'); }
-  if(col==='dist'){ DISTH=rows.filter(x=>x.historico).map(x=>({f:x.fecha,d:x.detalle||'',imp:Number(x.importe)})); rows=rows.filter(x=>!x.historico); }
-  LIVE[col]=rows.map(DE_DB[col]);
+  if(col==='caja'){ CAJAH=rows.filter(x=>x.origen==='newspaper').map(x=>escObj({f:x.fecha+(x.hora?' '+String(x.hora).slice(0,5):''),c:x.concepto,d:x.detalle||'',i:Number(x.ingreso)||0,e:Number(x.egreso)||0,m:x.medio||''})); rows=rows.filter(x=>x.origen!=='newspaper'); }
+  if(col==='precios'){ PRECIOS=rows.filter(x=>x.origen==='newspaper').map(x=>escObj(DE_DB.precios(x))); rows=rows.filter(x=>x.origen!=='newspaper'); }
+  if(col==='dist'){ DISTH=rows.filter(x=>x.historico).map(x=>escObj({f:x.fecha,d:x.detalle||'',imp:Number(x.importe)})); rows=rows.filter(x=>!x.historico); }
+  LIVE[col]=rows.map(x=>escObj(DE_DB[col](x))); // texto escapado para que un nombre/nota con <script> no se ejecute al pintar
   if(col==='feriados'){ FER=new Set(LIVE.feriados.map(r=>r.f)); FERP={}; LIVE.feriados.forEach(r=>{FERP[r.f]=r.sp==null?null:r.sp.map(norm);}); }
   if(col==='vueltas') VUELTAS=LIVE.vueltas;
   if(col==='dists'){ DISTS=LIVE.dists.filter(d=>d.activo); const d1=DISTS.find(d=>d.id===1); if(d1&&typeof d1.comision==='number') CONFIG.comision=d1.comision; }
@@ -433,11 +438,11 @@ async function cargarTabla(col){
 }
 async function cargarClientes(){
   const cl=await todo(()=>sb.from('clientes').select('*').eq('activo',true).eq('anulado',false).order('id'));
-  C=cl.map(x=>({id:x.id,d:x.domicilio,n:x.nombre||'',cat:'',act:1,fic:x.ficha||'actual',tel:x.telefono||'',obs:x.observaciones||'',part:x.particularidad||'',sal:Number(x.saldo_inicial)||0,salf:x.saldo_inicial_fecha,dud:0,subs:[],movs:[]}));
+  C=cl.map(x=>({id:x.id,d:esc(x.domicilio),n:esc(x.nombre||''),cat:'',act:1,fic:x.ficha||'actual',tel:esc(x.telefono||''),obs:esc(x.observaciones||''),part:esc(x.particularidad||''),sal:Number(x.saldo_inicial)||0,salf:x.saldo_inicial_fecha,dud:0,subs:[],movs:[]}));
   const idx={}; C.forEach(c=>idx[c.id]=c);
   const ids=C.map(c=>c.id);
   const subs=await todo(()=>sb.from('suscripciones').select('*').in('cliente_id',ids).eq('anulado',false).order('id'));
-  subs.forEach(x=>{const c=idx[x.cliente_id]; if(!c) return; let txt=x.dias_texto||''; if(FD(txt)==null&&x.dias&&x.dias.length) txt=x.dias.map(d=>DIAS[d]||'').join(' '); c.subs.push([x.publicacion,txt,x.via,x.hasta?x.hasta:'V',x.desde||'',x.cantidad||1]);});
+  subs.forEach(x=>{const c=idx[x.cliente_id]; if(!c) return; let txt=x.dias_texto||''; if(FD(txt)==null&&x.dias&&x.dias.length) txt=x.dias.map(d=>DIAS[d]||'').join(' '); c.subs.push([esc(x.publicacion),esc(txt),x.via,x.hasta?x.hasta:'V',x.desde||'',x.cantidad||1,x.origen||'',x.novedad_id||null]);});
   const movs=await todo(()=>sb.from('movimientos').select('*').in('cliente_id',ids).eq('anulado',false).eq('origen','newspaper').order('fecha'));
   movs.forEach(x=>{const c=idx[x.cliente_id]; if(c) c.movs.push([x.fecha,x.tipo,x.tipo==='Cobro'?-Number(x.importe):Number(x.importe),x.medio||'']);});
   C.forEach(c=>{c.k=norm(c.d+' '+c.n+' '+c.id+' '+c.subs.map(x=>x[0]).join(' '));});
@@ -480,11 +485,12 @@ async function guardar(col,rows){
   const nuevos=rows.filter(r=>!antes.has(String(r.id)));
   const idsDespues=new Set(rows.map(r=>String(r.id)));
   const anulados=LIVE[col].filter(r=>!idsDespues.has(String(r.id))&&!r.fijo);
-  for(const r of nuevos){ const fila=A_DB[col](r); const{error}=await (t==='feriados'?sb.from(t).upsert({...fila,anulado:false,anulado_en:null,anulado_por:null},{onConflict:'fecha'}):sb.from(t).insert(fila)); if(error)throw new Error(error.message); }
+  for(const r of nuevos){ const fila=unescObj(A_DB[col](r)); const{error}=await (t==='feriados'?sb.from(t).upsert({...fila,anulado:false,anulado_en:null,anulado_por:null},{onConflict:'fecha'}):sb.from(t).insert(fila)); if(error)throw new Error(error.message); }
   for(const r of anulados){
     const q=sb.from(t).update({anulado:true}); const{error}=await (t==='feriados'?q.eq('fecha',r.id):q.eq('id',r.id)); if(error)throw new Error(error.message);
   }
   await cargarTabla(col);
+  if(col==='novedades'){ await cargarClientes(); SCACHE={}; }
 }
 async function exportarTodo(){
   try{
@@ -561,8 +567,7 @@ function devengoDe(c,tipo,hasta){
   const ck='d'+tipo+c.id+'|'+hasta;
   if(SCACHE[ck]!=null) return SCACHE[ck];
   let tot=0; const porPub={};
-  const items=c.subs.filter(x=>x[3]==='V'&&x[2]===tipo).map(x=>({t:x[0],days:FD(x[1]),desde:(x[4]||'').slice(0,10),q:Math.abs(x[5])||1}));
-  LIVE.novedades.filter(n=>n.cli===c.id&&n.tipo==='Alta'&&n.dias&&((n.via||'C')===tipo)).forEach(n=>items.push({t:n.pub,days:n.dias,desde:(n.desde||'').slice(0,10),q:n.qty||1,alta:(n.desde||'').slice(0,10)}));
+  const items=c.subs.filter(x=>x[3]==='V'&&x[2]===tipo).map(x=>({t:x[0],days:FD(x[1]),desde:(x[4]||'').slice(0,10),q:Math.abs(x[5])||1,alta:altaDe(x)}));
   if(items.length){
     const hoy=hasta;
     let d=new Date(DEV0+'T12:00:00');
@@ -760,8 +765,7 @@ function pintarLista(){
 function catDe(c){
   const hoy=hoyISO();
   const vias=new Set();
-  c.subs.forEach(x=>{ if(x[3]==='V'&&!suspendida(c.id,x[0],hoy,FD(x[1]))) vias.add(x[2]==='S'?'S':'C'); });
-  LIVE.novedades.filter(n=>n.cli===c.id&&n.tipo==='Alta'&&n.dias&&!suspendida(c.id,n.pub,hoy,n.dias,n.desde)).forEach(n=>vias.add((n.via||'C')==='S'?'S':'C'));
+  c.subs.forEach(x=>{ if(x[3]==='V'&&!suspendida(c.id,x[0],hoy,FD(x[1]),altaDe(x))) vias.add(x[2]==='S'?'S':'C'); });
   if(vias.has('S')&&vias.has('C'))return 'Mixto';
   if(vias.has('S'))return 'Suscriptor';
   if(vias.has('C'))return 'Cliente';
@@ -787,11 +791,12 @@ function agruparSubs(rows){
   rows.forEach(x=>{
     const dd=FD(x[1]);
     const k=dd?x[0]+'|'+x[2]:null;
-    if(!k){ g.push({pub:x[0],via:x[2],dias:null,txt:x[1]||'',desde:x[4],qty:Math.abs(x[5])||1,rows:[x]}); return; }
+    if(!k){ g.push({pub:x[0],via:x[2],dias:null,txt:x[1]||'',desde:x[4],qty:Math.abs(x[5])||1,rows:[x],app:x[6]==='app'}); return; }
     if(idx[k]==null){ idx[k]=g.length; g.push({pub:x[0],via:x[2],dias:[],txt:'',desde:x[4],qty:Math.abs(x[5])||1,rows:[]}); }
     const e=g[idx[k]]; dd.forEach(d=>{if(!e.dias.includes(d))e.dias.push(d);}); e.rows.push(x);
     if((x[4]||'')<(e.desde||'')) e.desde=x[4];
     if((Math.abs(x[5])||1)!==e.qty) e.qtyMix=true;
+    if(x[6]==='app') e.app=true;
   });
   g.forEach(e=>{ if(e.dias) e.dias.sort((a,b)=>a-b); });
   return g;
@@ -804,7 +809,7 @@ function ficha(id,mas){
   const hoy0=hoyISO();
   const vig=[],susp=[];
   c.subs.forEach(x=>{
-    if(x[3]==='V'&&!suspendida(c.id,x[0],hoy0,FD(x[1]))) vig.push(x);
+    if(x[3]==='V'&&!suspendida(c.id,x[0],hoy0,FD(x[1]),altaDe(x))) vig.push(x);
     else susp.push(x);
   });
   susp.sort((a,b)=>(b[3]||'').localeCompare(a[3]||''));
@@ -832,25 +837,20 @@ function ficha(id,mas){
     </div>
     <div id="fform"></div>
   </div>`;
-  if(novs.length){h+=`<h2>Novedades cargadas acá</h2><div class="card">`+novs.map(n=>`<div class="subrow"><b>${n.tipo}</b> ${n.pub||''}${n.dias&&n.dias.length&&n.tipo!=='Alta'?' <span class="mini">('+n.dias.map(d=>DIAS[d]).join(' ')+')</span>':''} <span class="mini">desde ${fecha(n.desde)}${n.hasta?' hasta '+fecha(n.hasta):''} ${n.nota||''}</span></div>`).join('')+`</div>`;}
-  const altas=LIVE.novedades.filter(n=>n.cli===id&&n.tipo==='Alta'&&n.dias&&!suspendida(id,n.pub,hoy0,n.dias,n.desde));
-  h+=`<h2>Suscripciones vigentes (${vig.length+altas.length})</h2>`;
-  altas.forEach(n=>{h+=`<div class="card"><b>${n.pub}</b>${(n.qty||1)>1?` <span class="mini">×${n.qty}</span>`:''} <span class="pill ${(n.via||'C')==='S'?'p-susc':'p-cli'}">${(n.via||'C')==='S'?'vía distribuidora':'le cobrás vos'}</span> <span class="pill p-warn">alta cargada acá</span>
-  <div class="dias">${DIAS.map((dd,i)=>`<div class="dia${n.dias.includes(i)?' on':''}">${dd}</div>`).join('')}</div>
-  <div class="mini" style="margin-top:6px">desde ${fecha(n.desde)}</div>
-  <div><button class="btn chico sec" data-sform="a${n.id}" data-pub="${n.pub}" data-dias="${n.dias.join(',')}" data-cli="${id}" data-acc="Suspensión">Suspender / dar de baja</button></div></div>`;});
-  if(vig.length) agruparSubs(vig).forEach((e,ix)=>{const todasDeLaPub=vig.filter(x=>x[0]===e.pub).length===e.rows.length;h+=`<div class="card"><b>${e.pub}</b>${e.qty>1&&!e.qtyMix?` <span class="mini">×${e.qty}</span>`:''} <span class="pill ${e.via==='S'?'p-susc':'p-cli'}">${e.via==='S'?'vía distribuidora':'le cobrás vos'}</span>${e.dias?diasHTMLArr(e.dias):(e.txt?`<div class="mini" style="margin-top:6px">${e.txt}</div>`:'')}${e.rows.length>1?`<div class="mini" style="margin-top:4px">${e.rows.length} suscripciones agrupadas (una por día)</div>`:''}<div class="mini" style="margin-top:6px">desde ${fecha(e.desde)}</div>
+  if(novs.length){h+=`<h2>Novedades cargadas acá</h2><div class="card">`+novs.map(n=>`<div class="subrow"><b>${n.tipo}</b> <span class="mini">${descNov(n)}${n.nota?' · '+n.nota:''}</span></div>`).join('')+`</div>`;}
+  h+=`<h2>Suscripciones vigentes (${vig.length})</h2>`;
+  if(vig.length) agruparSubs(vig).forEach((e,ix)=>{const todasDeLaPub=vig.filter(x=>x[0]===e.pub).length===e.rows.length;h+=`<div class="card"><b>${e.pub}</b>${e.qty>1&&!e.qtyMix?` <span class="mini">×${e.qty}</span>`:''} <span class="pill ${e.via==='S'?'p-susc':'p-cli'}">${e.via==='S'?'vía distribuidora':'le cobrás vos'}</span>${e.app?' <span class="pill p-warn">alta cargada acá</span>':''}${e.dias?diasHTMLArr(e.dias):(e.txt?`<div class="mini" style="margin-top:6px">${e.txt}</div>`:'')}${e.rows.length>1?`<div class="mini" style="margin-top:4px">${e.rows.length} suscripciones agrupadas (una por día)</div>`:''}<div class="mini" style="margin-top:6px">desde ${fecha(e.desde)}</div>
   <div id="sf-${ix}"><button class="btn chico sec" data-sform="${ix}" data-pub="${e.pub}" data-dias="${(e.dias||[]).join(',')}" ${todasDeLaPub?'data-todas="1"':''} data-cli="${id}" data-acc="Suspensión">Suspender / dar de baja</button></div></div>`;});
-  else if(!altas.length) h+='<div class="card mini">Sin publicaciones vigentes.</div>';
+  else h+='<div class="card mini">Sin publicaciones vigentes.</div>';
   h+=`<div id="altabox"><button class="btn chico" id="altabtn" data-cli="${id}">＋ Alta de suscripción nueva</button></div>`;
-  const altasTodas=LIVE.novedades.filter(n=>n.cli===id&&n.tipo==='Alta'&&n.dias);
+  const altasTodas=c.subs.filter(x=>x[6]==='app'&&x[3]==='V').map(x=>({pub:x[0],desde:(x[4]||'').slice(0,10),dias:FD(x[1])||[]}));
   const reactivada=x=>x[3]!=='V'&&altasTodas.some(n=>n.pub===x[0]&&(n.desde||'')>=(x[3]||'').slice(0,10)&&(!(FD(x[1])||[]).length||n.dias.some(d=>(FD(x[1])||[]).includes(d))));
   const suspVis=susp.filter(x=>!reactivada(x));
   const suspG=(()=>{ const out=[]; const byEstado={}; suspVis.forEach(x=>{const k=x[3]==='V'?'V':(x[3]||'').slice(0,10); (byEstado[k]=byEstado[k]||[]).push(x);}); Object.keys(byEstado).sort((a,b)=>b.localeCompare(a)).forEach(k=>{ agruparSubs(byEstado[k]).forEach(e=>out.push(e)); }); return out; })();
   if(suspG.length){h+=`<h2>Suspendidas (${suspG.length})</h2><div class="card">`+suspG.slice(0,12).map((e,ix)=>{
     const x=[e.pub,e.dias?e.dias.map(d=>DIAS[d]).join(' '):e.txt,e.via,e.rows[0][3],e.desde,e.qty];
     const porNov=x[3]==='V';
-    const vuelve=(()=>{ if(!porNov) return ''; const dsx=e.dias||[]; const nv=LIVE.novedades.filter(n=>n.cli===id&&n.tipo==='Suspensión'&&n.hasta&&(!n.pub||norm(x[0]).includes(norm(n.pub))||norm(n.pub).includes(norm(x[0])))&&(!n.dias||!n.dias.length||!dsx.length||n.dias.some(d=>dsx.includes(d)))).sort((p,q)=>(q.desde||'').localeCompare(p.desde||''))[0]; if(!nv) return ''; const d=new Date(nv.hasta+'T12:00:00'); d.setDate(d.getDate()+1); return ' · vuelve el '+fecha(d.toISOString().slice(0,10)); })();
+    const vuelve=(()=>{ if(!porNov) return ''; const dsx=e.dias||[]; const nv=LIVE.novedades.filter(n=>n.cli===id&&n.tipo==='Suspensión'&&n.hasta&&(!n.pub||norm(x[0]).includes(norm(n.pub))||norm(n.pub).includes(norm(x[0])))&&(!n.dias||!n.dias.length||!dsx.length||n.dias.some(d=>dsx.includes(d)))).sort((p,q)=>(q.desde||'').localeCompare(p.desde||''))[0]; if(!nv) return ''; const d=new Date(nv.hasta+'T12:00:00'); d.setDate(d.getDate()+1); return ' desde el '+fecha(nv.desde)+' · vuelve el '+fecha(d.toISOString().slice(0,10)); })();
     return `<div class="subrow">${x[0]} <span class="tag-susp">${porNov?'suspendida acá'+vuelve:'cerrada el '+fecha(x[3])}</span> <span class="mini">${x[1]||''}</span>
     <div id="rf-${ix}"><button class="btn chico sec" data-sform="r${ix}" data-pub="${x[0]}" data-dias="${(e.dias||[]).join(',')}" data-via="${x[2]||'C'}" data-qty="${Math.abs(x[5])||1}" ${porNov?'':'data-cerrada="1"'} data-cli="${id}" data-acc="Reanudación">Reactivar</button></div></div>`;}).join('')+`</div>`;}
   h+=`<h2>Movimientos <span class="mini" style="text-transform:none">— tocá una liquidación para ver el desglose</span></h2><div class="card">`+(movs.length?movs.slice(0,FMOSTR).map((m,i)=>{
@@ -999,7 +999,6 @@ function titulo(t,sub){return `<div class="hola"><h1>${t}</h1>${sub?`<div class=
 function pubsDelPadron(){
   const cnt={};
   C.filter(c=>c.act).forEach(c=>{ c.subs.filter(x=>x[3]==='V').forEach(x=>{cnt[x[0]]=(cnt[x[0]]||0)+1;}); });
-  LIVE.novedades.filter(n=>n.tipo==='Alta'&&n.dias).forEach(n=>{cnt[n.pub]=(cnt[n.pub]||0)+1;});
   return Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]||a.localeCompare(b));
 }
 function pintarNovedades(){
@@ -1037,7 +1036,7 @@ function pintarNovedades(){
   window.pintaN=function(){
     const ft=$('nfil').value,q=norm($('nft').value);
     const rs=rows.filter(n=>(!ft||n.tipo===ft)&&(!q||norm(nomCli(n.cli)+' '+(n.pub||'')+' '+(n.nota||'')).includes(q)));
-    $('nlist').innerHTML=rs.length?rs.slice(0,80).map(n=>`<div class="mov"><span class="f">${fecha(n.desde)}</span><span class="t"><b>${n.tipo}${!n.pub&&(n.tipo==='Baja'||n.tipo==='Reanudación')?' de cliente':''}</b> <a class="lnk" onclick="ficha(${n.cli})">${nomCli(n.cli)}</a>${n.pub?' · '+n.pub:''}${n.dias?' · '+n.dias.map(d=>DIAS[d]).join(''):''}${n.hasta?' · hasta '+fecha(n.hasta):''}${n.nota?' <span class="mini">· '+n.nota+'</span>':''}</span>${n.tipo!=='Cambio de precio'?`<button class="del" style="color:var(--azul)" data-nedit="${n.id}" title="Editar">✎</button>`:''}<button class="del" data-nid="${n.id}">✕</button></div>`).join(''):'<div class="mini">Ninguna todavía con ese filtro.</div>';
+    $('nlist').innerHTML=rs.length?rs.slice(0,80).map(n=>`<div class="mov"><span class="f">${fecha(n.desde)}</span><span class="t"><b>${n.tipo}${!n.pub&&(n.tipo==='Baja'||n.tipo==='Reanudación')?' de cliente':''}</b> <a class="lnk" onclick="ficha(${n.cli})">${nomCli(n.cli)}</a> <span class="mini">· ${descNov(n)}${n.nota?' · '+n.nota:''}</span></span>${n.tipo!=='Cambio de precio'?`<button class="del" style="color:var(--azul)" data-nedit="${n.id}" title="Editar">✎</button>`:''}<button class="del" data-nid="${n.id}">✕</button></div>`).join(''):'<div class="mini">Ninguna todavía con ese filtro.</div>';
   }
   pintaN();
 }
@@ -1063,10 +1062,10 @@ function pintarNForm(){
       <div class="sec" style="margin:18px 0 4px"><span class="dot"></span>Primera suscripción <span class="mini" style="text-transform:none;letter-spacing:0">(opcional)</span></div>
       ${fPubAll}${fSub}${fDesde('Recibe desde')}
       <button class="btn" id="nok">Crear cliente</button>`; break;
-    case 'altasub': h=`${fCli}${fPubAll}${fSub}${fDesde('Recibe desde')}<button class="btn" id="nok">Guardar alta</button>`; break;
-    case 'susp': h=`${fCli}${fPubCli(false)}${fDiasOpc}<div class="grid2"><div>${fDesde('Suspender desde')}</div><div><label>Hasta <span class="mini">(inclusive; vacío = hasta que se reanude)</span></label><input id="nhasta" type="date"></div></div>${fNota}<button class="btn" id="nok">Guardar suspensión</button>`; break;
-    case 'rean': h=`${fCli}${fPubCli(false)}${fDiasOpc}${fDesde('Vuelve a recibir desde')}${fNota}<button class="btn" id="nok">Guardar reanudación</button>`; break;
-    case 'bajasub': h=`${fCli}${fPubCli(true)}${fDiasOpc}${fDesde('Deja de recibirla desde')}${fNota}<button class="btn" id="nok">Dar de baja la suscripción</button>`; break;
+    case 'altasub': h=`${fCli}${fPubAll}${fSub}${fDesde('Recibe desde (ese día ya recibe)')}<button class="btn" id="nok">Guardar alta</button>`; break;
+    case 'susp': h=`${fCli}${fPubCli(false)}${fDiasOpc}<div class="grid2"><div>${fDesde('Suspender desde (ese día ya no recibe)')}</div><div><label>Hasta <span class="mini">(último día que NO recibe; vacío = hasta que se reanude)</span></label><input id="nhasta" type="date"></div></div>${fNota}<button class="btn" id="nok">Guardar suspensión</button>`; break;
+    case 'rean': h=`${fCli}${fPubCli(false)}${fDiasOpc}${fDesde('Vuelve a recibir desde (ese día ya recibe)')}${fNota}<button class="btn" id="nok">Guardar reanudación</button>`; break;
+    case 'bajasub': h=`${fCli}${fPubCli(true)}${fDiasOpc}${fDesde('Deja de recibirla desde (ese día ya no recibe)')}${fNota}<button class="btn" id="nok">Dar de baja la suscripción</button>`; break;
     case 'bajacli': h=`<div class="aviso" style="margin:8px 0 0">La baja saca al cliente del padrón activo (deja de devengar todo desde la fecha). Su ficha y su saldo quedan guardados: lo ves con el filtro "Inactivos" y se puede reactivar.</div>
       ${fCli}${fDesde('Baja desde')}${fNota}<button class="btn" id="nok" style="background:var(--rojo)">Dar de baja al cliente</button>`; break;
     case 'precio': h=`<div class="mini" style="margin:8px 0">Los cambios de precio se cargan en <b>Precios</b> como una nueva vigencia (publicación, día y fecha desde la que rige). Nunca se pisa el precio anterior.</div><button class="btn chico" onclick="irTab('precios')">Ir a Precios →</button>`; break;
@@ -1119,12 +1118,12 @@ function elegirCli(id){
   const inp=$('ncli'); inp.value=c.d+' · Nº '+c.id; inp.dataset.cli=String(c.id); $('ncli-ac').hidden=true;
   const hoy=hoyISO();
   const vig=c.subs.filter(x=>x[3]==='V');
-  const altas=LIVE.novedades.filter(n=>n.cli===c.id&&n.tipo==='Alta'&&n.dias);
-  const pubs=[...new Set([...c.subs.map(x=>x[0]),...altas.map(n=>n.pub)])];
-  const diasDe=pn=>[...new Set([...c.subs.filter(x=>x[0]===pn&&x[3]==='V').map(x=>x[1]||''),...altas.filter(n=>n.pub===pn).map(n=>n.dias.map(d=>DIAS[d]).join(''))])].filter(Boolean).join(' / ');
+  const altas=[];
+  const pubs=[...new Set(c.subs.map(x=>x[0]))];
+  const diasDe=pn=>[...new Set(c.subs.filter(x=>x[0]===pn&&x[3]==='V').map(x=>x[1]||''))].filter(Boolean).join(' / ');
   $('npubs').innerHTML=pubs.map(pn=>`<option value="${pn}">${diasDe(pn)}</option>`).join('');
   const s=saldoDe(c);
-  $('ncli-info').innerHTML=(vig.length||altas.length?'Recibe: '+[...vig.map(x=>x[0]+(x[1]?' ('+x[1]+')':'')+(suspendida(c.id,x[0],hoy,FD(x[1]))?' <span class="tag-susp">suspendida</span>':'')),...altas.map(n=>n.pub+' ('+n.dias.map(d=>DIAS[d]).join('')+')')].join(' · '):'Sin suscripciones vigentes')
+  $('ncli-info').innerHTML=(vig.length||altas.length?'Recibe: '+[...vig.map(x=>x[0]+(x[1]?' ('+x[1]+')':'')+(suspendida(c.id,x[0],hoy,FD(x[1]))?' <span class="tag-susp">suspendida</span>':'')),].join(' · '):'Sin suscripciones vigentes')
     +(c.part?' · <i>'+c.part+'</i>':'')+(Math.abs(s)>0.5?' · saldo <b class="'+(s>0?'debe':'favor')+'">'+fmt(s)+(s>0?' (debe)':' (a favor)')+'</b>':'')+(c.act?'':' · <b class="debe">dado de baja</b>');
 }
 document.addEventListener('mousedown',e=>{if(!e.target.closest('.acwrap')){document.querySelectorAll('.ac').forEach(b=>b.hidden=true);}});
@@ -1213,10 +1212,9 @@ function entregasDe(c,iso){
     const dd=FD(x[1]); if(!tocaDia(dd,wd,iso)) return;
     if((x[4]||'').slice(0,10)>iso) return;
     if(!feriadoSale(iso,x[0])) return;
-    if(suspendida(c.id,x[0],iso)) return;
+    if(suspendida(c.id,x[0],iso,null,altaDe(x))) return;
     const q=x[5]||1; (q<0?res:out).push({pub:x[0],qty:Math.abs(q),via:x[2]});
   });
-  LIVE.novedades.filter(n=>n.cli===c.id&&n.tipo==='Alta'&&tocaDia(n.dias,wd,iso)&&(n.desde||'')<=iso&&feriadoSale(iso,n.pub)&&!suspendida(c.id,n.pub,iso,null,n.desde)).forEach(n=>out.push({pub:n.pub,qty:n.qty||1,via:n.via||'C'}));
   return {out,res};
 }
 function vueltasActivas(){ const mv=misVueltas(); return VUELTAS.filter(v=>v.activo!==false&&(!mv||mv.includes(v.nombre))).sort((a,b)=>(a.orden||0)-(b.orden||0)); }
@@ -1309,7 +1307,7 @@ async function guardarOrdenDOM(){
   document.querySelectorAll('#v-reparto .vlist').forEach(l=>{
     const vuelta=l.dataset.vuelta;
     [...l.querySelectorAll('.parada')].forEach((p,i)=>{
-      (p.dataset.clis||'').split(',').filter(Boolean).forEach(id=>rows.push({cliente_id:parseInt(id),dia:RDIA,vuelta,orden:(i+1)*10}));
+      (p.dataset.clis||'').split(',').filter(Boolean).forEach(id=>rows.push({cliente_id:parseInt(id),dia:RDIA,vuelta:unesc(vuelta),orden:(i+1)*10}));
     });
   });
   try{
@@ -1320,12 +1318,24 @@ async function guardarOrdenDOM(){
 // dias: array de días (0=lunes) o true = todos; pos: 'fin' (default) o 'inicio'
 async function asignarVuelta(cli,vuelta,dias,pos){
   if(dias===true) dias=[0,1,2,3,4,5,6]; if(!Array.isArray(dias)) dias=[RDIA];
-  const rows=dias.map(d=>{const en=LIVE.reparto.filter(r=>r.dia===d&&r.vuelta===vuelta); const max=en.reduce((m,r)=>Math.max(m,r.orden||0),0), min=en.reduce((m,r)=>Math.min(m,r.orden||0),1e9); return {cliente_id:cli,dia:d,vuelta,orden:pos==='inicio'?(en.length?min-10:10):max+10,anulado:false};});
+  const rows=dias.map(d=>{const en=LIVE.reparto.filter(r=>r.dia===d&&r.vuelta===vuelta); const max=en.reduce((m,r)=>Math.max(m,r.orden||0),0), min=en.reduce((m,r)=>Math.min(m,r.orden||0),1e9); return {cliente_id:cli,dia:d,vuelta:unesc(vuelta),orden:pos==='inicio'?(en.length?min-10:10):max+10,anulado:false};});
   try{ const{error}=await sb.from('reparto').upsert(rows,{onConflict:'cliente_id,dia'}); if(error)throw new Error(error.message); await cargarTabla('reparto'); toast(nomCli(cli)+' → '+vuelta+' ('+(dias.length===7?'todos los días':dias.map(d=>DIAS[d]).join(' '))+') ✓'); pintarReparto(); }catch(e){toast('Error: '+((e&&e.message)||e));}
 }
 async function quitarDeVuelta(cli,dias){
   if(dias===true) dias=[0,1,2,3,4,5,6];
   try{ const{error}=await sb.from('reparto').update({anulado:true}).eq('cliente_id',cli).in('dia',dias); if(error)throw new Error(error.message); await cargarTabla('reparto'); toast(nomCli(cli)+' sin vuelta ('+(dias.length===7?'todos los días':dias.map(d=>DIAS[d]).join(' '))+')'); pintarReparto(); }catch(e){toast('Error: '+((e&&e.message)||e));}
+}
+// Texto humano de una novedad, con las fechas explícitas (convención confirmada por Demian el 15/09):
+// Suspensión: desde = primer día que NO recibe, hasta = último día que NO recibe (inclusive), vuelve al día siguiente.
+// Alta / Reanudación: desde = primer día que SÍ recibe. Baja: desde = primer día que NO recibe.
+function descNov(n){
+  const dias=n.dias&&n.dias.length&&n.tipo!=='Alta'?' ('+n.dias.map(d=>DIAS[d]).join(' ')+')':'';
+  const pub=n.pub?n.pub+dias:'todas las publicaciones';
+  if(n.tipo==='Suspensión'){ let t='no recibe '+pub+' desde el '+fecha(n.desde); if(n.hasta){ const d=new Date(n.hasta+'T12:00:00'); d.setDate(d.getDate()+1); t+=' hasta el '+fecha(n.hasta)+' inclusive · vuelve el '+fecha(d.toISOString().slice(0,10)); } else t+=' (hasta que se reanude)'; return t; }
+  if(n.tipo==='Reanudación') return (n.pub?'vuelve a recibir '+pub:'cliente reactivado')+' desde el '+fecha(n.desde)+' (ese día ya recibe)';
+  if(n.tipo==='Baja') return (n.pub?'deja de recibir '+pub:'cliente dado de baja')+' desde el '+fecha(n.desde)+' (ese día ya no recibe)';
+  if(n.tipo==='Alta') return 'recibe '+(n.pub||'')+(n.dias?' ('+n.dias.map(d=>DIAS[d]).join(' ')+')':'')+' desde el '+fecha(n.desde)+' (ese día ya recibe)';
+  return (n.pub||'')+' desde el '+fecha(n.desde);
 }
 function cerrarModal(){ const m=$('ovl'); if(m) m.remove(); }
 function modalImpresionMasiva(){
@@ -1700,7 +1710,7 @@ function saldoDist(distId){ return LIVE.dist.filter(r=>(r.dist||1)===distId).red
 function saldoDistribuidora(){ return DISTS.length?DISTS.reduce((n,d)=>n+saldoDist(d.id),0):(LIVE.dist.reduce((n,r)=>n+(r.imp||0),0)-comisionDevengada()-devolucionesDist()); }
 async function nuevoDist(){ const n=$('dnuevo').value.trim(); if(!n){toast('Poné el nombre');return;} try{ const id=await ins('distribuidores',{nombre:n,comision:32}); await cargarTabla('dists'); DSEL=id; toast('Distribuidor creado ✓'); pintarDist(); }catch(e){toast('Error: '+((e&&e.message)||e));} }
 async function renombrarDist(id){ const d=distDe(id); const n=prompt('Nombre del distribuidor:',d?d.nombre:''); if(n===null||!n.trim())return; try{ const{error}=await sb.from('distribuidores').update({nombre:n.trim()}).eq('id',id); if(error)throw new Error(error.message); await cargarTabla('dists'); pintarDist(); pintarInicio(); }catch(e){toast('Error: '+((e&&e.message)||e));} }
-async function asignarPubDist(pub,distId){ try{ const{error}=await sb.from('publicaciones_dist').upsert({publicacion:pub,distribuidor_id:distId,anulado:false},{onConflict:'publicacion'}); if(error)throw new Error(error.message); await cargarTabla('pubdist'); SCACHE={}; toast(pub+' → '+nomDist(distId)); pintarDist(); }catch(e){toast('Error: '+((e&&e.message)||e));} }
+async function asignarPubDist(pub,distId){ try{ const{error}=await sb.from('publicaciones_dist').upsert({publicacion:unesc(pub),distribuidor_id:distId,anulado:false},{onConflict:'publicacion'}); if(error)throw new Error(error.message); await cargarTabla('pubdist'); SCACHE={}; toast(pub+' → '+nomDist(distId)); pintarDist(); }catch(e){toast('Error: '+((e&&e.message)||e));} }
 function todasLasPubs(){ const s=new Set([...PRECIOS,...LIVE.precios].map(p=>p.pub)); C.forEach(c=>c.subs.forEach(x=>s.add(x[0]))); return [...s].filter(Boolean).sort(); }
 
 /* ------- DISTRIBUIDORA ------- */
@@ -1739,10 +1749,10 @@ function pintarDist(){
     <input id="dpubq" type="search" placeholder="Filtrar publicación…" style="margin-bottom:8px" oninput="document.querySelectorAll('#dpubs .mov').forEach(r=>r.hidden=!norm(r.dataset.pub).includes(norm(this.value)))">
     <div id="dpubs">${pubs.map(p=>`<div class="mov" data-pub="${p}"><span class="t">${p}</span><select class="sel-pubdist" data-pubdist="${p}" style="width:auto;margin:0;padding:5px 8px;font-size:13px">${DISTS.map(x=>`<option value="${x.id}"${pubDist(p)===x.id?' selected':''}>${x.nombre}</option>`).join('')}</select></div>`).join('')}</div></div>
   <h2>Devoluciones a ${d.nombre}</h2>
-  <div class="card"><div class="mini" style="margin-bottom:6px">Diarios o revistas <b>no vendidos</b> que el encargado le devuelve a ${d.nombre}. El valor de la devolución <b>se descuenta del saldo</b> con el distribuidor (te lo acredita). El valor unitario se propone al precio de tapa; corregilo si te lo acredita a otro valor.</div>
+  <div class="card"><div class="mini" style="margin-bottom:6px">Diarios o revistas <b>no vendidos</b> que el encargado le devuelve a ${d.nombre}. El valor de la devolución <b>se descuenta del saldo</b> con el distribuidor (te lo acredita). Se acredita <b>al costo</b> (precio de tapa menos tu ${comisionDist(DSEL)}% de margen: no perdés ni ganás); el valor unitario se propone solo y podés corregirlo.</div>
     <div class="grid2"><div><label>Fecha</label><input id="dvfec" type="date" value="${hoyISO()}" onchange="dvSugerir()"></div><div><label>Cantidad</label><input id="dvqty" type="number" inputmode="numeric" min="1" placeholder="0" oninput="dvTotal()"></div></div>
     <label>Publicación</label><input id="dvpub" list="dvpubs" placeholder="ej: CLARIN" oninput="dvSugerir()" onchange="dvSugerir()"><datalist id="dvpubs">${misPubs.map(p=>`<option value="${p}">`).join('')}</datalist>
-    <div class="grid2"><div><label>Valor unitario que te acredita $</label><input id="dvvu" type="number" inputmode="decimal" step="any" placeholder="precio de tapa" oninput="dvTotal()"></div><div><label>Total a descontar</label><div id="dvtot" style="padding:11px 0;font-weight:700;font-size:18px">—</div></div></div>
+    <div class="grid2"><div><label>Valor unitario que te acredita $ <span class="mini">(costo)</span></label><input id="dvvu" type="number" inputmode="decimal" step="any" placeholder="costo" oninput="dvTotal()"></div><div><label>Total a descontar</label><div id="dvtot" style="padding:11px 0;font-weight:700;font-size:18px">—</div></div></div>
     <label>Nota</label><input id="dvnota" placeholder="ej: sobrantes del domingo">
     <button class="btn chico" id="dvok">Registrar devolución</button>
     <div style="margin-top:8px">${(()=>{const rs=[...LIVE.devol].filter(r=>(r.dist||1)===DSEL).sort((a,b)=>(b.f||'').localeCompare(a.f||'')||(b.ts||'').localeCompare(a.ts||''));const mes=hoyISO().slice(0,7);const tot=rs.filter(r=>(r.f||'').startsWith(mes)).reduce((n,r)=>n+(r.qty||0),0);return (tot?`<div class="mini" style="margin-bottom:6px">Este mes: <b>${tot}</b> ejemplares devueltos.</div>`:'')+(rs.slice(0,30).map(r=>{const wd=(new Date(r.f+'T12:00:00').getDay()+6)%7;const p=precioDe(r.pub,wd,r.f)||0;return `<div class="mov"><span class="f">${fecha(r.f)}</span><span class="t"><b>${r.qty}</b> × ${r.pub}${r.vu!=null?' <span class="mini">a '+fmt(r.vu)+' c/u</span>':''}${r.nota?' · '+r.nota:''}</span><span class="m favor">${r.imp!=null?'−'+fmt(r.imp):(p?'<span class="mini">ref. '+fmt(p*r.qty)+'</span>':'—')}</span><button class="del" data-dvid="${r.id}">✕</button></div>`;}).join('')||'<div class="mini">Ninguna devolución cargada.</div>');})()}</div>
@@ -1775,7 +1785,7 @@ async function borrarFeriado(id){
   if(!confirm('¿Borrar este feriado?'))return;
   try{ await guardar('feriados',LIVE.feriados.filter(r=>r.id!==id)); SCACHE={}; toast('Borrado'); pintarNovedades(); }catch(e){toast('Error: '+((e&&e.message)||e));}
 }
-window.dvSugerir=function(){ const pub=($('dvpub').value||'').trim().toUpperCase(), f=$('dvfec').value; if(!pub||!f)return; const wd=(new Date(f+'T12:00:00').getDay()+6)%7; const p=precioDe(pub,wd,f); const el=$('dvvu'); if(p&&(!el.value||el.dataset.auto==='1')){el.value=p;el.dataset.auto='1';} dvTotal(); };
+window.dvSugerir=function(){ const pub=($('dvpub').value||'').trim().toUpperCase(), f=$('dvfec').value; if(!pub||!f)return; const wd=(new Date(f+'T12:00:00').getDay()+6)%7; const p=precioDe(pub,wd,f); const el=$('dvvu'); if(p&&(!el.value||el.dataset.auto==='1')){el.value=Math.round(p*(100-comisionDist(DSEL))/100);el.dataset.auto='1';} dvTotal(); };
 window.dvTotal=function(){ const q=parseInt($('dvqty').value)||0, vu=parseFloat($('dvvu').value)||0; if(document.activeElement===$('dvvu')) $('dvvu').dataset.auto=''; $('dvtot').textContent=(q&&vu)?fmt(q*vu):'—'; };
 async function addDevol(){
   const qty=parseInt($('dvqty').value),pub=$('dvpub').value.trim().toUpperCase(),f=$('dvfec').value;
@@ -1995,8 +2005,7 @@ window.addEventListener('error',e=>{const l=$('lat');if(l)l.textContent='v34 · 
 function consumoMes(c,y,m){ // misma regla que devengoDe (via C): suscripciones vigentes + altas cargadas acá − suspensiones − feriados
   const ini=new Date(y,m,1), fin=new Date(y,m+1,0);
   const agg={}; let sinPrecioN=0;
-  const items=c.subs.filter(x=>x[3]==='V'&&x[2]==='C').map(x=>({t:x[0],days:FD(x[1]),desde:(x[4]||'').slice(0,10),q:Math.abs(x[5])||1}));
-  LIVE.novedades.filter(n=>n.cli===c.id&&n.tipo==='Alta'&&n.dias&&((n.via||'C')==='C')).forEach(n=>items.push({t:n.pub,days:n.dias,desde:(n.desde||'').slice(0,10),q:n.qty||1,alta:(n.desde||'').slice(0,10)}));
+  const items=c.subs.filter(x=>x[3]==='V'&&x[2]==='C').map(x=>({t:x[0],days:FD(x[1]),desde:(x[4]||'').slice(0,10),q:Math.abs(x[5])||1,alta:altaDe(x)}));
   let dd=new Date(ini);
   while(dd<=fin){
     const dia=dd.toISOString().slice(0,10), wd=(dd.getDay()+6)%7;
@@ -2100,7 +2109,7 @@ document.addEventListener('click',function(e){
   if(sf&&!sf.dataset.done){
     const cont=sf.parentElement;
     const dd=(sf.dataset.dias||'').split(',').filter(x=>x!=='').map(Number);
-    const otras=(()=>{const c=C.find(x=>x.id===parseInt(sf.dataset.cli));if(!c)return 0;return c.subs.filter(x=>x[3]==='V'&&x[0]===sf.dataset.pub).length+LIVE.novedades.filter(n=>n.cli===c.id&&n.tipo==='Alta'&&n.dias&&n.pub===sf.dataset.pub).length;})();
+    const otras=(()=>{const c=C.find(x=>x.id===parseInt(sf.dataset.cli));if(!c)return 0;return c.subs.filter(x=>x[3]==='V'&&x[0]===sf.dataset.pub).length;})();
     const cerr=sf.dataset.cerrada==='1';
     const esSusp=sf.dataset.acc==='Suspensión';
     cont.innerHTML=(esSusp?`<div class="grid2"><div>`:'')+`<label>${cerr?'Reactivar':sf.dataset.acc+' de'} ${sf.dataset.pub}${dd.length?' ('+dd.map(d=>DIAS[d]).join(' ')+')':''} desde</label><input type="date" class="sfec" value="${hoyISO()}">`
