@@ -250,7 +250,7 @@ select.apagado{opacity:.45}
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v60</span></div></div><div class="hb" id="hbtns"></div></header>
+<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v61</span></div></div><div class="hb" id="hbtns"></div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -383,7 +383,7 @@ const A_DB={
   novedades:r=>({cliente_id:r.cli,tipo:r.tipo,publicacion:r.pub||'',desde:r.desde||null,hasta:r.hasta||null,dias:r.dias||null,via:r.via||null,cantidad:r.qty||null,nota:r.nota||''}),
   dist:r=>({distribuidor_id:r.dist||1,fecha:r.f,detalle:r.d||'',importe:r.imp}),
   feriados:r=>({fecha:r.f,motivo:r.d||'',sin_pubs:r.sp==null?null:r.sp}),
-  devol:r=>({distribuidor_id:r.dist||1,fecha:r.f,publicacion:r.pub,cantidad:r.qty,nota:r.nota||''}),
+  devol:r=>({distribuidor_id:r.dist||1,fecha:r.f,publicacion:r.pub,cantidad:r.qty,nota:r.nota||'',valor_unit:r.vu==null?null:r.vu,importe:r.imp==null?null:r.imp}),
   reparto:r=>({cliente_id:r.cli,dia:r.dia,vuelta:r.vuelta,orden:r.orden||0}),
   vueltas:r=>({nombre:r.nombre,repartidor:r.repartidor||'',orden:r.orden||0,activo:r.activo!==false})
 };
@@ -394,7 +394,7 @@ const DE_DB={
   novedades:x=>({id:String(x.id),ts:x.creado_en,cli:x.cliente_id,tipo:x.tipo,pub:x.publicacion||'',desde:x.desde||'',hasta:x.hasta||'',dias:x.dias||null,via:x.via||null,qty:x.cantidad||null,nota:x.nota||''}),
   dist:x=>({id:String(x.id),ts:x.creado_en,f:x.fecha,d:x.detalle||'',imp:Number(x.importe),dist:x.distribuidor_id}),
   feriados:x=>({id:x.fecha,f:x.fecha,d:x.motivo||'',sp:x.sin_pubs||null}),
-  devol:x=>({id:String(x.id),ts:x.creado_en,f:x.fecha,pub:x.publicacion,qty:x.cantidad,nota:x.nota||'',dist:x.distribuidor_id}),
+  devol:x=>({id:String(x.id),ts:x.creado_en,f:x.fecha,pub:x.publicacion,qty:x.cantidad,nota:x.nota||'',dist:x.distribuidor_id,vu:x.valor_unit==null?null:Number(x.valor_unit),imp:x.importe==null?null:Number(x.importe)}),
   reparto:x=>({id:String(x.id),cli:x.cliente_id,dia:x.dia,vuelta:x.vuelta,orden:x.orden||0}),
   vueltas:x=>({id:x.nombre,nombre:x.nombre,repartidor:x.repartidor||'',orden:x.orden||0,activo:x.activo!==false}),
   prov:x=>({id:x.id,nombre:x.nombre,tel:x.telefono||'',nota:x.nota||'',activo:x.activo!==false}),
@@ -1634,8 +1634,9 @@ function devengoPubs(c,tipo,hasta){ hasta=hasta||hoyISO(); devengoDe(c,tipo,hast
 function comisionDist(id){ const d=distDe(id); return d&&typeof d.comision==='number'?d.comision:CONFIG.comision; }
 function tapaRepartida(distId){ let t=0; C.forEach(c=>{const m=devengoPubs(c,'S'); for(const p in m){ if(distId==null||pubDist(p)===distId) t+=m[p]; }}); return t; }
 function comisionDevengada(distId){ if(distId==null){ return DISTS.length?DISTS.reduce((n,d)=>n+comisionDevengada(d.id),0):tapaRepartida()*CONFIG.comision/100; } return tapaRepartida(distId)*comisionDist(distId)/100; }
-function saldoDist(distId){ return LIVE.dist.filter(r=>(r.dist||1)===distId).reduce((n,r)=>n+(r.imp||0),0)-comisionDevengada(distId); }
-function saldoDistribuidora(){ return DISTS.length?DISTS.reduce((n,d)=>n+saldoDist(d.id),0):(LIVE.dist.reduce((n,r)=>n+(r.imp||0),0)-comisionDevengada()); }
+function devolucionesDist(distId){ return LIVE.devol.filter(r=>distId==null||(r.dist||1)===distId).reduce((n,r)=>n+(r.imp||0),0); }
+function saldoDist(distId){ return LIVE.dist.filter(r=>(r.dist||1)===distId).reduce((n,r)=>n+(r.imp||0),0)-comisionDevengada(distId)-devolucionesDist(distId); }
+function saldoDistribuidora(){ return DISTS.length?DISTS.reduce((n,d)=>n+saldoDist(d.id),0):(LIVE.dist.reduce((n,r)=>n+(r.imp||0),0)-comisionDevengada()-devolucionesDist()); }
 async function nuevoDist(){ const n=$('dnuevo').value.trim(); if(!n){toast('Poné el nombre');return;} try{ const id=await ins('distribuidores',{nombre:n,comision:32}); await cargarTabla('dists'); DSEL=id; toast('Distribuidor creado ✓'); pintarDist(); }catch(e){toast('Error: '+((e&&e.message)||e));} }
 async function renombrarDist(id){ const d=distDe(id); const n=prompt('Nombre del distribuidor:',d?d.nombre:''); if(n===null||!n.trim())return; try{ const{error}=await sb.from('distribuidores').update({nombre:n.trim()}).eq('id',id); if(error)throw new Error(error.message); await cargarTabla('dists'); pintarDist(); pintarInicio(); }catch(e){toast('Error: '+((e&&e.message)||e));} }
 async function asignarPubDist(pub,distId){ try{ const{error}=await sb.from('publicaciones_dist').upsert({publicacion:pub,distribuidor_id:distId,anulado:false},{onConflict:'publicacion'}); if(error)throw new Error(error.message); await cargarTabla('pubdist'); SCACHE={}; toast(pub+' → '+nomDist(distId)); pintarDist(); }catch(e){toast('Error: '+((e&&e.message)||e));} }
@@ -1647,7 +1648,8 @@ function pintarDist(){
   const d=distDe(DSEL)||{id:DSEL,nombre:'Distribuidora',comision:CONFIG.comision};
   const repTot=tapaRepartida(DSEL), comi=comisionDevengada(DSEL);
   const cargado=LIVE.dist.filter(r=>(r.dist||1)===DSEL).reduce((n,r)=>n+(r.imp||0),0);
-  const saldoNuevo=cargado-comi;
+  const devTot=devolucionesDist(DSEL);
+  const saldoNuevo=cargado-comi-devTot;
   const pubs=todasLasPubs();
   const misPubs=pubs.filter(p=>pubDist(p)===DSEL);
   $('v-dist').innerHTML=`${titulo('Distribuidores','Cuenta corriente con cada distribuidor de diarios y revistas, y qué publicaciones son de cada uno')}
@@ -1658,8 +1660,9 @@ function pintarDist(){
     <div class="kpi ${saldoNuevo>0.5?'rojo':(saldoNuevo<-0.5?'ok':'gris')}"><i>${saldoNuevo>0.5?'Le debés':(saldoNuevo<-0.5?'Te debe':'Saldo')}</i><b>${fmt(saldoNuevo)}</b><i>${Math.abs(saldoNuevo)>0.5?'saldo de la CC':'al día'}</i></div>
     <div class="kpi"><i>Tapa repartida a sus suscriptores</i><b>${fmt(repTot)}</b><i>desde el 01/09 · ${misPubs.length} publicaciones</i></div>
     <div class="kpi ok"><i>Comisión devengada</i><b>${fmt(comi)}</b><i>${comisionDist(DSEL)}% del precio de tapa, a tu favor</i></div>
+    <div class="kpi ${devTot?'ok':'gris'}"><i>Devoluciones</i><b>${fmt(devTot)}</b><i>ejemplares no vendidos que le devolviste, a tu favor</i></div>
   </div>
-  <div class="mini" style="margin:2px 0 8px">Saldo = movimientos cargados (${cargado<0?'−':''}${fmt(cargado)}) − comisión devengada por repartir sus publicaciones a sus suscriptores (${fmt(comi)}).</div>
+  <div class="mini" style="margin:2px 0 8px">Saldo = movimientos cargados (${cargado<0?'−':''}${fmt(cargado)}) − comisión devengada por repartir sus publicaciones a sus suscriptores (${fmt(comi)}) − devoluciones (${fmt(devTot)}).</div>
   <div class="card"><b>Comisión sobre precio de tapa</b>
     <div class="mini" style="margin:4px 0 6px">Lo que repartís a los suscriptores de ${d.nombre} lo cobra ella; a vos te corresponde este % del precio de tapa.</div>
     <div style="display:flex;gap:8px;align-items:center"><input id="dcom" type="number" inputmode="decimal" step="0.5" min="0" max="100" value="${comisionDist(DSEL)}" style="max-width:110px;margin:0"> <span>%</span> <button class="btn chico sec" id="dcomok" style="margin:0">Guardar</button></div>
@@ -1675,12 +1678,13 @@ function pintarDist(){
     <input id="dpubq" type="search" placeholder="Filtrar publicación…" style="margin-bottom:8px" oninput="document.querySelectorAll('#dpubs .mov').forEach(r=>r.hidden=!norm(r.dataset.pub).includes(norm(this.value)))">
     <div id="dpubs">${pubs.map(p=>`<div class="mov" data-pub="${p}"><span class="t">${p}</span><select class="sel-pubdist" data-pubdist="${p}" style="width:auto;margin:0;padding:5px 8px;font-size:13px">${DISTS.map(x=>`<option value="${x.id}"${pubDist(p)===x.id?' selected':''}>${x.nombre}</option>`).join('')}</select></div>`).join('')}</div></div>
   <h2>Devoluciones a ${d.nombre}</h2>
-  <div class="card"><div class="mini" style="margin-bottom:6px">Ejemplares que vuelven. Se valúan a precio de tapa como referencia; no mueven el saldo hasta definir cómo los liquida.</div>
-    <div class="grid2"><div><label>Fecha</label><input id="dvfec" type="date" value="${hoyISO()}"></div><div><label>Cantidad</label><input id="dvqty" type="number" inputmode="numeric" min="1" placeholder="0"></div></div>
-    <label>Publicación</label><input id="dvpub" list="dvpubs" placeholder="ej: CLARIN"><datalist id="dvpubs">${misPubs.map(p=>`<option value="${p}">`).join('')}</datalist>
+  <div class="card"><div class="mini" style="margin-bottom:6px">Diarios o revistas <b>no vendidos</b> que el encargado le devuelve a ${d.nombre}. El valor de la devolución <b>se descuenta del saldo</b> con el distribuidor (te lo acredita). El valor unitario se propone al precio de tapa; corregilo si te lo acredita a otro valor.</div>
+    <div class="grid2"><div><label>Fecha</label><input id="dvfec" type="date" value="${hoyISO()}" onchange="dvSugerir()"></div><div><label>Cantidad</label><input id="dvqty" type="number" inputmode="numeric" min="1" placeholder="0" oninput="dvTotal()"></div></div>
+    <label>Publicación</label><input id="dvpub" list="dvpubs" placeholder="ej: CLARIN" oninput="dvSugerir()" onchange="dvSugerir()"><datalist id="dvpubs">${misPubs.map(p=>`<option value="${p}">`).join('')}</datalist>
+    <div class="grid2"><div><label>Valor unitario que te acredita $</label><input id="dvvu" type="number" inputmode="decimal" step="any" placeholder="precio de tapa" oninput="dvTotal()"></div><div><label>Total a descontar</label><div id="dvtot" style="padding:11px 0;font-weight:700;font-size:18px">—</div></div></div>
     <label>Nota</label><input id="dvnota" placeholder="ej: sobrantes del domingo">
     <button class="btn chico" id="dvok">Registrar devolución</button>
-    <div style="margin-top:8px">${(()=>{const rs=[...LIVE.devol].filter(r=>(r.dist||1)===DSEL).sort((a,b)=>(b.f||'').localeCompare(a.f||'')||(b.ts||'').localeCompare(a.ts||''));const mes=hoyISO().slice(0,7);const tot=rs.filter(r=>(r.f||'').startsWith(mes)).reduce((n,r)=>n+(r.qty||0),0);return (tot?`<div class="mini" style="margin-bottom:6px">Este mes: <b>${tot}</b> ejemplares devueltos.</div>`:'')+(rs.slice(0,30).map(r=>{const wd=(new Date(r.f+'T12:00:00').getDay()+6)%7;const p=precioDe(r.pub,wd,r.f)||0;return `<div class="mov"><span class="f">${fecha(r.f)}</span><span class="t"><b>${r.qty}</b> × ${r.pub}${r.nota?' · '+r.nota:''}</span><span class="m">${p?fmt(p*r.qty):'—'}</span><button class="del" data-dvid="${r.id}">✕</button></div>`;}).join('')||'<div class="mini">Ninguna devolución cargada.</div>');})()}</div>
+    <div style="margin-top:8px">${(()=>{const rs=[...LIVE.devol].filter(r=>(r.dist||1)===DSEL).sort((a,b)=>(b.f||'').localeCompare(a.f||'')||(b.ts||'').localeCompare(a.ts||''));const mes=hoyISO().slice(0,7);const tot=rs.filter(r=>(r.f||'').startsWith(mes)).reduce((n,r)=>n+(r.qty||0),0);return (tot?`<div class="mini" style="margin-bottom:6px">Este mes: <b>${tot}</b> ejemplares devueltos.</div>`:'')+(rs.slice(0,30).map(r=>{const wd=(new Date(r.f+'T12:00:00').getDay()+6)%7;const p=precioDe(r.pub,wd,r.f)||0;return `<div class="mov"><span class="f">${fecha(r.f)}</span><span class="t"><b>${r.qty}</b> × ${r.pub}${r.vu!=null?' <span class="mini">a '+fmt(r.vu)+' c/u</span>':''}${r.nota?' · '+r.nota:''}</span><span class="m favor">${r.imp!=null?'−'+fmt(r.imp):(p?'<span class="mini">ref. '+fmt(p*r.qty)+'</span>':'—')}</span><button class="del" data-dvid="${r.id}">✕</button></div>`;}).join('')||'<div class="mini">Ninguna devolución cargada.</div>');})()}</div>
   </div>
   <h2>Movimientos</h2>
   <input id="dfil" type="search" placeholder="Buscar por número, detalle o fecha…" style="margin-bottom:8px">
@@ -1710,15 +1714,18 @@ async function borrarFeriado(id){
   if(!confirm('¿Borrar este feriado?'))return;
   try{ await guardar('feriados',LIVE.feriados.filter(r=>r.id!==id)); SCACHE={}; toast('Borrado'); pintarNovedades(); }catch(e){toast('Error: '+((e&&e.message)||e));}
 }
+window.dvSugerir=function(){ const pub=($('dvpub').value||'').trim().toUpperCase(), f=$('dvfec').value; if(!pub||!f)return; const wd=(new Date(f+'T12:00:00').getDay()+6)%7; const p=precioDe(pub,wd,f); const el=$('dvvu'); if(p&&(!el.value||el.dataset.auto==='1')){el.value=p;el.dataset.auto='1';} dvTotal(); };
+window.dvTotal=function(){ const q=parseInt($('dvqty').value)||0, vu=parseFloat($('dvvu').value)||0; if(document.activeElement===$('dvvu')) $('dvvu').dataset.auto=''; $('dvtot').textContent=(q&&vu)?fmt(q*vu):'—'; };
 async function addDevol(){
   const qty=parseInt($('dvqty').value),pub=$('dvpub').value.trim().toUpperCase(),f=$('dvfec').value;
   if(!qty||qty<=0||!pub||!f){toast('Completá fecha, cantidad y publicación');return;}
-  const r={id:nid(),ts:new Date().toISOString(),f,pub,qty,nota:$('dvnota').value||'',dist:DSEL};
-  try{ await guardar('devol',[...LIVE.devol,r]); toast('Devolución registrada ✓'); pintarDist(); }catch(e){toast('Error: '+((e&&e.message)||e));}
+  const vu=parseFloat($('dvvu').value); if(isNaN(vu)||vu<0){toast('Poné el valor unitario que te acredita (si no lo sabés, dejá el precio de tapa)');return;}
+  const r={id:nid(),ts:new Date().toISOString(),f,pub,qty,nota:$('dvnota').value||'',dist:DSEL,vu,imp:Math.round(qty*vu*100)/100};
+  try{ await guardar('devol',[...LIVE.devol,r]); toast('Devolución registrada ✓ · se descontó '+fmt(r.imp)); pintarDist(); pintarInicio(); }catch(e){toast('Error: '+((e&&e.message)||e));}
 }
 async function borrarDevol(id){
   if(!confirm('¿Borrar esta devolución?'))return;
-  try{ await guardar('devol',LIVE.devol.filter(r=>r.id!==id)); toast('Borrado'); pintarDist(); }catch(e){toast('Error: '+((e&&e.message)||e));}
+  try{ await guardar('devol',LIVE.devol.filter(r=>r.id!==id)); toast('Borrado'); pintarDist(); pintarInicio(); }catch(e){toast('Error: '+((e&&e.message)||e));}
 }
 async function guardarComision(){
   const v=parseFloat($('dcom').value);
