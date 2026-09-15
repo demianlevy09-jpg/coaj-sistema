@@ -247,7 +247,7 @@ select.apagado{opacity:.45}
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v49</span></div></div><div class="hb" id="hbtns"></div></header>
+<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v50</span></div></div><div class="hb" id="hbtns"></div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -775,6 +775,7 @@ function ficha(id,mas){
     <div class="grid2">
       <button class="btn chico" id="fbc" data-cli="${id}">＋ Cobro</button>
       <button class="btn chico sec" id="fbl" data-cli="${id}">＋ Ajuste</button>
+      <button class="btn chico sec" id="fcor" data-cli="${id}">✎ Corregir saldo</button>
       <button class="btn chico sec" id="fres" data-cli="${id}">🖨 Resumen ${MESES[new Date(cierreISO()+'T12:00:00').getMonth()]}</button>
     </div>
     <div id="fform"></div>
@@ -796,7 +797,7 @@ function ficha(id,mas){
     <div id="rf-${ix}"><button class="btn chico sec" data-sform="r${ix}" data-pub="${x[0]}" data-cli="${id}" data-acc="Reanudación">Reactivar</button></div></div>`;}).join('')+`</div>`;}
   h+=`<h2>Movimientos <span class="mini" style="text-transform:none">— tocá una liquidación para ver el desglose</span></h2><div class="card">`+(movs.length?movs.slice(0,FMOSTR).map((m,i)=>{
     const esLiq=m.tipo==='Liquidación'&&!m.id;
-    return `<div class="mov${esLiq?' liqrow':''}"${esLiq?` data-dlq="${m.f.slice(0,10)}" data-dlc="${id}"`:''}><span class="f">${fecha(m.f)}</span><span class="t">${m.tipo}${m.tipo==='Cobro'&&m.medio?' · '+m.medio:''}${m.nota?' <span class="mini">· '+m.nota+'</span>':''}</span><span class="m ${m.tipo==='Cobro'?'favor':''}">${m.tipo==='Cobro'?'−':''}${fmt(m.imp)}</span>${m.id?`<button class="del" data-mid="${m.id}" data-cli="${id}">✕</button>`:''}</div><div class="desglose" data-dg="${m.f.slice(0,10)}_${id}" hidden></div>`;
+    return `<div class="mov${esLiq?' liqrow':''}"${esLiq?` data-dlq="${m.f.slice(0,10)}" data-dlc="${id}"`:''}><span class="f">${fecha(m.f)}</span><span class="t">${m.tipo}${m.tipo==='Cobro'&&m.medio?' · '+m.medio:''}${m.nota?' <span class="mini">· '+m.nota+'</span>':''}</span><span class="m ${(m.tipo==='Cobro'||m.imp<0)?'favor':''}">${(m.tipo==='Cobro'||m.imp<0)?'−':''}${fmt(m.imp)}</span>${m.id?`<button class="del" data-mid="${m.id}" data-cli="${id}">✕</button>`:''}</div><div class="desglose" data-dg="${m.f.slice(0,10)}_${id}" hidden></div>`;
   }).join(''):'<div class="mini">Sin movimientos desde 2024.</div>')+`</div>
   ${movs.length>FMOSTR?`<div style="text-align:center"><button class="btn chico sec" id="fmas" data-cli="${id}">Ver más (${movs.length-FMOSTR} anteriores)</button></div>`:''}
   <div class="mini" style="margin:8px 0 20px">Cobro = pagó (baja deuda) · el consumo diario se devenga solo según sus suscripciones y precios. Las filas con ✕ se cargaron en este sistema y se pueden borrar.</div>`;
@@ -810,15 +811,39 @@ function formCobro(id){
   $('fimp').focus();
 }
 function formLiq(id){
-  $('fform').innerHTML=`<label>Importe del ajuste (suma deuda; el consumo diario ya se devenga solo)</label><input id="fimp" type="number" inputmode="decimal" placeholder="0">
+  $('fform').innerHTML=`<label>Importe del ajuste (positivo suma deuda, negativo la baja; el consumo diario ya se devenga solo)</label><input id="fimp" type="number" inputmode="decimal" step="any" placeholder="0">
   <label>Fecha</label><input id="ffec" type="date" value="${hoyISO()}">
   <label>Nota</label><input id="fnota" placeholder="ej: venta extra revista">
   <button class="btn" id="fok" data-cli="${id}" data-tipo="Ajuste">Guardar ajuste</button>`;
   $('fimp').focus();
 }
+function formCorregir(id){
+  const c=C.find(x=>x.id===id); if(!c)return;
+  $('fform').innerHTML=`<div class="mini" style="margin-bottom:4px"><b>Corrección por revisión.</b> Ponés el saldo que tiene que quedar y el sistema carga un Ajuste por la diferencia (queda registrado, se puede borrar).</div>
+  <label>Fecha de la corrección</label><input id="ffec" type="date" value="${hoyISO()}">
+  <div class="mini" style="margin:4px 0">Saldo del sistema a esa fecha: <b id="fcor-act"></b></div>
+  <label>Saldo correcto (positivo = te debe, negativo = a favor, 0 = al día)</label><input id="fimp" type="number" inputmode="decimal" step="any" placeholder="0">
+  <div class="mini" style="margin:4px 0">Ajuste que se va a cargar: <b id="fcor-dif">—</b></div>
+  <label>Nota</label><input id="fnota" value="Corrección por revisión">
+  <button class="btn" id="fcorok" data-cli="${id}">Guardar corrección</button>`;
+  const act=()=>{const s=saldoDe(c,$('ffec').value||hoyISO()); $('fcor-act').textContent=Math.abs(s)>0.5?fmt(s):'al día ($0)'; return s;};
+  const dif=()=>{const s=act(); const v=parseFloat($('fimp').value); const d=isNaN(v)?null:v-s; $('fcor-dif').textContent=d===null?'—':(Math.abs(d)<0.5?'nada (ya coincide)':(d>0?'+':'−')+fmt(Math.abs(d))+(d>0?' (sube la deuda)':' (baja la deuda)'));};
+  $('ffec').onchange=dif; $('fimp').oninput=dif; act(); $('fimp').focus();
+}
+async function corregirSaldo(id){
+  const c=C.find(x=>x.id===id); if(!c)return;
+  const v=parseFloat($('fimp').value); if(isNaN(v)){toast('Poné el saldo correcto');return;}
+  const fch=$('ffec').value||hoyISO();
+  const d=Math.round((v-saldoDe(c,fch))*100)/100;
+  if(Math.abs(d)<0.5){toast('El saldo ya coincide, no hay nada que corregir');return;}
+  const nota=($('fnota').value||'Corrección por revisión')+' (saldo fijado en '+fmt(v)+')';
+  const r={id:nid(),ts:new Date().toISOString(),cli:id,tipo:'Ajuste',imp:d,f:fch,medio:'',nota};
+  try{ await guardar('movs',[...LIVE.movs,r]); toast('Saldo corregido ✓'); ficha(id); }
+  catch(e){toast('No se pudo guardar: '+((e&&e.message)||e));}
+}
 async function addMov(id,tipo){
   const imp=parseFloat($('fimp').value);
-  if(!imp||imp<=0){toast('Poné un importe');return;}
+  if(!imp||(imp<=0&&tipo!=='Ajuste')){toast('Poné un importe');return;}
   const nota=$('fnota')?$('fnota').value:'';
   const r={id:nid(),ts:new Date().toISOString(),cli:id,tipo,imp,f:$('ffec').value,medio:tipo==='Cobro'?$('fmed').value:'',nota};
   try{
@@ -1960,6 +1985,8 @@ document.addEventListener('click',function(e){
     case 'dnuevobtn': $('dnuevobox').hidden=!$('dnuevobox').hidden;break;
     case 'dnuevook': nuevoDist();break;
     case 'fbl': formLiq(parseInt(b.dataset.cli));break;
+    case 'fcor': formCorregir(parseInt(b.dataset.cli));break;
+    case 'fcorok': corregirSaldo(parseInt(b.dataset.cli));break;
     case 'fres': imprimirResumenes([parseInt(b.dataset.cli)]);break;
     case 'bimp': {const ids=RES.filter(x=>saldoDe(x.c,cierreISO())>0.5).map(x=>x.c.id); if(!ids.length){toast('Nadie con saldo deudor al '+fecha(cierreISO()));break;} imprimirResumenes(ids);break;}
     case 'bsel': SELMODE=true;SELCLI.clear();buscar();break;
