@@ -143,6 +143,7 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
 .sel-v{margin-left:auto}
 @media (max-width:899px){.grip{display:none} .tab{font-size:11px} .tabs .tab.tsec{display:none} .massheet{position:fixed;left:8px;right:8px;bottom:70px;background:var(--tarjeta);border:1px solid var(--linea);border-radius:14px;box-shadow:0 10px 30px rgba(20,30,60,.18);z-index:25;padding:6px} .massheet .tab{display:flex;align-items:center;gap:10px;width:100%;text-align:left;font-size:15px;padding:12px 14px;color:var(--tinta)} .massheet .tab .ic{display:inline;font-size:16px;margin:0;width:22px;text-align:center}}
 @media (min-width:900px){.tab.mas,.massheet{display:none!important}}
+@media (max-width:899px){.massheet .hb{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 2px;padding:10px 8px 4px;border-top:1px solid var(--linea)} .massheet .hb .btn.chico{margin-top:0;padding:8px 12px;font-size:13px} .pcli{grid-template-columns:auto minmax(0,auto) minmax(0,1fr) auto} .pcli .pe{white-space:normal} .sec{flex-wrap:wrap} .sec .mini{flex-basis:100%;margin-top:2px}}
 @media (min-width:900px){.pmove{display:none}}
 /* hoja de reparto impresa */
 .hoja{page-break-after:always;break-after:page;font:10.5pt/1.3 'IBM Plex Sans',Arial,sans-serif;color:#000;padding:2mm 0}
@@ -257,7 +258,7 @@ select.apagado{opacity:.45}
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v67</span></div></div><div class="hb" id="hbtns"></div></header>
+<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v68</span></div></div><div class="hb" id="hbtns"></div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -680,7 +681,7 @@ function pintarInicio(){
   </div>
 
   <div class="sec"><span class="dot"></span>Últimas cargas</div>
-  <div class="card">${ult.length?ult.map(r=>`<div class="mov"><span class="f">${fecha(r.f)}</span><span class="t">${r._t==='mov'?(r.tipo+' · '+nomCli(r.cli)):((r.c||'')+(r.d?' · '+r.d:''))}</span><span class="m">${fmt(r.imp!=null?r.imp:((r.ing||0)-(r.egr||0)))}</span></div>`).join(''):'<div class="mini" style="padding:6px 0">Todavía no cargaste nada acá. Los datos migrados de NewsPaper ya están adentro.</div>'}</div>
+  <div class="card">${ult.length?ult.map(r=>`<div class="mov"><span class="f">${fecha(r.f)}</span><span class="t">${r._t==='mov'?(r.tipo+' · '+nomCli(r.cli)):((r.c||'')+(r.d?' · '+r.d:''))}</span>${(()=>{const v=r.imp!=null?r.imp:((r.ing||0)-(r.egr||0));return `<span class="m ${v<0?'favor':''}">${v<0?'−':''}${fmt(v)}</span>`;})()}</div>`).join(''):'<div class="mini" style="padding:6px 0">Todavía no cargaste nada acá. Los datos migrados de NewsPaper ya están adentro.</div>'}</div>
   ${sp.size?`<div class="aviso">⚠ Publicaciones sin precio cargado (no devengan): ${[...sp].slice(0,6).join(', ')}${sp.size>6?'…':''} — cargalos en Precios.</div>`:''}`;
 }
 function nombreUsuario(){
@@ -741,7 +742,7 @@ function buscar(){
   $('bres').innerHTML=RES.length+' clientes · saldo neto '+(tot>=0?'debe ':'a favor ')+fmt(tot)+
     `<div class="fchips" style="margin:6px 0 0">${SELMODE
       ?`<button class="fch on" id="bimpsel" style="margin-top:0">🖨 Imprimir seleccionados (${SELCLI.size})</button><button class="fch" id="bseltodos" style="margin-top:0">Marcar todos</button><button class="fch" id="bselno" style="margin-top:0">Cancelar</button>`
-      :`<button class="fch" id="bsel" style="margin-top:0">☑ Elegir varios</button>${conDeuda?`<button class="fch" id="bimp" style="margin-top:0">🖨 Imprimir todos los listados con deuda (${conDeuda})</button>`:''}`}</div>`;
+      :`<button class="fch" id="bsel" style="margin-top:0">☑ Elegir varios</button>${conDeuda?`<button class="fch" id="bimp" style="margin-top:0">🖨 Imprimir todos los listados con deuda al ${fecha(cierreISO())} (${conDeuda})</button>`:''}`}</div>`;
   window.__dbg+=' → '+RES.length+' result.';
  }catch(e){
   window.__dbg='ERROR buscar: '+(e&&e.message);
@@ -877,8 +878,8 @@ function formLiq(id){
 }
 function formCorregir(id){
   const c=C.find(x=>x.id===id); if(!c)return;
-  $('fform').innerHTML=`<div class="mini" style="margin-bottom:4px"><b>Corrección por revisión.</b> Ponés el saldo que tiene que quedar y el sistema carga un Ajuste por la diferencia (queda registrado, se puede borrar).</div>
-  <label>Fecha de la corrección</label><input id="ffec" type="date" value="${hoyISO()}">
+  $('fform').innerHTML=`<div class="mini" style="margin-bottom:4px"><b>Corrección por revisión.</b> Ponés el saldo que tiene que quedar y el sistema carga un Ajuste por la diferencia (queda registrado, se puede borrar). Por defecto se corrige el saldo <b>al cierre del mes vencido (${fecha(cierreISO())})</b>: lo de este mes sigue corriendo solo por devengo.</div>
+  <label>Fecha de la corrección</label><input id="ffec" type="date" value="${cierreISO()}">
   <div class="mini" style="margin:4px 0">Saldo del sistema a esa fecha: <b id="fcor-act"></b></div>
   <label>Saldo correcto (positivo = te debe, negativo = a favor, 0 = al día)</label><input id="fimp" type="number" inputmode="decimal" step="any" placeholder="0">
   <div class="mini" style="margin:4px 0">Ajuste que se va a cargar: <b id="fcor-dif">—</b></div>
@@ -894,7 +895,7 @@ async function corregirSaldo(id){
   const fch=$('ffec').value||hoyISO();
   const d=Math.round((v-saldoDe(c,fch))*100)/100;
   if(Math.abs(d)<0.5){toast('El saldo ya coincide, no hay nada que corregir');return;}
-  const nota=($('fnota').value||'Corrección por revisión')+' (saldo fijado en '+fmt(v)+')';
+  const nota=($('fnota').value||'Corrección por revisión')+' (saldo fijado en '+(v<0?'−':'')+fmt(v)+' al '+fecha(fch)+')';
   const r={id:nid(),ts:new Date().toISOString(),cli:id,tipo:'Ajuste',imp:d,f:fch,medio:'',nota};
   try{ await guardar('movs',[...LIVE.movs,r]); toast('Saldo corregido ✓'); ficha(id); }
   catch(e){toast('No se pudo guardar: '+((e&&e.message)||e));}
@@ -1011,7 +1012,7 @@ function pintarNovedades(){
   ${titulo('Novedades','Altas, bajas y suspensiones. Cada una queda en la ficha del cliente y mueve el devengo desde su fecha.')}
   <div class="kpis">
     <div class="kpi"><i>Este mes</i><b>${delMes.length} <small>novedades</small></b><i>${delMes.filter(n=>n.tipo==='Alta').length} altas · ${delMes.filter(n=>n.tipo==='Baja').length} bajas · ${delMes.filter(n=>n.tipo==='Suspensión').length} suspensiones</i></div>
-    <div class="kpi ${suspAct?'amb':'gris'}"><i>Suspendidas hoy</i><b>${suspAct} <small>suscripciones</small></b><i>no devengan mientras dure</i></div>
+    <div class="kpi ${suspAct?'amb':'gris'}"><i>Suspendidas hoy</i><b>${suspAct} <small>suscripciones</small></b><i>no devengan hasta que se reanuden</i></div>
     <div class="kpi ${bajas?'rojo':'gris'} click" onclick="irClientes('inactivos')"><i>Clientes dados de baja →</i><b>${bajas} <small>clientes</small></b><i>fuera del padrón, con su saldo guardado</i></div>
     <div class="kpi ${FER.size?'':'gris'}"><i>Feriados sin reparto</i><b>${FER.size} <small>cargados</small></b><i>${[...FER].filter(f=>f>=hoy).length} por venir</i></div>
   </div>
@@ -2064,6 +2065,7 @@ document.addEventListener('click',function(e){
   const t=e.target.closest?e.target:null; if(!t)return;
   const tab=e.target.closest('.tab');
   if(tab){ if(tab.classList.contains('mas')){$('massheet').hidden=!$('massheet').hidden;return;} $('massheet').hidden=true; ver(tab.dataset.v);const p=PINTAR[tab.dataset.v];if(p)p();return;}
+  if($('massheet')&&!$('massheet').hidden&&(!e.target.closest('#massheet')||e.target.closest('#massheet .btn'))){ $('massheet').hidden=true; }
   if(e.target.closest('#mv-cancel')||(e.target.id==='ovl')){cerrarModal();return;}
   if(e.target.closest('#mv-ok')){mvConfirmar(parseInt(e.target.closest('#mv-ok').dataset.cli));return;}
   const mvc=e.target.closest('#mv-v .fch, #mv-s .fch, #mv-p .fch');
@@ -2116,7 +2118,7 @@ document.addEventListener('click',function(e){
     +(esSusp?`</div><div><label>Vuelve a recibir el <span class="mini">(opcional; vacío = hasta que la reactives)</span></label><input type="date" class="sfhasta"></div></div>`:'')+`
     ${cerr?`<div class="mini" style="margin:2px 0 6px">Esta suscripción estaba cerrada en el sistema viejo: se vuelve a dar de alta desde esa fecha (${sf.dataset.via==='S'?'vía distribuidora':'le cobrás vos'}${parseInt(sf.dataset.qty)>1?', ×'+sf.dataset.qty:''}) y devenga desde ahí.</div>`:''}
     ${otras>1&&dd.length&&sf.dataset.todas!=='1'?`<label class="chkl"><input type="checkbox" class="sftodas"> Aplicar a todas las suscripciones de ${sf.dataset.pub} de este cliente (${otras})</label>`:''}
-    <button class="btn chico" data-sok data-pub="${sf.dataset.pub}" data-dias="${sf.dataset.dias||''}" data-via="${sf.dataset.via||''}" data-qty="${sf.dataset.qty||''}" ${cerr?'data-cerrada="1"':''} data-cli="${sf.dataset.cli}" data-acc="${sf.dataset.acc}">Confirmar ${cerr?'reactivación':sf.dataset.acc.toLowerCase()}</button>`;
+    <button class="btn chico" data-sok data-pub="${sf.dataset.pub}" data-dias="${sf.dataset.dias||''}" data-via="${sf.dataset.via||''}" data-qty="${sf.dataset.qty||''}" ${cerr?'data-cerrada="1"':''} data-cli="${sf.dataset.cli}" data-acc="${sf.dataset.acc}">Confirmar ${cerr?'reactivación':sf.dataset.acc.toLowerCase()}</button> <button class="btn chico sec" data-fcancel="${sf.dataset.cli}">Cancelar</button>`;
     return;
   }
   const ab=e.target.closest('#altabtn');
@@ -2128,18 +2130,20 @@ document.addEventListener('click',function(e){
     <label>¿Quién cobra?</label><select id="avia"><option value="C">Le cobrás vos (cuenta corriente)</option><option value="S">Vía distribuidora (suscripción)</option></select>
     <div class="grid2"><div><label>Ejemplares por día (casi siempre 1)</label><input id="aqty" type="number" value="1" min="1"></div>
     <div><label>Desde</label><input id="adesde" type="date" value="${hoyISO()}"></div></div>
-    <button class="btn" data-altaok data-cli="${ab.dataset.cli}">Guardar alta</button></div>`;
+    <button class="btn" data-altaok data-cli="${ab.dataset.cli}">Guardar alta</button> <button class="btn sec" data-fcancel="${ab.dataset.cli}">Cancelar</button></div>`;
     return;
   }
   const di=e.target.closest('.diasel .dia');
   if(di){di.classList.toggle('on');return;}
+  const fcn=e.target.closest('[data-fcancel]');
+  if(fcn){ const y=window.scrollY; ficha(parseInt(fcn.dataset.fcancel)); window.scrollTo(0,y); return; }
   const cv=e.target.closest('[data-cvia]');
   if(cv){
     const nueva=cv.dataset.via==='S'?'C':'S';
     const dd=(cv.dataset.dias||'').split(',').filter(x=>x!=='').map(Number);
     cv.parentElement.innerHTML=`<label>${cv.dataset.pub}${dd.length?' ('+dd.map(d=>DIAS[d]).join(' ')+')':''}: pasa a <b>${nueva==='S'?'vía distribuidora':'le cobrás vos'}</b> desde</label><input type="date" class="cvfec" value="${hoyISO()}">
     <div class="mini" style="margin:2px 0 6px">${nueva==='C'?'Desde ese día el diario se le cobra en su cuenta corriente (precio de tapa).':'Desde ese día lo cobra la distribuidora y a vos te queda la comisión.'} La suscripción anterior se cierra el día anterior, sola.</div>
-    <button class="btn chico" data-cvok data-pub="${cv.dataset.pub}" data-dias="${cv.dataset.dias||''}" data-via="${nueva}" data-qty="${cv.dataset.qty||1}" data-cli="${cv.dataset.cli}">Confirmar cambio</button>`;
+    <button class="btn chico" data-cvok data-pub="${cv.dataset.pub}" data-dias="${cv.dataset.dias||''}" data-via="${nueva}" data-qty="${cv.dataset.qty||1}" data-cli="${cv.dataset.cli}">Confirmar cambio</button> <button class="btn chico sec" data-fcancel="${cv.dataset.cli}">Cancelar</button>`;
     return;
   }
   const cvo=e.target.closest('[data-cvok]');
@@ -2291,7 +2295,7 @@ async function iniciarApp(){
 }
 function ubicarBotones(){
   const esc=window.matchMedia('(min-width:900px)').matches;
-  const h=$('hbtns'), dest=esc?$('sb-foot'):document.querySelector('header');
+  const h=$('hbtns'), dest=esc?$('sb-foot'):$('massheet');
   if(h&&dest&&h.parentElement!==dest)dest.appendChild(h);
 }
 try{window.matchMedia('(min-width:900px)').addEventListener('change',ubicarBotones);}catch(_){}
