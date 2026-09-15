@@ -257,7 +257,7 @@ select.apagado{opacity:.45}
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v66</span></div></div><div class="hb" id="hbtns"></div></header>
+<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v67</span></div></div><div class="hb" id="hbtns"></div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -840,7 +840,7 @@ function ficha(id,mas){
   if(novs.length){h+=`<h2>Novedades cargadas acá</h2><div class="card">`+novs.map(n=>`<div class="subrow"><b>${n.tipo}</b> <span class="mini">${descNov(n)}${n.nota?' · '+n.nota:''}</span></div>`).join('')+`</div>`;}
   h+=`<h2>Suscripciones vigentes (${vig.length})</h2>`;
   if(vig.length) agruparSubs(vig).forEach((e,ix)=>{const todasDeLaPub=vig.filter(x=>x[0]===e.pub).length===e.rows.length;h+=`<div class="card"><b>${e.pub}</b>${e.qty>1&&!e.qtyMix?` <span class="mini">×${e.qty}</span>`:''} <span class="pill ${e.via==='S'?'p-susc':'p-cli'}">${e.via==='S'?'vía distribuidora':'le cobrás vos'}</span>${e.app?' <span class="pill p-warn">alta cargada acá</span>':''}${e.dias?diasHTMLArr(e.dias):(e.txt?`<div class="mini" style="margin-top:6px">${e.txt}</div>`:'')}${e.rows.length>1?`<div class="mini" style="margin-top:4px">${e.rows.length} suscripciones agrupadas (una por día)</div>`:''}<div class="mini" style="margin-top:6px">desde ${fecha(e.desde)}</div>
-  <div id="sf-${ix}"><button class="btn chico sec" data-sform="${ix}" data-pub="${e.pub}" data-dias="${(e.dias||[]).join(',')}" ${todasDeLaPub?'data-todas="1"':''} data-cli="${id}" data-acc="Suspensión">Suspender / dar de baja</button></div></div>`;});
+  <div id="sf-${ix}"><button class="btn chico sec" data-sform="${ix}" data-pub="${e.pub}" data-dias="${(e.dias||[]).join(',')}" ${todasDeLaPub?'data-todas="1"':''} data-cli="${id}" data-acc="Suspensión">Suspender / dar de baja</button>${e.dias&&e.dias.length?` <button class="btn chico sec" data-cvia="${ix}" data-pub="${e.pub}" data-dias="${e.dias.join(',')}" data-via="${e.via}" data-qty="${e.qty}" data-cli="${id}">${e.via==='S'?'Pasar a "le cobrás vos"':'Pasar a "vía distribuidora"'}</button>`:''}</div></div>`;});
   else h+='<div class="card mini">Sin publicaciones vigentes.</div>';
   h+=`<div id="altabox"><button class="btn chico" id="altabtn" data-cli="${id}">＋ Alta de suscripción nueva</button></div>`;
   const altasTodas=c.subs.filter(x=>x[6]==='app'&&x[3]==='V').map(x=>({pub:x[0],desde:(x[4]||'').slice(0,10),dias:FD(x[1])||[]}));
@@ -2133,6 +2133,23 @@ document.addEventListener('click',function(e){
   }
   const di=e.target.closest('.diasel .dia');
   if(di){di.classList.toggle('on');return;}
+  const cv=e.target.closest('[data-cvia]');
+  if(cv){
+    const nueva=cv.dataset.via==='S'?'C':'S';
+    const dd=(cv.dataset.dias||'').split(',').filter(x=>x!=='').map(Number);
+    cv.parentElement.innerHTML=`<label>${cv.dataset.pub}${dd.length?' ('+dd.map(d=>DIAS[d]).join(' ')+')':''}: pasa a <b>${nueva==='S'?'vía distribuidora':'le cobrás vos'}</b> desde</label><input type="date" class="cvfec" value="${hoyISO()}">
+    <div class="mini" style="margin:2px 0 6px">${nueva==='C'?'Desde ese día el diario se le cobra en su cuenta corriente (precio de tapa).':'Desde ese día lo cobra la distribuidora y a vos te queda la comisión.'} La suscripción anterior se cierra el día anterior, sola.</div>
+    <button class="btn chico" data-cvok data-pub="${cv.dataset.pub}" data-dias="${cv.dataset.dias||''}" data-via="${nueva}" data-qty="${cv.dataset.qty||1}" data-cli="${cv.dataset.cli}">Confirmar cambio</button>`;
+    return;
+  }
+  const cvo=e.target.closest('[data-cvok]');
+  if(cvo){
+    const cli=parseInt(cvo.dataset.cli), desde=cvo.parentElement.querySelector('.cvfec').value; if(!desde){toast('Poné la fecha');return;}
+    const dias=(cvo.dataset.dias||'').split(',').filter(x=>x!=='').map(Number);
+    const r={id:nid(),ts:new Date().toISOString(),cli,tipo:'Alta',pub:cvo.dataset.pub,desde,hasta:'',dias,via:cvo.dataset.via,qty:parseInt(cvo.dataset.qty)||1,nota:'cambio de modalidad: '+(cvo.dataset.via==='S'?'le cobrás vos → vía distribuidora':'vía distribuidora → le cobrás vos')};
+    guardar('novedades',[...LIVE.novedades,r]).then(()=>{toast('Modalidad cambiada ✓ (la anterior quedó cerrada)');ficha(cli);}).catch(err=>toast('Error: '+(err&&err.message)));
+    return;
+  }
   const ao=e.target.closest('[data-altaok]');
   if(ao){
     const pub=($('apub').value||'').trim().toUpperCase();
@@ -2140,7 +2157,19 @@ document.addEventListener('click',function(e){
     if(!pub){toast('Poné la publicación');return;}
     if(!dias.length){toast('Marcá al menos un día');return;}
     const cli=parseInt(ao.dataset.cli);
-    const r={id:nid(),ts:new Date().toISOString(),cli,tipo:'Alta',pub,desde:$('adesde').value,hasta:'',dias,via:$('avia').value,qty:parseInt($('aqty').value)||1,nota:'alta desde la ficha'};
+    const desde=$('adesde').value;
+    const c=C.find(x=>x.id===cli);
+    // Bloqueo: si ya recibe esa publicación alguno de esos días (y no está suspendida/dada de baja a esa fecha), no se puede dar de alta otra vez.
+    const choque=[]; if(c) c.subs.filter(x=>x[3]==='V'&&norm(x[0])===norm(pub)).forEach(x=>{const dd=FD(x[1])||[]; const com=dd.length?dd.filter(d=>dias.includes(d)):dias; if(!com.length)return; if(suspendida(cli,x[0],desde,com,altaDe(x)))return; choque.push({via:x[2],dias:com});});
+    const avisoEl=$('altaaviso'); if(avisoEl) avisoEl.remove();
+    if(choque.length){
+      const ds=[...new Set(choque.flatMap(x=>x.dias))].sort().map(d=>DIAS[d]).join(' ');
+      const via=[...new Set(choque.map(x=>x.via==='S'?'vía distribuidora':'le cobrás vos'))].join(' / ');
+      ao.insertAdjacentHTML('beforebegin',`<div class="aviso" id="altaaviso" style="background:var(--rojosuave);color:var(--rojo)">⚠ Este cliente <b>ya está suscripto a ${pub}</b> los días ${ds} (${via}). No se puede dar de alta dos veces: primero dale de baja o suspendela arriba, o usá el botón "Pasar a…" si lo que querés es cambiar quién la cobra.</div>`);
+      toast('Ya está suscripto a '+pub+' esos días');
+      return;
+    }
+    const r={id:nid(),ts:new Date().toISOString(),cli,tipo:'Alta',pub,desde,hasta:'',dias,via:$('avia').value,qty:parseInt($('aqty').value)||1,nota:'alta desde la ficha'};
     guardar('novedades',[...LIVE.novedades,r]).then(()=>{toast('Alta guardada ✓');ficha(cli);}).catch(err=>toast('Error: '+(err&&err.message)));
     return;
   }
