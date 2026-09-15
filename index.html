@@ -248,7 +248,7 @@ select.apagado{opacity:.45}
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v51</span></div></div><div class="hb" id="hbtns"></div></header>
+<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v52</span></div></div><div class="hb" id="hbtns"></div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -941,7 +941,7 @@ async function addPrecio(){
 
 /* ------- NOVEDADES ------- */
 const NTIPOS=[['altacli','Cliente nuevo'],['altasub','Alta de suscripción'],['susp','Suspensión'],['rean','Reanudación'],['bajasub','Baja de suscripción'],['bajacli','Baja de cliente'],['precio','Cambio de precio']];
-let NTIPO='susp';
+let NTIPO='susp', NEDIT=null; // NEDIT = id de la novedad que se está editando (se anula y se reemplaza por una nueva)
 function titulo(t,sub){return `<div class="hola"><h1>${t}</h1>${sub?`<div class="mini">${sub}</div>`:''}</div>`;}
 function pintarNovedades(){
   const rows=[...LIVE.novedades].sort((a,b)=>(b.ts||'').localeCompare(a.ts||''));
@@ -976,7 +976,7 @@ function pintarNovedades(){
   window.pintaN=function(){
     const ft=$('nfil').value,q=norm($('nft').value);
     const rs=rows.filter(n=>(!ft||n.tipo===ft)&&(!q||norm(nomCli(n.cli)+' '+(n.pub||'')+' '+(n.nota||'')).includes(q)));
-    $('nlist').innerHTML=rs.length?rs.slice(0,80).map(n=>`<div class="mov"><span class="f">${fecha(n.desde)}</span><span class="t"><b>${n.tipo}${!n.pub&&(n.tipo==='Baja'||n.tipo==='Reanudación')?' de cliente':''}</b> <a class="lnk" onclick="ficha(${n.cli})">${nomCli(n.cli)}</a>${n.pub?' · '+n.pub:''}${n.dias?' · '+n.dias.map(d=>DIAS[d]).join(''):''}${n.hasta?' · hasta '+fecha(n.hasta):''}${n.nota?' <span class="mini">· '+n.nota+'</span>':''}</span><button class="del" data-nid="${n.id}">✕</button></div>`).join(''):'<div class="mini">Ninguna todavía con ese filtro.</div>';
+    $('nlist').innerHTML=rs.length?rs.slice(0,80).map(n=>`<div class="mov"><span class="f">${fecha(n.desde)}</span><span class="t"><b>${n.tipo}${!n.pub&&(n.tipo==='Baja'||n.tipo==='Reanudación')?' de cliente':''}</b> <a class="lnk" onclick="ficha(${n.cli})">${nomCli(n.cli)}</a>${n.pub?' · '+n.pub:''}${n.dias?' · '+n.dias.map(d=>DIAS[d]).join(''):''}${n.hasta?' · hasta '+fecha(n.hasta):''}${n.nota?' <span class="mini">· '+n.nota+'</span>':''}</span>${n.tipo!=='Cambio de precio'?`<button class="del" style="color:var(--azul)" data-nedit="${n.id}" title="Editar">✎</button>`:''}<button class="del" data-nid="${n.id}">✕</button></div>`).join(''):'<div class="mini">Ninguna todavía con ese filtro.</div>';
   }
   pintaN();
 }
@@ -1010,7 +1010,25 @@ function pintarNForm(){
       ${fCli}${fDesde('Baja desde')}${fNota}<button class="btn" id="nok" style="background:var(--rojo)">Dar de baja al cliente</button>`; break;
     case 'precio': h=`<div class="mini" style="margin:8px 0">Los cambios de precio se cargan en <b>Precios</b> como una nueva vigencia (publicación, día y fecha desde la que rige). Nunca se pisa el precio anterior.</div><button class="btn chico" onclick="irTab('precios')">Ir a Precios →</button>`; break;
   }
+  if(NEDIT){ const ne=LIVE.novedades.find(x=>String(x.id)===String(NEDIT)); h=`<div class="aviso" style="margin:8px 0 4px">Editando la novedad <b>${ne?ne.tipo:''}${ne&&ne.pub?' · '+ne.pub:''}</b> de <b>${ne?nomCli(ne.cli):''}</b> (fecha ${ne?fecha(ne.desde):''}). Al guardar se reemplaza por la versión nueva. <button class="btn chico sec" id="nedit-cancel" style="margin:6px 0 0">Cancelar edición</button></div>`+h.replace(/(<button class="btn" id="nok"[^>]*>)[^<]*(<\/button>)/,'$1Guardar cambios$2'); }
   $('nform').innerHTML=h;
+}
+function editarNovedad(id){
+  const ne=LIVE.novedades.find(x=>String(x.id)===String(id)); if(!ne)return;
+  if(ne.tipo==='Alta'&&!ne.dias){toast('Esa alta no tiene días; cargala de nuevo');return;}
+  NEDIT=String(id);
+  NTIPO=ne.tipo==='Alta'?'altasub':ne.tipo==='Suspensión'?'susp':ne.tipo==='Reanudación'?'rean':ne.tipo==='Baja'?(ne.pub?'bajasub':'bajacli'):'susp';
+  document.querySelectorAll('.fch[data-nt]').forEach(x=>x.classList.toggle('on',x.dataset.nt===NTIPO));
+  pintarNForm();
+  elegirCli(ne.cli);
+  if($('npub')) $('npub').value=ne.pub||'';
+  if($('ndesde')) $('ndesde').value=ne.desde||hoyISO();
+  if($('nhasta')) $('nhasta').value=ne.hasta||'';
+  if($('nnota')) $('nnota').value=(ne.nota||'').replace(/^desde la ficha$/,'');
+  if($('nvia')&&ne.via) $('nvia').value=ne.via;
+  if($('nqty')&&ne.qty) $('nqty').value=ne.qty;
+  const box=$('ndias')||$('nsdias'); if(box&&ne.dias) box.querySelectorAll('.dia').forEach(d=>d.classList.toggle('on',ne.dias.includes(parseInt(d.dataset.di))));
+  const f=$('nform'); if(f) f.scrollIntoView({behavior:'smooth',block:'start'});
 }
 function buscarCli(q,n){
   q=norm((q||'').trim()); if(!q) return [];
@@ -1095,7 +1113,9 @@ async function addNov(){
       if(!confirm('¿Dar de baja a '+nomCli(cli)+' desde el '+fecha(desde)+'?'+(Math.abs(s)>0.5?'\n\nTiene saldo '+fmt(s)+(s>0?' (te debe)':' (a favor)')+'. Queda guardado en su ficha.':'')))return;
       r={id:nid(),ts,cli,tipo:'Baja',pub:'',desde,hasta:'',nota:('baja de cliente'+(nota?' · '+nota:''))};
     }else return;
-    await guardar('novedades',[...LIVE.novedades,r]);
+    if(NEDIT){ r.nota=(r.nota||'')+(r.nota?' · ':'')+'editada'; }
+    await guardar('novedades',[...LIVE.novedades.filter(x=>String(x.id)!==String(NEDIT)),r]);
+    NEDIT=null;
     recalcActivos(); SCACHE={};
     toast('Novedad guardada ✓ '+nomCli(cli)); pintarInicio(); pintarClientes(); pintarNovedades();
   }catch(e){toast('Error: '+((e&&e.message)||e));}
@@ -1910,11 +1930,13 @@ document.addEventListener('click',function(e){
   if(e.target.closest('#pf-ok')){guardarProd(parseInt(e.target.closest('#pf-ok').dataset.pid)||null);return;}
   if(e.target.closest('#pf-cancel')){const f=$('sform');if(f)f.innerHTML='';if(PSEL)abrirProd(PSEL,true);return;}
   if(e.target.closest('#pf-baja')){bajaProd(parseInt(e.target.closest('#pf-baja').dataset.pid));return;}
-  if(fch&&fch.dataset.nt){NTIPO=fch.dataset.nt;document.querySelectorAll('.fch[data-nt]').forEach(x=>x.classList.toggle('on',x.dataset.nt===NTIPO));pintarNForm();return;}
+  if(e.target.closest('#nedit-cancel')){NEDIT=null;pintarNForm();return;}
+  if(fch&&fch.dataset.nt){NEDIT=null;NTIPO=fch.dataset.nt;document.querySelectorAll('.fch[data-nt]').forEach(x=>x.classList.toggle('on',x.dataset.nt===NTIPO));pintarNForm();return;}
   const del=e.target.closest('.del');
   if(del){
     if(del.dataset.mid) borrarMov(del.dataset.mid,parseInt(del.dataset.cli));
     else if(del.dataset.cid) borrarCaja(del.dataset.cid);
+    else if(del.dataset.nedit) editarNovedad(del.dataset.nedit);
     else if(del.dataset.nid) borrarNov(del.dataset.nid);
     else if(del.dataset.did) borrarDist(del.dataset.did);
     else if(del.dataset.feid) borrarFeriado(del.dataset.feid);
