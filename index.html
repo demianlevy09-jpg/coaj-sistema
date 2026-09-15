@@ -183,6 +183,13 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
 .cabecera .dom{font-family:'Archivo',sans-serif;font-weight:900;font-size:23px;line-height:1.15;text-wrap:balance}
 .saldonum{font-family:'Archivo',sans-serif;font-weight:900;font-size:32px;font-variant-numeric:tabular-nums;margin-top:10px}
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.ovl{position:fixed;inset:0;background:rgba(20,30,60,.45);z-index:60;display:flex;align-items:flex-end;justify-content:center;padding:16px}
+@media(min-width:700px){.ovl{align-items:center}}
+.modal{background:var(--tarjeta);border-radius:14px;padding:18px 18px 14px;width:100%;max-width:460px;max-height:92vh;overflow:auto;box-shadow:0 12px 40px rgba(20,30,60,.25)}
+.modal h3{margin:0 0 4px;font-size:18px}
+.modal .fchips{margin-top:6px}
+.modal .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+.modal .acts .btn{margin:0}
 .aviso{background:var(--ambarsuave);color:var(--ambar);border-radius:8px;padding:9px 12px;font-size:13.5px;margin-top:10px}
 .volver{background:none;border:none;color:var(--azul);font-size:16px;font-weight:600;font-family:inherit;padding:10px 0;cursor:pointer}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:88px;background:var(--tinta);color:var(--papel);padding:11px 20px;border-radius:99px;font-weight:600;font-size:14.5px;z-index:50;opacity:0;transition:opacity .25s;pointer-events:none}
@@ -250,7 +257,7 @@ select.apagado{opacity:.45}
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v61</span></div></div><div class="hb" id="hbtns"></div></header>
+<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v62</span></div></div><div class="hb" id="hbtns"></div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -1274,7 +1281,7 @@ function pintarReparto(){
   h+=`</div>`;
   if(vacias.length) h+=`<div class="mini" style="margin:14px 0 6px">Vueltas sin paradas el ${DIAS_L[RDIA]} (arrastrá una parada acá para usarlas):</div><div class="vgrid vacias">${vacias.map(v=>`<div class="vcol" data-vuelta="${v.nombre}"><div class="vhead"><b>${v.nombre}</b> <span class="mini lnk" data-rrep="${v.nombre}">${v.repartidor||'sin repartidor'} ✎</span></div><div class="vlist" data-vuelta="${v.nombre}"><div class="mini" style="padding:10px 6px;text-align:center">Soltá acá</div></div></div>`).join('')}</div>`;
   if(sinV.length){
-    h+=`<div class="sec amb"><span class="dot"></span>Sin vuelta asignada (${sinV.length})</div><div class="card">${sinV.sort((a,b)=>a.c.d.localeCompare(b.c.d)).map(x=>`<div class="pcli"><span class="un" style="min-width:0"><b>${x.c.d}</b></span><span class="pe">${x.ent.map(e=>(e.qty>1?e.qty+'× ':'')+e.pub).join(' + ')}</span><select class="sel-v" data-asig="${x.c.id}" style="width:auto;margin:0;padding:6px 8px;font-size:13px"><option value="">Asignar a…</option>${vueltasActivas().map(v=>`<option>${v.nombre}</option>`).join('')}</select></div>`).join('')}</div>`;
+    h+=`<div class="sec amb"><span class="dot"></span>Sin vuelta asignada (${sinV.length})</div><div class="card">${sinV.sort((a,b)=>a.c.d.localeCompare(b.c.d)).map(x=>`<div class="pcli"><span class="un" style="min-width:0"><b>${x.c.d}</b></span><span class="pe">${x.ent.map(e=>(e.qty>1?e.qty+'× ':'')+e.pub).join(' + ')}</span><button class="btn chico sec" data-mv="${x.c.id}" style="margin:0;padding:6px 10px;font-size:13px">Asignar a una vuelta…</button></div>`).join('')}</div>`;
   }
   if(reservas.length){
     h+=`<div class="sec"><span class="dot"></span>Reservas en la parada (${reservas.length})</div><div class="card"><div class="mini" style="margin-bottom:6px">Se los guardan en el puesto, no van en ninguna vuelta.</div>${reservas.map(r=>`<div class="pcli"><span class="un" style="min-width:0"><b>${r.c.d}</b>${r.c.n?' · '+r.c.n:''}</span><span class="pe">${r.qty>1?r.qty+'× ':''}${r.pub}</span></div>`).join('')}</div>`;
@@ -1310,18 +1317,48 @@ async function guardarOrdenDOM(){
     await cargarTabla('reparto'); toast('Orden guardado ✓'); pintarReparto();
   }catch(e){toast('Error: '+((e&&e.message)||e)); pintarReparto();}
 }
-async function asignarVuelta(cli,vuelta,todos){
-  const dias=todos?[0,1,2,3,4,5,6]:[RDIA];
-  const rows=dias.map(d=>{const max=LIVE.reparto.filter(r=>r.dia===d&&r.vuelta===vuelta).reduce((m,r)=>Math.max(m,r.orden||0),0); return {cliente_id:cli,dia:d,vuelta,orden:max+10};});
-  try{ const{error}=await sb.from('reparto').upsert(rows,{onConflict:'cliente_id,dia'}); if(error)throw new Error(error.message); await cargarTabla('reparto'); toast(nomCli(cli)+' → '+vuelta+' ✓'); pintarReparto(); }catch(e){toast('Error: '+((e&&e.message)||e));}
+// dias: array de días (0=lunes) o true = todos; pos: 'fin' (default) o 'inicio'
+async function asignarVuelta(cli,vuelta,dias,pos){
+  if(dias===true) dias=[0,1,2,3,4,5,6]; if(!Array.isArray(dias)) dias=[RDIA];
+  const rows=dias.map(d=>{const en=LIVE.reparto.filter(r=>r.dia===d&&r.vuelta===vuelta); const max=en.reduce((m,r)=>Math.max(m,r.orden||0),0), min=en.reduce((m,r)=>Math.min(m,r.orden||0),1e9); return {cliente_id:cli,dia:d,vuelta,orden:pos==='inicio'?(en.length?min-10:10):max+10,anulado:false};});
+  try{ const{error}=await sb.from('reparto').upsert(rows,{onConflict:'cliente_id,dia'}); if(error)throw new Error(error.message); await cargarTabla('reparto'); toast(nomCli(cli)+' → '+vuelta+' ('+(dias.length===7?'todos los días':dias.map(d=>DIAS[d]).join(' '))+') ✓'); pintarReparto(); }catch(e){toast('Error: '+((e&&e.message)||e));}
 }
+async function quitarDeVuelta(cli,dias){
+  if(dias===true) dias=[0,1,2,3,4,5,6];
+  try{ const{error}=await sb.from('reparto').update({anulado:true}).eq('cliente_id',cli).in('dia',dias); if(error)throw new Error(error.message); await cargarTabla('reparto'); toast(nomCli(cli)+' sin vuelta ('+(dias.length===7?'todos los días':dias.map(d=>DIAS[d]).join(' '))+')'); pintarReparto(); }catch(e){toast('Error: '+((e&&e.message)||e));}
+}
+function cerrarModal(){ const m=$('ovl'); if(m) m.remove(); }
 function moverCliente(cli){
-  const c=C.find(x=>x.id===cli); const act=(LIVE.reparto.find(r=>r.cli===cli&&r.dia===RDIA)||{}).vuelta||'';
-  const opts=vueltasActivas().filter(v=>v.nombre!==act).map(v=>v.nombre);
-  const v=prompt('Mover '+(c?c.d:cli)+' de '+(act||'sin vuelta')+' a:\n'+opts.map((o,i)=>(i+1)+') '+o).join('\n')+'\n\nEscribí el número:');
-  if(v===null)return; const sel=opts[parseInt(v)-1]; if(!sel){toast('Opción inválida');return;}
-  const todos=confirm('¿Aplicar a TODOS los días de la semana?\n\nAceptar = todos los días · Cancelar = solo '+DIAS_L[RDIA]);
-  asignarVuelta(cli,sel,todos);
+  const c=C.find(x=>x.id===cli); if(!c)return;
+  const porDia=[0,1,2,3,4,5,6].map(d=>(LIVE.reparto.find(r=>r.cli===cli&&r.dia===d)||{}).vuelta||'');
+  const act=porDia[RDIA];
+  const conEntrega=[0,1,2,3,4,5,6].filter(d=>{const e=entregasDe(c,fechaParaDia(d)); return e.out.length||e.res.length;});
+  const vs=vueltasActivas().map(v=>v.nombre);
+  cerrarModal();
+  const h=`<div class="ovl" id="ovl"><div class="modal">
+    <h3>Mover ${c.d}</h3>
+    <div class="mini">${c.n||''} · Nº ${c.id}${c.part?' · <i>'+c.part+'</i>':''}</div>
+    <div class="mini" style="margin-top:8px">Hoy (${DIAS_L[RDIA]}): <b>${act||'sin vuelta'}</b>. Por día: ${DIAS7.map((d,i)=>`<span style="white-space:nowrap">${d} <b>${porDia[i]?porDia[i].replace(/^Bici /,'B').replace(/^Alan /,'A').replace(/^Pino$/,'P'):'–'}</b></span>`).join(' · ')}</div>
+    <label>A qué vuelta</label>
+    <div class="fchips" id="mv-v">${vs.map(v=>`<button class="fch${v===act?'':''}" data-mvv="${v}">${v}${v===act?' <span class="mini">(actual)</span>':''}</button>`).join('')}<button class="fch" data-mvv="__quitar">Sacar de la vuelta</button></div>
+    <label>Qué días</label>
+    <div class="fchips" id="mv-s"><button class="fch on" data-mvs="hoy">Solo ${DIAS_L[RDIA]}</button><button class="fch" data-mvs="todos">Todos los días</button><button class="fch" data-mvs="algunos">Elegir días</button></div>
+    <div id="mv-dias" hidden class="dias diasel" style="margin-top:6px">${DIAS7.map((d,i)=>`<div class="dia${conEntrega.includes(i)?' on':''}" data-di="${i}">${d}</div>`).join('')}</div>
+    <div class="mini" id="mv-dias-nota" hidden style="margin-top:4px">Marcados los días en que tiene entrega.</div>
+    <label>Dónde ponerlo en la vuelta</label>
+    <div class="fchips" id="mv-p"><button class="fch on" data-mvp="fin">Al final</button><button class="fch" data-mvp="inicio">Al principio</button></div>
+    <div class="acts"><button class="btn chico sec" id="mv-cancel">Cancelar</button><button class="btn chico" id="mv-ok" data-cli="${cli}">Mover</button></div>
+  </div></div>`;
+  document.body.insertAdjacentHTML('beforeend',h);
+}
+function mvConfirmar(cli){
+  const v=(document.querySelector('#mv-v .fch.on')||{}).dataset; if(!v||!v.mvv){toast('Elegí la vuelta');return;}
+  const sc=(document.querySelector('#mv-s .fch.on')||{}).dataset.mvs||'hoy';
+  let dias=sc==='todos'?true:(sc==='algunos'?[...document.querySelectorAll('#mv-dias .dia.on')].map(x=>parseInt(x.dataset.di)):[RDIA]);
+  if(Array.isArray(dias)&&!dias.length){toast('Marcá al menos un día');return;}
+  const pos=(document.querySelector('#mv-p .fch.on')||{}).dataset.mvp||'fin';
+  cerrarModal();
+  if(v.mvv==='__quitar') quitarDeVuelta(cli,dias); else asignarVuelta(cli,v.mvv,dias,pos);
 }
 async function editarRepartidor(nombre){
   const v=VUELTAS.find(x=>x.nombre===nombre); const r=prompt('Repartidor de '+nombre+':',v?v.repartidor||'':''); if(r===null)return;
@@ -1994,6 +2031,10 @@ document.addEventListener('click',function(e){
   const t=e.target.closest?e.target:null; if(!t)return;
   const tab=e.target.closest('.tab');
   if(tab){ if(tab.classList.contains('mas')){$('massheet').hidden=!$('massheet').hidden;return;} $('massheet').hidden=true; ver(tab.dataset.v);const p=PINTAR[tab.dataset.v];if(p)p();return;}
+  if(e.target.closest('#mv-cancel')||(e.target.id==='ovl')){cerrarModal();return;}
+  if(e.target.closest('#mv-ok')){mvConfirmar(parseInt(e.target.closest('#mv-ok').dataset.cli));return;}
+  const mvc=e.target.closest('#mv-v .fch, #mv-s .fch, #mv-p .fch');
+  if(mvc){ mvc.parentElement.querySelectorAll('.fch').forEach(x=>x.classList.toggle('on',x===mvc)); if(mvc.dataset.mvs){const alg=mvc.dataset.mvs==='algunos'; $('mv-dias').hidden=!alg; $('mv-dias-nota').hidden=!alg;} return; }
   const fch=e.target.closest('.fch');
   if(fch&&fch.dataset.f){setF(fch.dataset.f);return;}
   if(fch&&fch.dataset.rdia!=null){RDIA=parseInt(fch.dataset.rdia);pintarReparto();return;}
@@ -2157,7 +2198,7 @@ document.addEventListener('change',function(e){
   if(e.target.id==='fcc'||e.target.id==='fcm'){if(window.pintaC)pintaC();}
   if(e.target.id==='nfil'){if(window.pintaN)pintaN();}
   if(e.target.dataset&&e.target.dataset.pubdist){asignarPubDist(e.target.dataset.pubdist,parseInt(e.target.value));}
-  if(e.target.dataset&&e.target.dataset.asig&&e.target.value){const todos=confirm('¿Asignar a TODOS los días de la semana?\n\nAceptar = todos · Cancelar = solo este día');asignarVuelta(parseInt(e.target.dataset.asig),e.target.value,todos);}
+
 });
 
 
