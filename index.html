@@ -250,7 +250,7 @@ select.apagado{opacity:.45}
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v56</span></div></div><div class="hb" id="hbtns"></div></header>
+<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v57</span></div></div><div class="hb" id="hbtns"></div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -344,8 +344,8 @@ let LIVE={movs:[],caja:[],precios:[],novedades:[],dist:[],feriados:[],devol:[],r
 let FER=new Set(); // fechas ISO cargadas como feriado
 let FERP={}; // fecha -> lista normalizada de publicaciones que NO salen ese día (vacía/null = no sale nada)
 // ¿Sale esta publicación ese día? (feriado total: no; feriado parcial: solo si no está en la lista de "no salen")
-function feriadoSale(dia,pub){ if(!FER.has(dia)) return true; const sp=FERP[dia]; if(!sp||!sp.length) return false; return !sp.includes(norm(pub)); }
-function feriadoTotal(dia){ return FER.has(dia)&&!(FERP[dia]&&FERP[dia].length); }
+function feriadoSale(dia,pub){ if(!FER.has(dia)) return true; const sp=FERP[dia]; if(sp==null) return false; return !sp.includes(norm(pub)); }
+function feriadoTotal(dia){ return FER.has(dia)&&FERP[dia]==null; }
 let CONFIG={comision:32}; // % del precio de tapa que le corresponde a COHAJ por lo repartido a suscriptores (dato de Demian 09/09: 32%)
 let DISTH=[];
 const $=id=>document.getElementById(id);
@@ -353,8 +353,11 @@ const fmt=n=>'$'+Math.abs(n).toLocaleString('es-AR',{maximumFractionDigits:0});
 const norm=s=>(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 const hoyISO=()=>{try{return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Argentina/Buenos_Aires',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());}catch(_){return new Date().toISOString().slice(0,10);}};
 const fecha=s=>{if(!s)return'';const[a,m,d]=s.slice(0,10).split('-');return d+'/'+m+'/'+a.slice(2);};
-const DIAS=['Lu','Ma','Mi','Ju','Vi','Sa','Do'];
-const FDIAS={'lunes':[0],'martes':[1],'miercoles':[2],'jueves':[3],'viernes':[4],'sabado':[5],'domingo':[6],'todos los dias':[0,1,2,3,4,5,6],'de lunes a viernes':[0,1,2,3,4],'lunes a viernes':[0,1,2,3,4],'de lunes a sabado':[0,1,2,3,4,5],'lunes a sabado':[0,1,2,3,4,5],'sabado y domingo':[5,6],'lunes y jueves':[0,3],'lunes, miercoles y viernes':[0,2,4],'martes y viernes':[1,4],'martes y jueves':[1,3],'jueves y sabado':[3,5]};
+const DIAS=['Lu','Ma','Mi','Ju','Vi','Sa','Do','Fer']; // 7 = "Fer": solo los días feriados (con diario)
+const DIAS7=DIAS.slice(0,7);
+// ¿Le toca a esta suscripción (days) el día `dia` (weekday wd)? Incluye el caso "Fer": feriado cargado con diario.
+function tocaDia(days,wd,dia){ if(!days) return false; if(days.includes(wd)) return true; return days.includes(7)&&FER.has(dia)&&!feriadoTotal(dia); }
+const FDIAS={'lunes':[0],'martes':[1],'miercoles':[2],'jueves':[3],'viernes':[4],'sabado':[5],'domingo':[6],'feriados':[7],'feriado':[7],'solo feriados':[7],'dias feriados':[7],'todos los dias':[0,1,2,3,4,5,6],'de lunes a viernes':[0,1,2,3,4],'lunes a viernes':[0,1,2,3,4],'de lunes a sabado':[0,1,2,3,4,5],'lunes a sabado':[0,1,2,3,4,5],'sabado y domingo':[5,6],'lunes y jueves':[0,3],'lunes, miercoles y viernes':[0,2,4],'martes y viernes':[1,4],'martes y jueves':[1,3],'jueves y sabado':[3,5]};
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('ver');setTimeout(()=>t.classList.remove('ver'),2200);}
 const dget=snap=>(snap&&typeof snap.data==='function')?snap.data():snap;
 
@@ -367,7 +370,7 @@ const A_DB={
   precios:r=>({publicacion:r.pub,dia:r.dia==null?null:r.dia,desde:r.desde,precio:r.precio}),
   novedades:r=>({cliente_id:r.cli,tipo:r.tipo,publicacion:r.pub||'',desde:r.desde||null,hasta:r.hasta||null,dias:r.dias||null,via:r.via||null,cantidad:r.qty||null,nota:r.nota||''}),
   dist:r=>({distribuidor_id:r.dist||1,fecha:r.f,detalle:r.d||'',importe:r.imp}),
-  feriados:r=>({fecha:r.f,motivo:r.d||'',sin_pubs:(r.sp&&r.sp.length)?r.sp:null}),
+  feriados:r=>({fecha:r.f,motivo:r.d||'',sin_pubs:r.sp==null?null:r.sp}),
   devol:r=>({distribuidor_id:r.dist||1,fecha:r.f,publicacion:r.pub,cantidad:r.qty,nota:r.nota||''}),
   reparto:r=>({cliente_id:r.cli,dia:r.dia,vuelta:r.vuelta,orden:r.orden||0}),
   vueltas:r=>({nombre:r.nombre,repartidor:r.repartidor||'',orden:r.orden||0,activo:r.activo!==false})
@@ -402,7 +405,7 @@ async function cargarTabla(col){
   if(col==='precios'){ PRECIOS=rows.filter(x=>x.origen==='newspaper').map(DE_DB.precios); rows=rows.filter(x=>x.origen!=='newspaper'); }
   if(col==='dist'){ DISTH=rows.filter(x=>x.historico).map(x=>({f:x.fecha,d:x.detalle||'',imp:Number(x.importe)})); rows=rows.filter(x=>!x.historico); }
   LIVE[col]=rows.map(DE_DB[col]);
-  if(col==='feriados'){ FER=new Set(LIVE.feriados.map(r=>r.f)); FERP={}; LIVE.feriados.forEach(r=>{FERP[r.f]=(r.sp||[]).map(norm);}); }
+  if(col==='feriados'){ FER=new Set(LIVE.feriados.map(r=>r.f)); FERP={}; LIVE.feriados.forEach(r=>{FERP[r.f]=r.sp==null?null:r.sp.map(norm);}); }
   if(col==='vueltas') VUELTAS=LIVE.vueltas;
   if(col==='dists'){ DISTS=LIVE.dists.filter(d=>d.activo); const d1=DISTS.find(d=>d.id===1); if(d1&&typeof d1.comision==='number') CONFIG.comision=d1.comision; }
   if(col==='novedades') recalcActivos();
@@ -547,7 +550,7 @@ function devengoDe(c,tipo,hasta){
       const wd=(d.getDay()+6)%7;
       if(feriadoTotal(dia)){d.setDate(d.getDate()+1);continue;}
       for(const x of items){
-        if(!x.days||!x.days.includes(wd)) continue;
+        if(!tocaDia(x.days,wd,dia)) continue;
         if(x.desde&&x.desde>dia) continue;
         if(!feriadoSale(dia,x.t)) continue;
         if(suspendida(c.id,x.t,dia)) continue;
@@ -568,7 +571,7 @@ function saldoDe(c,hasta){
   return s;
 }
 function sinPrecio(c){
-  return c.subs.filter(x=>x[3]==='V'&&x[2]==='C'&&FDIAS[norm(x[1])]&&!precioDe(x[0],(FDIAS[norm(x[1])]||[0])[0],hoyISO()));
+  return c.subs.filter(x=>x[3]==='V'&&x[2]==='C'&&FDIAS[norm(x[1])]&&!precioDe(x[0],(()=>{const dd=FDIAS[norm(x[1])]||[0];const d0=dd.find(d=>d<7);return d0==null?0:d0;})(),hoyISO()));
 }
 function saldoHTML(s){
   if(s>0.5)return`<span class="monto debe">${fmt(s)}</span>`;
@@ -932,7 +935,7 @@ function pintarPrecios(){
   $('v-precios').innerHTML=`${titulo('Precios',pubs.length+' publicaciones con precio · los cambios se cargan como nueva vigencia')}
   <div class="card"><b>Nueva vigencia de precio</b>
     <label>Publicación</label><input id="ppub" list="dl-pubs" placeholder="ej: PAGINA 12"><datalist id="dl-pubs">${pubs.map(p=>`<option>${p}</option>`).join('')}</datalist>
-    <label>Día (para diarios con precio distinto por día)</label><select id="pdia"><option value="">Todos / único</option>${DIAS.map((d,i)=>`<option value="${i}">${d}</option>`).join('')}</select>
+    <label>Día (para diarios con precio distinto por día)</label><select id="pdia"><option value="">Todos / único</option>${DIAS7.map((d,i)=>`<option value="${i}">${d}</option>`).join('')}</select>
     <label>Vigente desde</label><input id="pdesde" type="date" value="${hoyISO()}">
     <label>Precio de tapa $</label><input id="pprecio" type="number" inputmode="decimal">
     <button class="btn" id="pok">Guardar</button>
@@ -986,10 +989,10 @@ function pintarNovedades(){
   <div class="sec amb"><span class="dot"></span>Feriados</div>
   <div class="card"><div class="mini" style="margin-bottom:6px">Lo que no sale un feriado no se devenga: ni al cliente ni comisión de la distribuidora. Podés cargar el día entero sin diario, o marcar qué diarios no salen y el resto se reparte normal.</div>
     <div class="grid2"><div><label>Fecha</label><input id="fefec" type="date"></div><div><label>Motivo</label><input id="fedet" placeholder="ej: feriado nacional, paro"></div></div>
-    <div class="fchips" style="margin-top:8px"><button class="fch on" data-femodo="total">Sin diario (no sale nada)</button><button class="fch" data-femodo="parcial">Con diario: elegir cuáles no salen</button></div>
-    <div id="fepubs" hidden><label>Marcá los que <b>NO</b> salen ese día <span class="mini">(los demás se reparten normal)</span></label><div class="dias diasel" style="flex-wrap:wrap" id="fepubsel">${pubsDelPadron().map(pn=>`<div class="dia" data-fepub="${pn}" style="width:auto;padding:0 10px">${pn}</div>`).join('')}</div></div>
+    <div class="fchips" style="margin-top:8px"><button class="fch on" data-femodo="total">Sin diario (no sale nada)</button><button class="fch" data-femodo="parcial">Con diario</button></div>
+    <div id="fepubs" hidden><label>Marcá los que <b>NO</b> salen ese día <span class="mini">(ninguno marcado = salen todos; los demás se reparten normal y también reciben los que tienen "Fer")</span></label><div class="dias diasel" style="flex-wrap:wrap" id="fepubsel">${pubsDelPadron().map(pn=>`<div class="dia" data-fepub="${pn}" style="width:auto;padding:0 10px">${pn}</div>`).join('')}</div></div>
     <button class="btn chico" id="feok">Agregar feriado</button>
-    <div style="margin-top:8px">${[...LIVE.feriados].sort((a,b)=>(b.f||'').localeCompare(a.f||'')).map(r=>`<div class="mov"><span class="f">${fecha(r.f)}</span><span class="t">${r.d||''}${r.d?' · ':''}${(r.sp&&r.sp.length)?'<span class="mini">con diario · no sale: '+r.sp.join(', ')+'</span>':'<span class="mini">sin diario</span>'}</span><button class="del" data-feid="${r.id}">✕</button></div>`).join('')||'<div class="mini">Ningún feriado cargado.</div>'}</div>
+    <div style="margin-top:8px">${[...LIVE.feriados].sort((a,b)=>(b.f||'').localeCompare(a.f||'')).map(r=>`<div class="mov"><span class="f">${fecha(r.f)}</span><span class="t">${r.d||''}${r.d?' · ':''}${r.sp==null?'<span class="mini">sin diario</span>':(r.sp.length?'<span class="mini">con diario · no sale: '+r.sp.join(', ')+'</span>':'<span class="mini">con diario · salen todos</span>')}</span><button class="del" data-feid="${r.id}">✕</button></div>`).join('')||'<div class="mini">Ningún feriado cargado.</div>'}</div>
   </div>`;
   pintarNForm();
   window.pintaN=function(){
@@ -1010,7 +1013,7 @@ function pintarNForm(){
     <div><label>Ejemplares por día</label><input id="nqty" type="number" value="1" min="1"></div></div>`;
   const fDesde=(l)=>`<label>${l||'Desde'}</label><input id="ndesde" type="date" value="${hoy}">`;
   const fNota=`<label>Nota</label><input id="nnota" placeholder="ej: avisó por WhatsApp">`;
-  const fDiasOpc=`<label>Solo estos días <span class="mini">(vacío = todos los días de esa publicación; marcá días si, por ejemplo, suspende solo la edición del miércoles)</span></label><div class="dias diasel" id="nsdias">${DIAS.map((d,i)=>`<div class="dia" data-di="${i}">${d}</div>`).join('')}</div>`;
+  const fDiasOpc=`<label>Solo estos días <span class="mini">(vacío = todos los días de esa publicación; marcá días si, por ejemplo, suspende solo la edición del miércoles)</span></label><div class="dias diasel" id="nsdias">${DIAS7.map((d,i)=>`<div class="dia" data-di="${i}">${d}</div>`).join('')}</div>`;
   let h='';
   switch(NTIPO){
     case 'altacli': h=`<div class="mini" style="margin:6px 0 2px">Crea la ficha del cliente y, si querés, su primera suscripción. Le toca el próximo número libre.</div>
@@ -1168,13 +1171,13 @@ function entregasDe(c,iso){
   const wd=wdDe(iso); const out=[], res=[];
   if(feriadoTotal(iso)) return {out,res};
   c.subs.filter(x=>x[3]==='V').forEach(x=>{
-    const dd=FDIAS[norm(x[1])]; if(!dd||!dd.includes(wd)) return;
+    const dd=FDIAS[norm(x[1])]; if(!tocaDia(dd,wd,iso)) return;
     if((x[4]||'').slice(0,10)>iso) return;
     if(!feriadoSale(iso,x[0])) return;
     if(suspendida(c.id,x[0],iso)) return;
     const q=x[5]||1; (q<0?res:out).push({pub:x[0],qty:Math.abs(q),via:x[2]});
   });
-  LIVE.novedades.filter(n=>n.cli===c.id&&n.tipo==='Alta'&&n.dias&&n.dias.includes(wd)&&(n.desde||'')<=iso&&feriadoSale(iso,n.pub)&&!suspendida(c.id,n.pub,iso)).forEach(n=>out.push({pub:n.pub,qty:n.qty||1,via:n.via||'C'}));
+  LIVE.novedades.filter(n=>n.cli===c.id&&n.tipo==='Alta'&&tocaDia(n.dias,wd,iso)&&(n.desde||'')<=iso&&feriadoSale(iso,n.pub)&&!suspendida(c.id,n.pub,iso)).forEach(n=>out.push({pub:n.pub,qty:n.qty||1,via:n.via||'C'}));
   return {out,res};
 }
 function vueltasActivas(){ const mv=misVueltas(); return VUELTAS.filter(v=>v.activo!==false&&(!mv||mv.includes(v.nombre))).sort((a,b)=>(a.orden||0)-(b.orden||0)); }
@@ -1207,7 +1210,7 @@ function pintarReparto(){
   const nParadas=Object.values(porV).reduce((n,l)=>n+agrupar([...l]).length,0);
   let h=titulo('Reparto',`${DIAS_L[RDIA][0].toUpperCase()+DIAS_L[RDIA].slice(1)} ${fecha(iso)} · ${nCli} clientes en ${nParadas} paradas · ${Object.values(totPub).reduce((a,b)=>a+b,0)} ejemplares`);
   h+=`<div class="fchips" style="margin:0 0 12px">${DIAS.map((d,i)=>`<button class="fch${i===RDIA?' on':''}" data-rdia="${i}">${DIAS_L[i]}</button>`).join('')}<button class="fch" id="rimpall" style="margin-left:auto">🖨 Imprimir todas las vueltas</button></div>`;
-  if(feriado) h+=`<div class="aviso" style="margin-bottom:12px">${fecha(iso)} está cargado como feriado ${feriadoTotal(iso)?'sin reparto: no se entrega nada ese día.':'con reparto parcial: no sale '+(LIVE.feriados.find(r=>r.f===iso)||{sp:[]}).sp.join(', ')+'.'}</div>`;
+  if(feriado) h+=`<div class="aviso" style="margin-bottom:12px">${fecha(iso)} está cargado como feriado ${feriadoTotal(iso)?'sin reparto: no se entrega nada ese día.':'con diario'+(((LIVE.feriados.find(r=>r.f===iso)||{}).sp||[]).length?': no sale '+(LIVE.feriados.find(r=>r.f===iso)).sp.join(', ')+'.':' (salen todos); se suman las suscripciones "Fer".')}</div>`;
   h+=`<div class="kpis">
     <div class="kpi ancha"><i>Para armar los paquetes · total del día</i><div class="tots">${Object.entries(totPub).sort((a,b)=>b[1]-a[1]).map(([p,n])=>`<span><b>${n}</b> ${p}</span>`).join('')||'<span class="mini">nada que repartir</span>'}</div></div>
     <div class="kpi ${sinV.length?'amb':'gris'}"><i>Sin vuelta asignada</i><b>${sinV.length} <small>clientes</small></b><i>${sinV.length?'asignalos abajo':'todos asignados ✓'}</i></div>
@@ -1667,8 +1670,7 @@ async function addFeriado(){
   const f=$('fefec').value; if(!f){toast('Poné la fecha');return;}
   if(FER.has(f)){toast('Ese día ya está cargado (borralo y volvé a cargarlo si querés cambiarlo)');return;}
   const parcial=!!document.querySelector('.fch[data-femodo="parcial"].on');
-  const sp=parcial?[...document.querySelectorAll('#fepubsel .dia.on')].map(x=>x.dataset.fepub):[];
-  if(parcial&&!sp.length){toast('Marcá al menos un diario que no sale, o elegí "Sin diario"');return;}
+  const sp=parcial?[...document.querySelectorAll('#fepubsel .dia.on')].map(x=>x.dataset.fepub):null;
   const r={id:nid(),ts:new Date().toISOString(),f,d:$('fedet').value||'',sp};
   try{ await guardar('feriados',[...LIVE.feriados,r]); SCACHE={}; toast('Feriado guardado ✓'); pintarNovedades(); }catch(e){toast('Error: '+((e&&e.message)||e));}
 }
@@ -1890,27 +1892,38 @@ let NEV=0;
 window.addEventListener('error',e=>{const l=$('lat');if(l)l.textContent='v34 · ⚠ '+(e.message||'error');});
 /* ------- desglose de una liquidación (reconstrucción) ------- */
 // consumo de un mes (solo lo que cobra COHAJ): {agg:{pub:{n,tot,sp}}, tot}
-function consumoMes(c,y,m){
+function consumoMes(c,y,m){ // misma regla que devengoDe (via C): suscripciones vigentes + altas cargadas acá − suspensiones − feriados
   const ini=new Date(y,m,1), fin=new Date(y,m+1,0);
   const agg={}; let sinPrecioN=0;
+  const items=c.subs.filter(x=>x[3]==='V'&&x[2]==='C').map(x=>({t:x[0],days:FDIAS[norm(x[1])],desde:(x[4]||'').slice(0,10),q:Math.abs(x[5])||1}));
+  LIVE.novedades.filter(n=>n.cli===c.id&&n.tipo==='Alta'&&n.dias&&((n.via||'C')==='C')).forEach(n=>items.push({t:n.pub,days:n.dias,desde:(n.desde||'').slice(0,10),q:n.qty||1}));
   let dd=new Date(ini);
   while(dd<=fin){
     const dia=dd.toISOString().slice(0,10), wd=(dd.getDay()+6)%7;
     if(feriadoTotal(dia)){dd.setDate(dd.getDate()+1);continue;}
-    for(const x of c.subs){
-      if(x[2]!=='C')continue;
-      if(!feriadoSale(dia,x[0]))continue;
-      const desde=(x[4]||'').slice(0,10);
-      const hasta=x[3]==='V'?'9999':(x[3]||'');
-      if(!desde||desde>dia||hasta<dia)continue;
-      const days=FDIAS[norm(x[1])];
-      if(!days||!days.includes(wd))continue;
-      const p=precioDe(x[0],wd,dia);
-      const k=x[0];
+    if(dia<DEV0){ // meses anteriores al devengo automático: reconstrucción con las suscripciones de NewsPaper vigentes ese día (como hasta v56)
+      for(const x of c.subs){
+        if(x[2]!=='C')continue;
+        if(!feriadoSale(dia,x[0]))continue;
+        const desde=(x[4]||'').slice(0,10), hasta=x[3]==='V'?'9999':(x[3]||'');
+        if(!desde||desde>dia||hasta<dia)continue;
+        if(!tocaDia(FDIAS[norm(x[1])],wd,dia))continue;
+        const p=precioDe(x[0],wd,dia), k=x[0], qn=Math.abs(x[5])||1;
+        agg[k]=agg[k]||{n:0,tot:0,sp:0}; agg[k].n+=qn;
+        if(p)agg[k].tot+=p*qn; else {agg[k].sp++;sinPrecioN++;}
+      }
+      dd.setDate(dd.getDate()+1);continue;
+    }
+    for(const x of items){
+      if(!tocaDia(x.days,wd,dia))continue;
+      if(x.desde&&x.desde>dia)continue;
+      if(!feriadoSale(dia,x.t))continue;
+      if(suspendida(c.id,x.t,dia))continue;
+      const p=precioDe(x.t,wd,dia);
+      const k=x.t;
       agg[k]=agg[k]||{n:0,tot:0,sp:0};
-      const qn=Math.abs(x[5])||1;
-      agg[k].n+=qn;
-      if(p)agg[k].tot+=p*qn; else {agg[k].sp++;sinPrecioN++;}
+      agg[k].n+=x.q;
+      if(p)agg[k].tot+=p*x.q; else {agg[k].sp++;sinPrecioN++;}
     }
     dd.setDate(dd.getDate()+1);
   }
