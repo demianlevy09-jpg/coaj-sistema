@@ -34,3 +34,19 @@ select n.cliente_id, n.publicacion, n.dias, public.dias_texto_de(n.dias), coales
 from public.novedades n where n.tipo='Alta' and not n.anulado and n.dias is not null and cardinality(n.dias)>0
   and not exists (select 1 from public.suscripciones s where s.novedad_id=n.id);
 select count(*) as altas_sincronizadas from public.suscripciones where origen='app' and novedad_id is not null and not anulado;
+
+-- suspendida() con 4º parámetro: para suscripciones origen='app' se ignoran las suspensiones/bajas anteriores a su alta (espejo de altaDe() en JS)
+drop function if exists public.suspendida(integer, text, date);
+create or replace function public.suspendida(p_cli integer, p_pub text, p_fecha date, p_desde_alta date default null) returns boolean language sql stable as $$
+  select coalesce((
+    select n.tipo in ('Suspensión','Baja') and (n.hasta is null or n.hasta >= p_fecha)
+    from public.novedades n
+    where not n.anulado and n.cliente_id = p_cli and n.desde <= p_fecha
+      and n.tipo in ('Suspensión','Baja','Reanudación')
+      and (p_desde_alta is null or n.desde >= p_desde_alta)
+      and (n.publicacion = '' or upper(p_pub) like '%'||upper(n.publicacion)||'%' or upper(n.publicacion) like '%'||upper(p_pub)||'%')
+      and (n.dias is null or cardinality(n.dias) = 0 or ((extract(isodow from p_fecha))::int - 1) = any(n.dias))
+    order by n.desde desc, n.id desc limit 1
+  ), false);
+$$;
+-- devengo(): idem 2026-09-15_feriados_parciales.sql pero llamando suspendida(..., case when s.origen='app' then s.desde end)
