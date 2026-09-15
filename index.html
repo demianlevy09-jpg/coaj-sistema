@@ -248,7 +248,7 @@ select.apagado{opacity:.45}
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v53</span></div></div><div class="hb" id="hbtns"></div></header>
+<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v54</span></div></div><div class="hb" id="hbtns"></div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -801,7 +801,8 @@ function ficha(id,mas){
   const suspVis=susp.filter(x=>!reactivada(x));
   if(suspVis.length){h+=`<h2>Suspendidas (${suspVis.length})</h2><div class="card">`+suspVis.slice(0,10).map((x,ix)=>{
     const porNov=x[3]==='V';
-    return `<div class="subrow">${x[0]} <span class="tag-susp">${porNov?'suspendida acá':'cerrada el '+fecha(x[3])}</span> <span class="mini">${x[1]||''}</span>
+    const vuelve=(()=>{ if(!porNov) return ''; const dsx=FDIAS[norm(x[1])]||[]; const nv=LIVE.novedades.filter(n=>n.cli===id&&n.tipo==='Suspensión'&&n.hasta&&(!n.pub||norm(x[0]).includes(norm(n.pub))||norm(n.pub).includes(norm(x[0])))&&(!n.dias||!n.dias.length||!dsx.length||n.dias.some(d=>dsx.includes(d)))).sort((p,q)=>(q.desde||'').localeCompare(p.desde||''))[0]; if(!nv) return ''; const d=new Date(nv.hasta+'T12:00:00'); d.setDate(d.getDate()+1); return ' · vuelve el '+fecha(d.toISOString().slice(0,10)); })();
+    return `<div class="subrow">${x[0]} <span class="tag-susp">${porNov?'suspendida acá'+vuelve:'cerrada el '+fecha(x[3])}</span> <span class="mini">${x[1]||''}</span>
     <div id="rf-${ix}"><button class="btn chico sec" data-sform="r${ix}" data-pub="${x[0]}" data-dias="${(FDIAS[norm(x[1])]||[]).join(',')}" data-via="${x[2]||'C'}" data-qty="${Math.abs(x[5])||1}" ${porNov?'':'data-cerrada="1"'} data-cli="${id}" data-acc="Reanudación">Reactivar</button></div></div>`;}).join('')+`</div>`;}
   h+=`<h2>Movimientos <span class="mini" style="text-transform:none">— tocá una liquidación para ver el desglose</span></h2><div class="card">`+(movs.length?movs.slice(0,FMOSTR).map((m,i)=>{
     const esLiq=m.tipo==='Liquidación'&&!m.id;
@@ -1955,7 +1956,9 @@ document.addEventListener('click',function(e){
     const dd=(sf.dataset.dias||'').split(',').filter(x=>x!=='').map(Number);
     const otras=(()=>{const c=C.find(x=>x.id===parseInt(sf.dataset.cli));if(!c)return 0;return c.subs.filter(x=>x[3]==='V'&&x[0]===sf.dataset.pub).length+LIVE.novedades.filter(n=>n.cli===c.id&&n.tipo==='Alta'&&n.dias&&n.pub===sf.dataset.pub).length;})();
     const cerr=sf.dataset.cerrada==='1';
-    cont.innerHTML=`<label>${cerr?'Reactivar':sf.dataset.acc+' de'} ${sf.dataset.pub}${dd.length?' ('+dd.map(d=>DIAS[d]).join(' ')+')':''} desde</label><input type="date" class="sfec" value="${hoyISO()}">
+    const esSusp=sf.dataset.acc==='Suspensión';
+    cont.innerHTML=(esSusp?`<div class="grid2"><div>`:'')+`<label>${cerr?'Reactivar':sf.dataset.acc+' de'} ${sf.dataset.pub}${dd.length?' ('+dd.map(d=>DIAS[d]).join(' ')+')':''} desde</label><input type="date" class="sfec" value="${hoyISO()}">`
+    +(esSusp?`</div><div><label>Vuelve a recibir el <span class="mini">(opcional; vacío = hasta que la reactives)</span></label><input type="date" class="sfhasta"></div></div>`:'')+`
     ${cerr?`<div class="mini" style="margin:2px 0 6px">Esta suscripción estaba cerrada en el sistema viejo: se vuelve a dar de alta desde esa fecha (${sf.dataset.via==='S'?'vía distribuidora':'le cobrás vos'}${parseInt(sf.dataset.qty)>1?', ×'+sf.dataset.qty:''}) y devenga desde ahí.</div>`:''}
     ${otras>1&&dd.length?`<label class="chkl"><input type="checkbox" class="sftodas"> Aplicar a todas las suscripciones de ${sf.dataset.pub} de este cliente (${otras})</label>`:''}
     <button class="btn chico" data-sok data-pub="${sf.dataset.pub}" data-dias="${sf.dataset.dias||''}" data-via="${sf.dataset.via||''}" data-qty="${sf.dataset.qty||''}" ${cerr?'data-cerrada="1"':''} data-cli="${sf.dataset.cli}" data-acc="${sf.dataset.acc}">Confirmar ${cerr?'reactivación':sf.dataset.acc.toLowerCase()}</button>`;
@@ -1989,13 +1992,15 @@ document.addEventListener('click',function(e){
   const sok=e.target.closest('[data-sok]');
   if(sok){
     const f=sok.parentElement.querySelector('.sfec').value;
+    const hEl=sok.parentElement.querySelector('.sfhasta'); let hasta='';
+    if(hEl&&hEl.value){ const vuelve=hEl.value; if(vuelve<=f){toast('La fecha en que vuelve tiene que ser posterior al inicio de la suspensión');return;} const d=new Date(vuelve+'T12:00:00'); d.setDate(d.getDate()-1); hasta=d.toISOString().slice(0,10); }
     const cli=parseInt(sok.dataset.cli);
     const todas=sok.parentElement.querySelector('.sftodas'); const dd=(todas&&todas.checked)?[]:(sok.dataset.dias||'').split(',').filter(x=>x!=='').map(Number);
     let r;
     if(sok.dataset.cerrada==='1'&&sok.dataset.acc==='Reanudación'){
       const dias=(sok.dataset.dias||'').split(',').filter(x=>x!=='').map(Number);
       r={id:nid(),ts:new Date().toISOString(),cli,tipo:'Alta',pub:sok.dataset.pub,desde:f,hasta:'',dias,via:sok.dataset.via||'C',qty:parseInt(sok.dataset.qty)||1,nota:'reactivación desde la ficha'};
-    } else r={id:nid(),ts:new Date().toISOString(),cli,tipo:sok.dataset.acc,pub:sok.dataset.pub,desde:f,hasta:'',dias:dd.length?dd:null,nota:'desde la ficha'};
+    } else r={id:nid(),ts:new Date().toISOString(),cli,tipo:sok.dataset.acc,pub:sok.dataset.pub,desde:f,hasta,dias:dd.length?dd:null,nota:'desde la ficha'};
     guardar('novedades',[...LIVE.novedades,r]).then(()=>{SCACHE={};toast((r.tipo==='Alta'?'Reactivación':sok.dataset.acc)+' guardada ✓');ficha(cli);}).catch(err=>toast('Error: '+(err&&err.message)));
     return;
   }
