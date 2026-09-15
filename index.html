@@ -257,7 +257,7 @@ select.apagado{opacity:.45}
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v62</span></div></div><div class="hb" id="hbtns"></div></header>
+<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v63</span></div></div><div class="hb" id="hbtns"></div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -1248,7 +1248,7 @@ function pintarReparto(){
   const totStr=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]).map(([p,n])=>`<b>${n}</b> ${p}`).join(' · ')||'—';
   const nParadas=Object.values(porV).reduce((n,l)=>n+agrupar([...l]).length,0);
   let h=titulo('Reparto',`${DIAS_L[RDIA][0].toUpperCase()+DIAS_L[RDIA].slice(1)} ${fecha(iso)} · ${nCli} clientes en ${nParadas} paradas · ${Object.values(totPub).reduce((a,b)=>a+b,0)} ejemplares`);
-  h+=`<div class="fchips" style="margin:0 0 12px">${DIAS.map((d,i)=>`<button class="fch${i===RDIA?' on':''}" data-rdia="${i}">${DIAS_L[i]}</button>`).join('')}<button class="fch" id="rimpall" style="margin-left:auto">🖨 Imprimir todas las vueltas</button></div>`;
+  h+=`<div class="fchips" style="margin:0 0 12px">${DIAS7.map((d,i)=>`<button class="fch${i===RDIA?' on':''}" data-rdia="${i}">${DIAS_L[i]}</button>`).join('')}<button class="fch" id="rimpall" style="margin-left:auto">🖨 Imprimir todas las vueltas</button><button class="fch" id="rimpmulti">🖨 Varios días…</button></div>`;
   if(feriado) h+=`<div class="aviso" style="margin-bottom:12px">${fecha(iso)} está cargado como feriado ${feriadoTotal(iso)?'sin reparto: no se entrega nada ese día.':'con diario'+(((LIVE.feriados.find(r=>r.f===iso)||{}).sp||[]).length?': no sale '+(LIVE.feriados.find(r=>r.f===iso)).sp.join(', ')+'.':' (salen todos); se suman las suscripciones "Fer".')}</div>`;
   h+=`<div class="kpis">
     <div class="kpi ancha"><i>Para armar los paquetes · total del día</i><div class="tots">${Object.entries(totPub).sort((a,b)=>b[1]-a[1]).map(([p,n])=>`<span><b>${n}</b> ${p}</span>`).join('')||'<span class="mini">nada que repartir</span>'}</div></div>
@@ -1328,6 +1328,27 @@ async function quitarDeVuelta(cli,dias){
   try{ const{error}=await sb.from('reparto').update({anulado:true}).eq('cliente_id',cli).in('dia',dias); if(error)throw new Error(error.message); await cargarTabla('reparto'); toast(nomCli(cli)+' sin vuelta ('+(dias.length===7?'todos los días':dias.map(d=>DIAS[d]).join(' '))+')'); pintarReparto(); }catch(e){toast('Error: '+((e&&e.message)||e));}
 }
 function cerrarModal(){ const m=$('ovl'); if(m) m.remove(); }
+function modalImpresionMasiva(){
+  cerrarModal();
+  const hoy=hoyISO(); const d=new Date(hoy+'T12:00:00'); d.setDate(d.getDate()+6); const fin=d.toISOString().slice(0,10);
+  const vs=vueltasActivas().map(v=>v.nombre);
+  document.body.insertAdjacentHTML('beforeend',`<div class="ovl" id="ovl"><div class="modal">
+    <h3>Imprimir hojas de varios días</h3>
+    <div class="mini">Una hoja por vuelta y por día, con lo que corresponde entregar cada fecha (suspensiones, altas y feriados incluidos). Desde el diálogo de impresión podés elegir "Guardar como PDF".</div>
+    <div class="grid2"><div><label>Desde</label><input id="rim-desde" type="date" value="${hoy}"></div><div><label>Hasta</label><input id="rim-hasta" type="date" value="${fin}"></div></div>
+    <label>Vueltas</label>
+    <div class="dias diasel" id="rim-v" style="flex-wrap:wrap">${vs.map(v=>`<div class="dia on" data-rimv="${v}" style="width:auto;padding:0 10px">${v}</div>`).join('')}</div>
+    <div class="acts"><button class="btn chico sec" id="mv-cancel">Cancelar</button><button class="btn chico" id="rim-ok">Imprimir / PDF</button></div>
+  </div></div>`);
+}
+function impresionMasivaOK(){
+  const a=$('rim-desde').value, b=$('rim-hasta').value; if(!a||!b||b<a){toast('Revisá las fechas');return;}
+  const vs=[...document.querySelectorAll('#rim-v .dia.on')].map(x=>x.dataset.rimv); if(!vs.length){toast('Marcá al menos una vuelta');return;}
+  const fechas=[]; let d=new Date(a+'T12:00:00'); while(d.toISOString().slice(0,10)<=b&&fechas.length<62){fechas.push(d.toISOString().slice(0,10)); d.setDate(d.getDate()+1);}
+  if(fechas.length>=62){toast('Máximo 2 meses por vez');return;}
+  cerrarModal(); toast('Armando '+(fechas.length*vs.length)+' hojas…');
+  imprimirHojas(vs,fechas);
+}
 function moverCliente(cli){
   const c=C.find(x=>x.id===cli); if(!c)return;
   const porDia=[0,1,2,3,4,5,6].map(d=>(LIVE.reparto.find(r=>r.cli===cli&&r.dia===d)||{}).vuelta||'');
@@ -1379,18 +1400,21 @@ function moverParada(p,dir){
 }
 function hojaHTML(vnombre,iso){
   const v=VUELTAS.find(x=>x.nombre===vnombre)||{nombre:vnombre};
-  const asig={}; LIVE.reparto.filter(r=>r.dia===RDIA&&r.vuelta===vnombre).forEach(r=>asig[r.cli]=r);
+  const wdh=wdDe(iso);
+  const asig={}; LIVE.reparto.filter(r=>r.dia===wdh&&r.vuelta===vnombre).forEach(r=>asig[r.cli]=r);
   const list=[]; const tot={};
   C.filter(c=>c.act&&asig[c.id]).forEach(c=>{const e=entregasDe(c,iso); if(!e.out.length)return; e.out.forEach(x=>tot[x.pub]=(tot[x.pub]||0)+x.qty); list.push({c,ent:e.out,orden:asig[c.id].orden});});
   list.sort((a,b)=>a.orden-b.orden||a.c.d.localeCompare(b.c.d));
   const paradas=[]; list.forEach(x=>{const ed=edificioDe(x.c.d).ed; const last=paradas[paradas.length-1]; if(last&&last.ed===ed) last.cl.push(x); else paradas.push({ed,cl:[x]});});
-  return `<div class="hoja"><div class="hh"><div><b>COHAJ · Reparto del ${DIAS_L[RDIA]} ${fecha(iso)}</b><div>Vuelta <b>${v.nombre}</b>${v.repartidor?' · '+v.repartidor:''}</div></div><div class="ht">${Object.entries(tot).sort((a,b)=>b[1]-a[1]).map(([p,n])=>`<b>${n}</b> ${p}`).join(' · ')||'—'}<div>${paradas.length} paradas · ${list.length} clientes</div></div></div>
+  return `<div class="hoja"><div class="hh"><div><b>COHAJ · Reparto del ${DIAS_L[wdh]} ${fecha(iso)}</b><div>Vuelta <b>${v.nombre}</b>${v.repartidor?' · '+v.repartidor:''}</div></div><div class="ht">${Object.entries(tot).sort((a,b)=>b[1]-a[1]).map(([p,n])=>`<b>${n}</b> ${p}`).join(' · ')||'—'}<div>${paradas.length} paradas · ${list.length} clientes</div></div></div>
   ${paradas.map((p,i)=>`<div class="hp"><div class="hpe">${i+1}. ${p.ed}</div>${p.cl.map(x=>`<div class="hpc"><span class="hq">☐</span><span class="hu">${edificioDe(x.c.d).un||''}</span><span class="he">${x.ent.map(e=>(e.qty>1?e.qty+'× ':'')+e.pub).join(' + ')}</span><span class="hpp">${x.c.part||''}</span></div>`).join('')}</div>`).join('')}
   ${paradas.length?'':'<div>Sin paradas.</div>'}</div>`;
 }
-function imprimirHojas(nombres){
-  const iso=fechaParaDia(RDIA);
-  $('print-area').innerHTML=nombres.map(n=>hojaHTML(n,iso)).join('');
+function imprimirHojas(nombres,fechas){
+  const isos=fechas&&fechas.length?fechas:[fechaParaDia(RDIA)];
+  const hojas=[]; isos.forEach(iso=>{ if(feriadoTotal(iso)) return; nombres.forEach(n=>{ const h=hojaHTML(n,iso); if(!/[^0-9]0 paradas · 0 clientes/.test(h)) hojas.push(h); }); });
+  if(!hojas.length){toast('No hay nada para imprimir en ese rango (¿feriado sin diario?)');return;}
+  $('print-area').innerHTML=hojas.join('');
   document.body.classList.add('print-hojas');
   setTimeout(()=>{window.print();setTimeout(()=>document.body.classList.remove('print-hojas'),500);},50);
 }
@@ -2156,6 +2180,8 @@ document.addEventListener('click',function(e){
     case 'fbc': formCobro(parseInt(b.dataset.cli));break;
     case 'freact': reactivarCliente(parseInt(b.dataset.cli));break;
     case 'rimpall': imprimirHojas(vueltasActivas().map(v=>v.nombre));break;
+    case 'rimpmulti': modalImpresionMasiva();break;
+    case 'rim-ok': impresionMasivaOK();break;
     case 'rnvok': nuevaVuelta();break;
     case 'v-ok': vender();break;
     case 'c-ok': registrarCompra();break;
