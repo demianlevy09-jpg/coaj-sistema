@@ -250,7 +250,7 @@ select.apagado{opacity:.45}
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v59</span></div></div><div class="hb" id="hbtns"></div></header>
+<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v60</span></div></div><div class="hb" id="hbtns"></div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -513,15 +513,17 @@ function precioDe(pub,wd,dia){
 const DEV0='2026-09-01';
 // dias (opcional): días de la suscripción que se está evaluando; si no viene, se usa el día de la semana de `dia`.
 // Una novedad con `dias` cargados solo afecta a esos días (ej: suspender LA NACION solo los miércoles).
-function suspendida(cli,titulo,dia,dias){
+// desdeAlta (opcional): si se evalúa un alta cargada acá, las suspensiones/bajas anteriores a su fecha no la afectan (son de la suscripción vieja).
+// Un Alta nunca "reactiva" una suscripción suspendida: solo Reanudación lo hace.
+function suspendida(cli,titulo,dia,dias,desdeAlta){
   let sus=false;
   const wd=(new Date(dia+'T12:00:00').getDay()+6)%7;
   const aplicaDias=n=>!n.dias||!n.dias.length||(dias&&dias.length?n.dias.some(d=>dias.includes(d)):n.dias.includes(wd));
-  const nvs=LIVE.novedades.filter(n=>n.cli===cli&&(!n.pub||norm(titulo).includes(norm(n.pub))||norm(n.pub).includes(norm(titulo)))&&aplicaDias(n)).sort((a,b)=>(a.desde||'').localeCompare(b.desde||''));
+  const nvs=LIVE.novedades.filter(n=>n.cli===cli&&n.tipo!=='Alta'&&(!desdeAlta||(n.desde||'')>=desdeAlta)&&(!n.pub||norm(titulo).includes(norm(n.pub))||norm(n.pub).includes(norm(titulo)))&&aplicaDias(n)).sort((a,b)=>(a.desde||'').localeCompare(b.desde||''));
   for(const n of nvs){
     if((n.desde||'')<=dia){
       if(n.tipo==='Suspensión'||n.tipo==='Baja'){ if(!n.hasta||n.hasta>=dia) sus=true; else sus=false; }
-      if(n.tipo==='Reanudación'||n.tipo==='Alta') sus=false;
+      if(n.tipo==='Reanudación') sus=false;
     }
   }
   return sus;
@@ -553,7 +555,7 @@ function devengoDe(c,tipo,hasta){
   if(SCACHE[ck]!=null) return SCACHE[ck];
   let tot=0; const porPub={};
   const items=c.subs.filter(x=>x[3]==='V'&&x[2]===tipo).map(x=>({t:x[0],days:FD(x[1]),desde:(x[4]||'').slice(0,10),q:Math.abs(x[5])||1}));
-  LIVE.novedades.filter(n=>n.cli===c.id&&n.tipo==='Alta'&&n.dias&&((n.via||'C')===tipo)).forEach(n=>items.push({t:n.pub,days:n.dias,desde:(n.desde||'').slice(0,10),q:n.qty||1}));
+  LIVE.novedades.filter(n=>n.cli===c.id&&n.tipo==='Alta'&&n.dias&&((n.via||'C')===tipo)).forEach(n=>items.push({t:n.pub,days:n.dias,desde:(n.desde||'').slice(0,10),q:n.qty||1,alta:(n.desde||'').slice(0,10)}));
   if(items.length){
     const hoy=hasta;
     let d=new Date(DEV0+'T12:00:00');
@@ -565,7 +567,7 @@ function devengoDe(c,tipo,hasta){
         if(!tocaDia(x.days,wd,dia)) continue;
         if(x.desde&&x.desde>dia) continue;
         if(!feriadoSale(dia,x.t)) continue;
-        if(suspendida(c.id,x.t,dia)) continue;
+        if(suspendida(c.id,x.t,dia,null,x.alta)) continue;
         const p=precioDe(x.t,wd,dia);
         if(p){ tot+=p*x.q; porPub[x.t]=(porPub[x.t]||0)+p*x.q; }
       }
@@ -752,7 +754,7 @@ function catDe(c){
   const hoy=hoyISO();
   const vias=new Set();
   c.subs.forEach(x=>{ if(x[3]==='V'&&!suspendida(c.id,x[0],hoy,FD(x[1]))) vias.add(x[2]==='S'?'S':'C'); });
-  LIVE.novedades.filter(n=>n.cli===c.id&&n.tipo==='Alta'&&n.dias&&!suspendida(c.id,n.pub,hoy,n.dias)).forEach(n=>vias.add((n.via||'C')==='S'?'S':'C'));
+  LIVE.novedades.filter(n=>n.cli===c.id&&n.tipo==='Alta'&&n.dias&&!suspendida(c.id,n.pub,hoy,n.dias,n.desde)).forEach(n=>vias.add((n.via||'C')==='S'?'S':'C'));
   if(vias.has('S')&&vias.has('C'))return 'Mixto';
   if(vias.has('S'))return 'Suscriptor';
   if(vias.has('C'))return 'Cliente';
@@ -824,7 +826,7 @@ function ficha(id,mas){
     <div id="fform"></div>
   </div>`;
   if(novs.length){h+=`<h2>Novedades cargadas acá</h2><div class="card">`+novs.map(n=>`<div class="subrow"><b>${n.tipo}</b> ${n.pub||''}${n.dias&&n.dias.length&&n.tipo!=='Alta'?' <span class="mini">('+n.dias.map(d=>DIAS[d]).join(' ')+')</span>':''} <span class="mini">desde ${fecha(n.desde)}${n.hasta?' hasta '+fecha(n.hasta):''} ${n.nota||''}</span></div>`).join('')+`</div>`;}
-  const altas=LIVE.novedades.filter(n=>n.cli===id&&n.tipo==='Alta'&&n.dias&&!suspendida(id,n.pub,hoy0,n.dias));
+  const altas=LIVE.novedades.filter(n=>n.cli===id&&n.tipo==='Alta'&&n.dias&&!suspendida(id,n.pub,hoy0,n.dias,n.desde));
   h+=`<h2>Suscripciones vigentes (${vig.length+altas.length})</h2>`;
   altas.forEach(n=>{h+=`<div class="card"><b>${n.pub}</b>${(n.qty||1)>1?` <span class="mini">×${n.qty}</span>`:''} <span class="pill ${(n.via||'C')==='S'?'p-susc':'p-cli'}">${(n.via||'C')==='S'?'vía distribuidora':'le cobrás vos'}</span> <span class="pill p-warn">alta cargada acá</span>
   <div class="dias">${DIAS.map((dd,i)=>`<div class="dia${n.dias.includes(i)?' on':''}">${dd}</div>`).join('')}</div>
@@ -1207,7 +1209,7 @@ function entregasDe(c,iso){
     if(suspendida(c.id,x[0],iso)) return;
     const q=x[5]||1; (q<0?res:out).push({pub:x[0],qty:Math.abs(q),via:x[2]});
   });
-  LIVE.novedades.filter(n=>n.cli===c.id&&n.tipo==='Alta'&&tocaDia(n.dias,wd,iso)&&(n.desde||'')<=iso&&feriadoSale(iso,n.pub)&&!suspendida(c.id,n.pub,iso)).forEach(n=>out.push({pub:n.pub,qty:n.qty||1,via:n.via||'C'}));
+  LIVE.novedades.filter(n=>n.cli===c.id&&n.tipo==='Alta'&&tocaDia(n.dias,wd,iso)&&(n.desde||'')<=iso&&feriadoSale(iso,n.pub)&&!suspendida(c.id,n.pub,iso,null,n.desde)).forEach(n=>out.push({pub:n.pub,qty:n.qty||1,via:n.via||'C'}));
   return {out,res};
 }
 function vueltasActivas(){ const mv=misVueltas(); return VUELTAS.filter(v=>v.activo!==false&&(!mv||mv.includes(v.nombre))).sort((a,b)=>(a.orden||0)-(b.orden||0)); }
@@ -1926,7 +1928,7 @@ function consumoMes(c,y,m){ // misma regla que devengoDe (via C): suscripciones 
   const ini=new Date(y,m,1), fin=new Date(y,m+1,0);
   const agg={}; let sinPrecioN=0;
   const items=c.subs.filter(x=>x[3]==='V'&&x[2]==='C').map(x=>({t:x[0],days:FD(x[1]),desde:(x[4]||'').slice(0,10),q:Math.abs(x[5])||1}));
-  LIVE.novedades.filter(n=>n.cli===c.id&&n.tipo==='Alta'&&n.dias&&((n.via||'C')==='C')).forEach(n=>items.push({t:n.pub,days:n.dias,desde:(n.desde||'').slice(0,10),q:n.qty||1}));
+  LIVE.novedades.filter(n=>n.cli===c.id&&n.tipo==='Alta'&&n.dias&&((n.via||'C')==='C')).forEach(n=>items.push({t:n.pub,days:n.dias,desde:(n.desde||'').slice(0,10),q:n.qty||1,alta:(n.desde||'').slice(0,10)}));
   let dd=new Date(ini);
   while(dd<=fin){
     const dia=dd.toISOString().slice(0,10), wd=(dd.getDay()+6)%7;
@@ -1948,7 +1950,7 @@ function consumoMes(c,y,m){ // misma regla que devengoDe (via C): suscripciones 
       if(!tocaDia(x.days,wd,dia))continue;
       if(x.desde&&x.desde>dia)continue;
       if(!feriadoSale(dia,x.t))continue;
-      if(suspendida(c.id,x.t,dia))continue;
+      if(suspendida(c.id,x.t,dia,null,x.alta))continue;
       const p=precioDe(x.t,wd,dia);
       const k=x.t;
       agg[k]=agg[k]||{n:0,tot:0,sp:0};
