@@ -250,7 +250,7 @@ select.apagado{opacity:.45}
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v57</span></div></div><div class="hb" id="hbtns"></div></header>
+<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v58</span></div></div><div class="hb" id="hbtns"></div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -757,7 +757,23 @@ function pillCat(c){
 function diasHTML(fr){
   const dd=FDIAS[norm(fr)];
   if(!dd)return fr?`<div class="mini" style="margin-top:6px">${fr}</div>`:'';
-  return '<div class="dias">'+DIAS.map((d,i)=>`<div class="dia${dd.includes(i)?' on':''}">${d}</div>`).join('')+'</div>';
+  return diasHTMLArr(dd);
+}
+function diasHTMLArr(dd){ return '<div class="dias">'+DIAS.map((d,i)=>`<div class="dia${dd.includes(i)?' on':''}">${d}</div>`).join('')+'</div>'; }
+// Agrupa filas de suscripción de la misma publicación y modalidad (NewsPaper tiene una fila por día para los diarios): una tarjeta con todos los días
+function agruparSubs(rows){
+  const g=[]; const idx={};
+  rows.forEach(x=>{
+    const dd=FDIAS[norm(x[1])];
+    const k=dd?x[0]+'|'+x[2]:null;
+    if(!k){ g.push({pub:x[0],via:x[2],dias:null,txt:x[1]||'',desde:x[4],qty:Math.abs(x[5])||1,rows:[x]}); return; }
+    if(idx[k]==null){ idx[k]=g.length; g.push({pub:x[0],via:x[2],dias:[],txt:'',desde:x[4],qty:Math.abs(x[5])||1,rows:[]}); }
+    const e=g[idx[k]]; dd.forEach(d=>{if(!e.dias.includes(d))e.dias.push(d);}); e.rows.push(x);
+    if((x[4]||'')<(e.desde||'')) e.desde=x[4];
+    if((Math.abs(x[5])||1)!==e.qty) e.qtyMix=true;
+  });
+  g.forEach(e=>{ if(e.dias) e.dias.sort((a,b)=>a-b); });
+  return g;
 }
 let FMOSTR=20, FULT=null;
 function ficha(id,mas){
@@ -802,18 +818,20 @@ function ficha(id,mas){
   <div class="dias">${DIAS.map((dd,i)=>`<div class="dia${n.dias.includes(i)?' on':''}">${dd}</div>`).join('')}</div>
   <div class="mini" style="margin-top:6px">desde ${fecha(n.desde)}</div>
   <div><button class="btn chico sec" data-sform="a${n.id}" data-pub="${n.pub}" data-dias="${n.dias.join(',')}" data-cli="${id}" data-acc="Suspensión">Suspender / dar de baja</button></div></div>`;});
-  if(vig.length) vig.forEach((x,ix)=>{h+=`<div class="card"><b>${x[0]}</b>${x[5]>1?` <span class="mini">×${x[5]}</span>`:''} <span class="pill ${x[2]==='S'?'p-susc':'p-cli'}">${x[2]==='S'?'vía distribuidora':'le cobrás vos'}</span>${diasHTML(x[1])}<div class="mini" style="margin-top:6px">desde ${fecha(x[4])}</div>
-  <div id="sf-${ix}"><button class="btn chico sec" data-sform="${ix}" data-pub="${x[0]}" data-dias="${(FDIAS[norm(x[1])]||[]).join(',')}" data-cli="${id}" data-acc="Suspensión">Suspender / dar de baja</button></div></div>`;});
+  if(vig.length) agruparSubs(vig).forEach((e,ix)=>{const todasDeLaPub=vig.filter(x=>x[0]===e.pub).length===e.rows.length;h+=`<div class="card"><b>${e.pub}</b>${e.qty>1&&!e.qtyMix?` <span class="mini">×${e.qty}</span>`:''} <span class="pill ${e.via==='S'?'p-susc':'p-cli'}">${e.via==='S'?'vía distribuidora':'le cobrás vos'}</span>${e.dias?diasHTMLArr(e.dias):(e.txt?`<div class="mini" style="margin-top:6px">${e.txt}</div>`:'')}${e.rows.length>1?`<div class="mini" style="margin-top:4px">${e.rows.length} suscripciones agrupadas (una por día)</div>`:''}<div class="mini" style="margin-top:6px">desde ${fecha(e.desde)}</div>
+  <div id="sf-${ix}"><button class="btn chico sec" data-sform="${ix}" data-pub="${e.pub}" data-dias="${(e.dias||[]).join(',')}" ${todasDeLaPub?'data-todas="1"':''} data-cli="${id}" data-acc="Suspensión">Suspender / dar de baja</button></div></div>`;});
   else if(!altas.length) h+='<div class="card mini">Sin publicaciones vigentes.</div>';
   h+=`<div id="altabox"><button class="btn chico" id="altabtn" data-cli="${id}">＋ Alta de suscripción nueva</button></div>`;
   const altasTodas=LIVE.novedades.filter(n=>n.cli===id&&n.tipo==='Alta'&&n.dias);
   const reactivada=x=>x[3]!=='V'&&altasTodas.some(n=>n.pub===x[0]&&(n.desde||'')>=(x[3]||'').slice(0,10)&&(!(FDIAS[norm(x[1])]||[]).length||n.dias.some(d=>(FDIAS[norm(x[1])]||[]).includes(d))));
   const suspVis=susp.filter(x=>!reactivada(x));
-  if(suspVis.length){h+=`<h2>Suspendidas (${suspVis.length})</h2><div class="card">`+suspVis.slice(0,10).map((x,ix)=>{
+  const suspG=(()=>{ const out=[]; const byEstado={}; suspVis.forEach(x=>{const k=x[3]==='V'?'V':(x[3]||'').slice(0,10); (byEstado[k]=byEstado[k]||[]).push(x);}); Object.keys(byEstado).sort((a,b)=>b.localeCompare(a)).forEach(k=>{ agruparSubs(byEstado[k]).forEach(e=>out.push(e)); }); return out; })();
+  if(suspG.length){h+=`<h2>Suspendidas (${suspG.length})</h2><div class="card">`+suspG.slice(0,12).map((e,ix)=>{
+    const x=[e.pub,e.dias?e.dias.map(d=>DIAS[d]).join(' '):e.txt,e.via,e.rows[0][3],e.desde,e.qty];
     const porNov=x[3]==='V';
-    const vuelve=(()=>{ if(!porNov) return ''; const dsx=FDIAS[norm(x[1])]||[]; const nv=LIVE.novedades.filter(n=>n.cli===id&&n.tipo==='Suspensión'&&n.hasta&&(!n.pub||norm(x[0]).includes(norm(n.pub))||norm(n.pub).includes(norm(x[0])))&&(!n.dias||!n.dias.length||!dsx.length||n.dias.some(d=>dsx.includes(d)))).sort((p,q)=>(q.desde||'').localeCompare(p.desde||''))[0]; if(!nv) return ''; const d=new Date(nv.hasta+'T12:00:00'); d.setDate(d.getDate()+1); return ' · vuelve el '+fecha(d.toISOString().slice(0,10)); })();
+    const vuelve=(()=>{ if(!porNov) return ''; const dsx=e.dias||[]; const nv=LIVE.novedades.filter(n=>n.cli===id&&n.tipo==='Suspensión'&&n.hasta&&(!n.pub||norm(x[0]).includes(norm(n.pub))||norm(n.pub).includes(norm(x[0])))&&(!n.dias||!n.dias.length||!dsx.length||n.dias.some(d=>dsx.includes(d)))).sort((p,q)=>(q.desde||'').localeCompare(p.desde||''))[0]; if(!nv) return ''; const d=new Date(nv.hasta+'T12:00:00'); d.setDate(d.getDate()+1); return ' · vuelve el '+fecha(d.toISOString().slice(0,10)); })();
     return `<div class="subrow">${x[0]} <span class="tag-susp">${porNov?'suspendida acá'+vuelve:'cerrada el '+fecha(x[3])}</span> <span class="mini">${x[1]||''}</span>
-    <div id="rf-${ix}"><button class="btn chico sec" data-sform="r${ix}" data-pub="${x[0]}" data-dias="${(FDIAS[norm(x[1])]||[]).join(',')}" data-via="${x[2]||'C'}" data-qty="${Math.abs(x[5])||1}" ${porNov?'':'data-cerrada="1"'} data-cli="${id}" data-acc="Reanudación">Reactivar</button></div></div>`;}).join('')+`</div>`;}
+    <div id="rf-${ix}"><button class="btn chico sec" data-sform="r${ix}" data-pub="${x[0]}" data-dias="${(e.dias||[]).join(',')}" data-via="${x[2]||'C'}" data-qty="${Math.abs(x[5])||1}" ${porNov?'':'data-cerrada="1"'} data-cli="${id}" data-acc="Reanudación">Reactivar</button></div></div>`;}).join('')+`</div>`;}
   h+=`<h2>Movimientos <span class="mini" style="text-transform:none">— tocá una liquidación para ver el desglose</span></h2><div class="card">`+(movs.length?movs.slice(0,FMOSTR).map((m,i)=>{
     const esLiq=m.tipo==='Liquidación'&&!m.id;
     return `<div class="mov${esLiq?' liqrow':''}"${esLiq?` data-dlq="${m.f.slice(0,10)}" data-dlc="${id}"`:''}><span class="f">${fecha(m.f)}</span><span class="t">${m.tipo}${m.tipo==='Cobro'&&m.medio?' · '+m.medio:''}${m.nota?' <span class="mini">· '+m.nota+'</span>':''}</span><span class="m ${(m.tipo==='Cobro'||m.imp<0)?'favor':''}">${(m.tipo==='Cobro'||m.imp<0)?'−':''}${fmt(m.imp)}</span>${m.id?`<button class="del" data-mid="${m.id}" data-cli="${id}">✕</button>`:''}</div><div class="desglose" data-dg="${m.f.slice(0,10)}_${id}" hidden></div>`;
@@ -2002,7 +2020,7 @@ document.addEventListener('click',function(e){
     cont.innerHTML=(esSusp?`<div class="grid2"><div>`:'')+`<label>${cerr?'Reactivar':sf.dataset.acc+' de'} ${sf.dataset.pub}${dd.length?' ('+dd.map(d=>DIAS[d]).join(' ')+')':''} desde</label><input type="date" class="sfec" value="${hoyISO()}">`
     +(esSusp?`</div><div><label>Vuelve a recibir el <span class="mini">(opcional; vacío = hasta que la reactives)</span></label><input type="date" class="sfhasta"></div></div>`:'')+`
     ${cerr?`<div class="mini" style="margin:2px 0 6px">Esta suscripción estaba cerrada en el sistema viejo: se vuelve a dar de alta desde esa fecha (${sf.dataset.via==='S'?'vía distribuidora':'le cobrás vos'}${parseInt(sf.dataset.qty)>1?', ×'+sf.dataset.qty:''}) y devenga desde ahí.</div>`:''}
-    ${otras>1&&dd.length?`<label class="chkl"><input type="checkbox" class="sftodas"> Aplicar a todas las suscripciones de ${sf.dataset.pub} de este cliente (${otras})</label>`:''}
+    ${otras>1&&dd.length&&sf.dataset.todas!=='1'?`<label class="chkl"><input type="checkbox" class="sftodas"> Aplicar a todas las suscripciones de ${sf.dataset.pub} de este cliente (${otras})</label>`:''}
     <button class="btn chico" data-sok data-pub="${sf.dataset.pub}" data-dias="${sf.dataset.dias||''}" data-via="${sf.dataset.via||''}" data-qty="${sf.dataset.qty||''}" ${cerr?'data-cerrada="1"':''} data-cli="${sf.dataset.cli}" data-acc="${sf.dataset.acc}">Confirmar ${cerr?'reactivación':sf.dataset.acc.toLowerCase()}</button>`;
     return;
   }
