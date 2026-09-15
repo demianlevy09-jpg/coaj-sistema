@@ -248,7 +248,7 @@ select.apagado{opacity:.45}
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v52</span></div></div><div class="hb" id="hbtns"></div></header>
+<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v53</span></div></div><div class="hb" id="hbtns"></div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -796,10 +796,13 @@ function ficha(id,mas){
   <div id="sf-${ix}"><button class="btn chico sec" data-sform="${ix}" data-pub="${x[0]}" data-dias="${(FDIAS[norm(x[1])]||[]).join(',')}" data-cli="${id}" data-acc="Suspensión">Suspender / dar de baja</button></div></div>`;});
   else if(!altas.length) h+='<div class="card mini">Sin publicaciones vigentes.</div>';
   h+=`<div id="altabox"><button class="btn chico" id="altabtn" data-cli="${id}">＋ Alta de suscripción nueva</button></div>`;
-  if(susp.length){h+=`<h2>Suspendidas (${susp.length})</h2><div class="card">`+susp.slice(0,10).map((x,ix)=>{
+  const altasTodas=LIVE.novedades.filter(n=>n.cli===id&&n.tipo==='Alta'&&n.dias);
+  const reactivada=x=>x[3]!=='V'&&altasTodas.some(n=>n.pub===x[0]&&(n.desde||'')>=(x[3]||'').slice(0,10)&&(!(FDIAS[norm(x[1])]||[]).length||n.dias.some(d=>(FDIAS[norm(x[1])]||[]).includes(d))));
+  const suspVis=susp.filter(x=>!reactivada(x));
+  if(suspVis.length){h+=`<h2>Suspendidas (${suspVis.length})</h2><div class="card">`+suspVis.slice(0,10).map((x,ix)=>{
     const porNov=x[3]==='V';
-    return `<div class="subrow">${x[0]} <span class="tag-susp">${porNov?'suspendida acá':'susp. '+fecha(x[3])}</span> <span class="mini">${x[1]||''}</span>
-    <div id="rf-${ix}"><button class="btn chico sec" data-sform="r${ix}" data-pub="${x[0]}" data-dias="${(FDIAS[norm(x[1])]||[]).join(',')}" data-cli="${id}" data-acc="Reanudación">Reactivar</button></div></div>`;}).join('')+`</div>`;}
+    return `<div class="subrow">${x[0]} <span class="tag-susp">${porNov?'suspendida acá':'cerrada el '+fecha(x[3])}</span> <span class="mini">${x[1]||''}</span>
+    <div id="rf-${ix}"><button class="btn chico sec" data-sform="r${ix}" data-pub="${x[0]}" data-dias="${(FDIAS[norm(x[1])]||[]).join(',')}" data-via="${x[2]||'C'}" data-qty="${Math.abs(x[5])||1}" ${porNov?'':'data-cerrada="1"'} data-cli="${id}" data-acc="Reanudación">Reactivar</button></div></div>`;}).join('')+`</div>`;}
   h+=`<h2>Movimientos <span class="mini" style="text-transform:none">— tocá una liquidación para ver el desglose</span></h2><div class="card">`+(movs.length?movs.slice(0,FMOSTR).map((m,i)=>{
     const esLiq=m.tipo==='Liquidación'&&!m.id;
     return `<div class="mov${esLiq?' liqrow':''}"${esLiq?` data-dlq="${m.f.slice(0,10)}" data-dlc="${id}"`:''}><span class="f">${fecha(m.f)}</span><span class="t">${m.tipo}${m.tipo==='Cobro'&&m.medio?' · '+m.medio:''}${m.nota?' <span class="mini">· '+m.nota+'</span>':''}</span><span class="m ${(m.tipo==='Cobro'||m.imp<0)?'favor':''}">${(m.tipo==='Cobro'||m.imp<0)?'−':''}${fmt(m.imp)}</span>${m.id?`<button class="del" data-mid="${m.id}" data-cli="${id}">✕</button>`:''}</div><div class="desglose" data-dg="${m.f.slice(0,10)}_${id}" hidden></div>`;
@@ -1951,9 +1954,11 @@ document.addEventListener('click',function(e){
     const cont=sf.parentElement;
     const dd=(sf.dataset.dias||'').split(',').filter(x=>x!=='').map(Number);
     const otras=(()=>{const c=C.find(x=>x.id===parseInt(sf.dataset.cli));if(!c)return 0;return c.subs.filter(x=>x[3]==='V'&&x[0]===sf.dataset.pub).length+LIVE.novedades.filter(n=>n.cli===c.id&&n.tipo==='Alta'&&n.dias&&n.pub===sf.dataset.pub).length;})();
-    cont.innerHTML=`<label>${sf.dataset.acc} de ${sf.dataset.pub}${dd.length?' ('+dd.map(d=>DIAS[d]).join(' ')+')':''} desde</label><input type="date" class="sfec" value="${hoyISO()}">
+    const cerr=sf.dataset.cerrada==='1';
+    cont.innerHTML=`<label>${cerr?'Reactivar':sf.dataset.acc+' de'} ${sf.dataset.pub}${dd.length?' ('+dd.map(d=>DIAS[d]).join(' ')+')':''} desde</label><input type="date" class="sfec" value="${hoyISO()}">
+    ${cerr?`<div class="mini" style="margin:2px 0 6px">Esta suscripción estaba cerrada en el sistema viejo: se vuelve a dar de alta desde esa fecha (${sf.dataset.via==='S'?'vía distribuidora':'le cobrás vos'}${parseInt(sf.dataset.qty)>1?', ×'+sf.dataset.qty:''}) y devenga desde ahí.</div>`:''}
     ${otras>1&&dd.length?`<label class="chkl"><input type="checkbox" class="sftodas"> Aplicar a todas las suscripciones de ${sf.dataset.pub} de este cliente (${otras})</label>`:''}
-    <button class="btn chico" data-sok data-pub="${sf.dataset.pub}" data-dias="${sf.dataset.dias||''}" data-cli="${sf.dataset.cli}" data-acc="${sf.dataset.acc}">Confirmar ${sf.dataset.acc.toLowerCase()}</button>`;
+    <button class="btn chico" data-sok data-pub="${sf.dataset.pub}" data-dias="${sf.dataset.dias||''}" data-via="${sf.dataset.via||''}" data-qty="${sf.dataset.qty||''}" ${cerr?'data-cerrada="1"':''} data-cli="${sf.dataset.cli}" data-acc="${sf.dataset.acc}">Confirmar ${cerr?'reactivación':sf.dataset.acc.toLowerCase()}</button>`;
     return;
   }
   const ab=e.target.closest('#altabtn');
@@ -1986,8 +1991,12 @@ document.addEventListener('click',function(e){
     const f=sok.parentElement.querySelector('.sfec').value;
     const cli=parseInt(sok.dataset.cli);
     const todas=sok.parentElement.querySelector('.sftodas'); const dd=(todas&&todas.checked)?[]:(sok.dataset.dias||'').split(',').filter(x=>x!=='').map(Number);
-    const r={id:nid(),ts:new Date().toISOString(),cli,tipo:sok.dataset.acc,pub:sok.dataset.pub,desde:f,hasta:'',dias:dd.length?dd:null,nota:'desde la ficha'};
-    guardar('novedades',[...LIVE.novedades,r]).then(()=>{toast(sok.dataset.acc+' guardada ✓');ficha(cli);}).catch(err=>toast('Error: '+(err&&err.message)));
+    let r;
+    if(sok.dataset.cerrada==='1'&&sok.dataset.acc==='Reanudación'){
+      const dias=(sok.dataset.dias||'').split(',').filter(x=>x!=='').map(Number);
+      r={id:nid(),ts:new Date().toISOString(),cli,tipo:'Alta',pub:sok.dataset.pub,desde:f,hasta:'',dias,via:sok.dataset.via||'C',qty:parseInt(sok.dataset.qty)||1,nota:'reactivación desde la ficha'};
+    } else r={id:nid(),ts:new Date().toISOString(),cli,tipo:sok.dataset.acc,pub:sok.dataset.pub,desde:f,hasta:'',dias:dd.length?dd:null,nota:'desde la ficha'};
+    guardar('novedades',[...LIVE.novedades,r]).then(()=>{SCACHE={};toast((r.tipo==='Alta'?'Reactivación':sok.dataset.acc)+' guardada ✓');ficha(cli);}).catch(err=>toast('Error: '+(err&&err.message)));
     return;
   }
   const lq=e.target.closest('.liqrow');
