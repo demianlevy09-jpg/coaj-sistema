@@ -257,7 +257,7 @@ select.apagado{opacity:.45}
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v63</span></div></div><div class="hb" id="hbtns"></div></header>
+<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v64</span></div></div><div class="hb" id="hbtns"></div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -1923,7 +1923,7 @@ function armarResumen(c,periodo){ // periodo = último día del mes (ISO)
 }
 function htmlResumen(c,r){
   const e=emisor(); const d=new Date(r.periodo+'T12:00:00');
-  const per=MESES[d.getMonth()]+' '+d.getFullYear();
+  const mes0=MESES[d.getMonth()]; const per=mes0.charAt(0).toUpperCase()+mes0.slice(1)+' '+d.getFullYear();
   const f=n=>(n<0?'−':'')+'$'+Math.abs(n).toLocaleString('es-AR',{maximumFractionDigits:0});
   const det=(r.detalle||[]).map(x=>`<tr><td>&nbsp;&nbsp;${x.pub} · ${x.n} ejemplares</td><td>${f(x.tot)}</td></tr>`).join('');
   return `<div class="res">
