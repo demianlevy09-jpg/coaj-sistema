@@ -94,8 +94,8 @@ h2::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--az
 .stat b{display:block;font-family:'Archivo',sans-serif;font-weight:800;font-size:22px;font-variant-numeric:tabular-nums;letter-spacing:-.3px}
 .stat i{display:block;font-style:normal;font-size:13px;color:var(--tinta2);margin-top:3px}
 .debe{color:var(--rojo)} .favor{color:var(--ok)} .aldia{color:var(--tinta2)}
-input,select{width:100%;font-size:16px;font-family:inherit;padding:12px;border:1.5px solid var(--linea);border-radius:9px;background:var(--tarjeta);color:var(--tinta);outline:none;margin-top:4px}
-input:focus,select:focus{border-color:var(--azul)}
+input,select,textarea{width:100%;font-size:16px;font-family:inherit;padding:12px;border:1.5px solid var(--linea);border-radius:9px;background:var(--tarjeta);color:var(--tinta);outline:none;margin-top:4px}
+input:focus,select:focus,textarea:focus{border-color:var(--azul)}
 label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-top:12px}
 .btn{display:inline-block;background:var(--azul);color:#fff;border:none;border-radius:9px;font-family:inherit;font-weight:700;font-size:16px;padding:13px 22px;cursor:pointer;margin-top:14px}
 .btn.sec{background:var(--tarjeta);color:var(--azul);border:1.5px solid var(--azul)}
@@ -137,6 +137,9 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
 .tots{display:flex;flex-wrap:wrap;gap:6px 14px;margin:6px 0 4px;font-size:14px}
 .tots b{display:inline;font-family:'Archivo',sans-serif;font-size:18px;color:var(--tinta);margin:0}
 .kpi.ancha{grid-column:span 2}
+textarea{resize:vertical;min-height:70px;line-height:1.4}
+.nota{padding:9px 0;border-bottom:1px solid var(--linea);display:flex;gap:10px;align-items:flex-start} .nota:last-child{border-bottom:0} .nota .nt{flex:1;white-space:pre-wrap;font-size:14.5px} .nota .nf{font-size:12.5px;color:var(--tinta2);display:block;margin-bottom:2px}
+.datoscli{margin-top:8px;font-size:14.5px;display:grid;gap:3px}
 .kpi .dos{display:grid;grid-template-columns:1fr 1fr;gap:14px} .kpi .dos>div+div{border-left:1px solid var(--okborde);padding-left:14px}
 .vgrid{grid-template-columns:repeat(auto-fill,minmax(340px,1fr))}
 .vgrid.vacias{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
@@ -259,7 +262,7 @@ select.apagado{opacity:.45}
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v69</span></div></div><div class="hb" id="hbtns"></div></header>
+<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v70</span></div></div><div class="hb" id="hbtns"></div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -830,15 +833,19 @@ function ficha(id,mas){
     ${devengoDe(c,'S')>0?`<div class="mini" style="margin-top:4px;color:var(--ok)">Vía distribuidora: repartido ${fmt(devengoDe(c,'S'))} de tapa desde el 01/09 → te genera ${fmt(devengoDe(c,'S')*CONFIG.comision/100)} de comisión (no es deuda del cliente)</div>`:''}
     ${!c.act?`<div class="aviso" style="background:var(--rojosuave);color:var(--rojo)">Cliente dado de baja${(()=>{const n=LIVE.novedades.filter(x=>x.cli===id&&x.tipo==='Baja'&&!x.pub).sort((x,y)=>(y.desde||'').localeCompare(x.desde||''))[0];return n?' desde el '+fecha(n.desde):'';})()}: no devenga y no figura en el padrón. <button class="btn chico sec" id="freact" data-cli="${id}" style="margin:6px 0 0">Reactivar cliente</button></div>`:''}
     ${sinPrecio(c).length?`<div class="aviso">⚠ ${sinPrecio(c).map(x=>x[0]).join(', ')}: sin precio cargado, no devenga. Cargalo en Precios.</div>`:''}
-    ${c.tel?`<div style="margin-top:8px;font-size:14.5px">Tel: <a style="color:var(--azul)" href="tel:${c.tel.replace(/[^0-9+]/g,'')}">${c.tel}</a></div>`:''}
+    <div class="datoscli">${c.tel?`<div>Tel: <a style="color:var(--azul)" href="tel:${c.tel.replace(/[^0-9+]/g,'')}">${c.tel}</a></div>`:''}${c.part?`<div>Entrega: <i>${c.part}</i></div>`:''}</div>
     <div class="grid2">
       <button class="btn chico" id="fbc" data-cli="${id}">＋ Cobro</button>
       <button class="btn chico sec" id="fbl" data-cli="${id}">＋ Ajuste</button>
       <button class="btn chico sec" id="fcor" data-cli="${id}">✎ Corregir saldo</button>
       <button class="btn chico sec" id="fres" data-cli="${id}">🖨 Resumen ${MESES[new Date(cierreISO()+'T12:00:00').getMonth()]}</button>
+      <button class="btn chico sec" id="fedit" data-cli="${id}">✎ Editar datos</button>
+      <button class="btn chico sec" id="fnotabtn" data-cli="${id}">📝 Anotación</button>
     </div>
     <div id="fform"></div>
   </div>`;
+  const notas=notasDe(c);
+  h+=`<h2>Anotaciones${notas.length?' ('+notas.length+')':''}</h2><div class="card" id="notascard">${notas.length?notas.map((n,i)=>`<div class="nota"><div class="nt">${n.f?`<span class="nf">${n.f}${n.a?' · '+n.a:''}</span>`:''}${n.t}</div><button class="mini-btn" data-nborrar="${i}" data-cli="${id}" title="Borrar anotación">✕</button></div>`).join(''):'<div class="mini">Sin anotaciones. Usá “📝 Anotación” para dejar algo registrado (ej. “paga los 10”, “avisar antes de tocar timbre”).</div>'}</div>`;
   if(novs.length){h+=`<h2>Novedades cargadas acá</h2><div class="card">`+novs.map(n=>`<div class="subrow"><b>${n.tipo}</b> <span class="mini">${descNov(n)}${n.nota?' · '+n.nota:''}</span></div>`).join('')+`</div>`;}
   h+=`<h2>Suscripciones vigentes (${vig.length})</h2>`;
   if(vig.length) agruparSubs(vig).forEach((e,ix)=>{const todasDeLaPub=vig.filter(x=>x[0]===e.pub).length===e.rows.length;h+=`<div class="card"><b>${e.pub}</b>${e.qty>1&&!e.qtyMix?` <span class="mini">×${e.qty}</span>`:''} <span class="pill ${e.via==='S'?'p-susc':'p-cli'}">${e.via==='S'?'vía distribuidora':'le cobrás vos'}</span>${e.app?' <span class="pill p-warn">alta cargada acá</span>':''}${e.dias?diasHTMLArr(e.dias):(e.txt?`<div class="mini" style="margin-top:6px">${e.txt}</div>`:'')}${e.rows.length>1?`<div class="mini" style="margin-top:4px">${e.rows.length} suscripciones agrupadas (una por día)</div>`:''}<div class="mini" style="margin-top:6px">desde ${fecha(e.desde)}</div>
@@ -862,6 +869,58 @@ function ficha(id,mas){
   ${movs.length>FMOSTR?`<div style="text-align:center"><button class="btn chico sec" id="fmas" data-cli="${id}">Ver más (${movs.length-FMOSTR} anteriores)</button></div>`:''}
   <div class="mini" style="margin:8px 0 20px">Cobro = pagó (baja deuda) · el consumo diario se devenga solo según sus suscripciones y precios. Las filas con ✕ se cargaron en este sistema y se pueden borrar.</div>`;
   $('v-ficha').innerHTML=h; ver('ficha'); try{history.replaceState(null,'','#ficha-'+id);}catch(_){}
+}
+/* ------- DATOS DEL CLIENTE Y ANOTACIONES (v70) ------- */
+// Las anotaciones viven en clientes.observaciones, una por línea, la más nueva arriba: "dd/mm/aa · Autor: texto" (saltos de línea internos como ⏎).
+function notasDe(c){
+  return (c.obs||'').split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{const m=l.match(/^(\d\d\/\d\d\/\d\d) · ([^:]{0,40}): ([\s\S]*)$/);return m?{f:m[1],a:m[2],t:m[3].replace(/ ⏎ /g,'\n'),raw:l}:{f:'',a:'',t:l,raw:l};});
+}
+async function guardarCliente(id,campos){
+  const c=C.find(x=>x.id===id); if(!c) throw new Error('cliente no encontrado');
+  const{error}=await sb.from('clientes').update({...campos,modificado_en:new Date().toISOString(),modificado_por:USUARIO&&USUARIO.id||null}).eq('id',id);
+  if(error) throw new Error(error.message);
+  if('domicilio' in campos) c.d=esc(campos.domicilio);
+  if('nombre' in campos) c.n=esc(campos.nombre);
+  if('telefono' in campos) c.tel=esc(campos.telefono);
+  if('particularidad' in campos) c.part=esc(campos.particularidad);
+  if('observaciones' in campos) c.obs=esc(campos.observaciones);
+  c.k=norm(c.d+' '+c.n+' '+c.id+' '+c.subs.map(x=>x[0]).join(' '));
+}
+function formEditarCliente(id){
+  const c=C.find(x=>x.id===id); if(!c)return;
+  $('fform').innerHTML=`<div class="mini" style="margin:10px 0 2px"><b>Datos del cliente Nº ${id}</b></div>
+  <label>Domicilio</label><input id="ed-dom" value="${c.d||''}">
+  <label>Nombre</label><input id="ed-nom" value="${c.n||''}">
+  <label>Teléfono</label><input id="ed-tel" type="tel" value="${c.tel||''}">
+  <label>Particularidad de entrega (sale en la hoja de reparto)</label><input id="ed-part" value="${c.part||''}" placeholder="ej: bajo puerta, dejar en portería">
+  <div class="grid2" style="margin-top:12px"><button class="btn chico" id="fedok" data-cli="${id}">Guardar datos</button><button class="btn chico sec" id="fcancel" data-cli="${id}">Cancelar</button></div>`;
+  $('ed-dom').focus();
+}
+async function editarClienteOK(id){
+  const dom=$('ed-dom').value.trim(); if(!dom){toast('El domicilio no puede quedar vacío');return;}
+  try{ await guardarCliente(id,{domicilio:dom,nombre:$('ed-nom').value.trim(),telefono:$('ed-tel').value.trim(),particularidad:$('ed-part').value.trim()}); toast('Datos guardados ✓'); ficha(id); }
+  catch(e){toast('No se pudo guardar: '+((e&&e.message)||e));}
+}
+function formNota(id){
+  $('fform').innerHTML=`<label>Anotación</label><textarea id="nt-txt" placeholder="ej: paga a fin de mes · pidió factura · avisar antes de suspender"></textarea>
+  <div class="grid2" style="margin-top:12px"><button class="btn chico" id="fnotaok" data-cli="${id}">Guardar anotación</button><button class="btn chico sec" id="fcancel" data-cli="${id}">Cancelar</button></div>`;
+  $('nt-txt').focus();
+}
+async function notaOK(id){
+  const c=C.find(x=>x.id===id); if(!c)return;
+  const t=$('nt-txt').value.trim().replace(/\r?\n+/g,' ⏎ '); if(!t){toast('Escribí la anotación');return;}
+  const autor=(nombreUsuario()||'').slice(0,40).replace(/:/g,'');
+  const linea=fecha(hoyISO())+' · '+autor+': '+t;
+  const obs=[linea,...notasDe(c).map(n=>unesc(n.raw))].join('\n');
+  try{ await guardarCliente(id,{observaciones:obs}); toast('Anotación guardada ✓'); ficha(id); }
+  catch(e){toast('No se pudo guardar: '+((e&&e.message)||e));}
+}
+async function borrarNota(id,i){
+  const c=C.find(x=>x.id===id); if(!c)return;
+  if(!confirm('¿Borrar esta anotación?'))return;
+  const obs=notasDe(c).filter((_,k)=>k!==i).map(n=>unesc(n.raw)).join('\n');
+  try{ await guardarCliente(id,{observaciones:obs}); toast('Anotación borrada'); ficha(id); }
+  catch(e){toast('No se pudo borrar: '+((e&&e.message)||e));}
 }
 function formCobro(id){
   $('fform').innerHTML=`<label>Importe cobrado</label><input id="fimp" type="number" inputmode="decimal" placeholder="0">
@@ -2094,6 +2153,8 @@ document.addEventListener('click',function(e){
   if(e.target.closest('#nedit-cancel')){NEDIT=null;pintarNForm();return;}
   if(fch&&fch.dataset.femodo){document.querySelectorAll('.fch[data-femodo]').forEach(x=>x.classList.toggle('on',x===fch));$('fepubs').hidden=fch.dataset.femodo!=='parcial';return;}
   if(fch&&fch.dataset.nt){NEDIT=null;NTIPO=fch.dataset.nt;document.querySelectorAll('.fch[data-nt]').forEach(x=>x.classList.toggle('on',x.dataset.nt===NTIPO));pintarNForm();return;}
+  if(e.target.closest('#fcancel')){const f=$('fform');if(f)f.innerHTML='';return;}
+  if(e.target.closest('[data-nborrar]')){const x=e.target.closest('[data-nborrar]');borrarNota(parseInt(x.dataset.cli),parseInt(x.dataset.nborrar));return;}
   const del=e.target.closest('.del');
   if(del){
     if(del.dataset.mid) borrarMov(del.dataset.mid,parseInt(del.dataset.cli));
@@ -2234,6 +2295,10 @@ document.addEventListener('click',function(e){
     case 'dnuevook': nuevoDist();break;
     case 'fbl': formLiq(parseInt(b.dataset.cli));break;
     case 'fcor': formCorregir(parseInt(b.dataset.cli));break;
+    case 'fedit': formEditarCliente(parseInt(b.dataset.cli));break;
+    case 'fedok': editarClienteOK(parseInt(b.dataset.cli));break;
+    case 'fnotabtn': formNota(parseInt(b.dataset.cli));break;
+    case 'fnotaok': notaOK(parseInt(b.dataset.cli));break;
     case 'fcorok': corregirSaldo(parseInt(b.dataset.cli));break;
     case 'fres': imprimirResumenes([parseInt(b.dataset.cli)]);break;
     case 'bimp': {const ids=RES.filter(x=>saldoDe(x.c,cierreISO())>0.5).map(x=>x.c.id); if(!ids.length){toast('Nadie con saldo deudor al '+fecha(cierreISO()));break;} imprimirResumenes(ids);break;}
