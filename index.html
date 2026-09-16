@@ -137,6 +137,7 @@ label{font-size:13px;font-weight:600;color:var(--tinta2);display:block;margin-to
 .tots{display:flex;flex-wrap:wrap;gap:6px 14px;margin:6px 0 4px;font-size:14px}
 .tots b{display:inline;font-family:'Archivo',sans-serif;font-size:18px;color:var(--tinta);margin:0}
 .kpi.ancha{grid-column:span 2}
+.kpi .dos{display:grid;grid-template-columns:1fr 1fr;gap:14px} .kpi .dos>div+div{border-left:1px solid var(--okborde);padding-left:14px}
 .vgrid{grid-template-columns:repeat(auto-fill,minmax(340px,1fr))}
 .vgrid.vacias{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
 .vgrid.vacias .vhead{padding:8px 12px}
@@ -258,7 +259,7 @@ select.apagado{opacity:.45}
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v68</span></div></div><div class="hb" id="hbtns"></div></header>
+<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v69</span></div></div><div class="hb" id="hbtns"></div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -666,7 +667,7 @@ function pintarInicio(){
 
   <div class="sec ok"><span class="dot"></span>Tengo</div>
   <div class="kpis">
-    <div class="kpi ok punteado click" onclick="irClientes('deudores')"><i>Me deben</i><b>${fmt(tot)}</b><i>${deud.length} clientes con saldo deudor</i></div>
+    ${(()=>{const ci=cierreISO();const dC=C.map(c=>saldoDe(c,ci)).filter(v=>v>0.5),dH=C.map(c=>saldoDe(c,hoy)).filter(v=>v>0.5);const sm=a=>a.reduce((n,v)=>n+v,0);return `<div class="kpi ok punteado click ancha" onclick="irClientes('deudores')"><i>Me deben</i><div class="dos"><div><b>${fmt(sm(dC))}</b><i>al ${fecha(ci)} (mes vencido) · ${dC.length} clientes</i></div><div><b>${fmt(sm(dH))}</b><i>a hoy · ${dH.length} clientes</i></div></div></div>`;})()}
     ${(()=>{const pm={};LIVE.caja.forEach(r=>{pm[r.m||'Sin medio']=(pm[r.m||'Sin medio']||0)+(r.ing||0)-(r.egr||0);});const ents=Object.entries(pm).filter(([m,v])=>Math.abs(v)>0.5||m==='Efectivo');return ents.length?ents.map(([m,v])=>`<div class="kpi ${v<-0.5?'rojo':'ok'} click" onclick="irTab('caja')"><i>Caja ${m.toLowerCase()}</i><b>${fmt(v)}</b><i>${cajaHoy.length?'hoy: '+fmt(ing-egr)+' ('+cajaHoy.length+' mov.)':'sin movimientos hoy'}</i></div>`).join(''):`<div class="kpi gris click" onclick="irTab('caja')"><i>Caja</i><b>—</b><i>sin movimientos aún</i></div>`;})()}
     <div class="kpi ok click" onclick="irTab('dist')"><i>Comisión devengada</i><b>${fmt(com)}</b><i>por repartir a suscriptores desde el 01/09</i></div>
     ${DISTS.filter(d=>saldoDist(d.id)<-0.5).map(d=>`<div class="kpi ok click" onclick="DSEL=${d.id};irTab('dist')"><i>${d.nombre} me debe</i><b>${fmt(-saldoDist(d.id))}</b><i>saldo de la CC</i></div>`).join('')}
