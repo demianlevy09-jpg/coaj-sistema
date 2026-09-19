@@ -262,7 +262,7 @@ select.apagado{opacity:.45}
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v70</span></div></div><div class="hb" id="hbtns"></div></header>
+<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v71</span></div></div><div class="hb" id="hbtns"></div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -412,7 +412,7 @@ const DE_DB={
   dist:x=>({id:String(x.id),ts:x.creado_en,f:x.fecha,d:x.detalle||'',imp:Number(x.importe),dist:x.distribuidor_id}),
   feriados:x=>({id:x.fecha,f:x.fecha,d:x.motivo||'',sp:x.sin_pubs||null}),
   devol:x=>({id:String(x.id),ts:x.creado_en,f:x.fecha,pub:x.publicacion,qty:x.cantidad,nota:x.nota||'',dist:x.distribuidor_id,vu:x.valor_unit==null?null:Number(x.valor_unit),imp:x.importe==null?null:Number(x.importe)}),
-  reparto:x=>({id:String(x.id),cli:x.cliente_id,dia:x.dia,vuelta:x.vuelta,orden:x.orden||0}),
+  reparto:x=>({id:String(x.id),cli:x.cliente_id,dia:x.dia,vuelta:x.vuelta,orden:x.orden||0,org:x.origen||''}),
   vueltas:x=>({id:x.nombre,nombre:x.nombre,repartidor:x.repartidor||'',orden:x.orden||0,activo:x.activo!==false}),
   prov:x=>({id:x.id,nombre:x.nombre,tel:x.telefono||'',nota:x.nota||'',activo:x.activo!==false}),
   prod:x=>({id:x.id,nombre:x.nombre,cat:x.categoria||'',prov:x.proveedor_id,modo:x.modo_precio||'fijo',precio:Number(x.precio_venta)||0,margen:Number(x.margen)||0,costo:Number(x.costo)||0,activo:x.activo!==false}),
@@ -1257,14 +1257,44 @@ async function borrarNov(id){
   if(!confirm('¿Borrar?'))return;
   try{ await guardar('novedades',LIVE.novedades.filter(r=>r.id!==id)); recalcActivos(); SCACHE={}; toast('Borrada'); pintarNovedades(); }catch(e){toast('Error: '+((e&&e.message)||e));}
 }
-/* ------- REPARTO (v46): vueltas, paradas en orden, paquetes ------- */
+/* ------- REPARTO (v71): paradas agrupadas por dirección y ordenadas por altura ------- */
 let VUELTAS=[], REPARTO_OK=true, RDIA=null, RDRAG=null;
 const DIAS_L=['lunes','martes','miércoles','jueves','viernes','sábado','domingo'];
 function wdDe(iso){return (new Date(iso+'T12:00:00').getDay()+6)%7;}
 function fechaParaDia(wd){ // próxima fecha (hoy inclusive) que cae en ese día de semana
   const h=hoyISO(); const d=new Date(h+'T12:00:00'); const cur=(d.getDay()+6)%7; d.setDate(d.getDate()+((wd-cur+7)%7)); return d.toISOString().slice(0,10);
 }
-function edificioDe(dom){ const m=(dom||'').match(/^(.*?\s\d+)(\s.*)?$/); return m?{ed:m[1],un:(m[2]||'').trim()}:{ed:dom||'',un:''}; }
+function edificioDe(dom){ // "Húsares 2255 1 14 3" → ed:"Húsares 2255" · calle:"Húsares" · alt:2255 · un:"1 14 3"
+  const s=(dom||'').trim(); const m=s.match(/^(.*?\s(\d+))(\s.*)?$/);
+  if(!m) return {ed:s,un:'',calle:s,alt:0};
+  return {ed:m[1],un:(m[3]||'').trim(),calle:m[1].slice(0,m[1].length-m[2].length).trim(),alt:parseInt(m[2],10)||0};
+}
+function cmpNat(a,b){ // orden "natural": sin unidad primero, después 1 B, 4 F, 10 A (no 1, 10, 4)
+  const ta=String(a||'').trim().toLowerCase().match(/\d+|\D+/g)||[], tb=String(b||'').trim().toLowerCase().match(/\d+|\D+/g)||[];
+  for(let i=0;i<Math.max(ta.length,tb.length);i++){
+    const x=ta[i],y=tb[i]; if(x==null)return -1; if(y==null)return 1;
+    const nx=parseInt(x,10),ny=parseInt(y,10);
+    if(!isNaN(nx)&&!isNaN(ny)){ if(nx!==ny) return nx-ny; }
+    else { const c=norm(x.trim()).localeCompare(norm(y.trim())); if(c) return c; }
+  }
+  return 0;
+}
+function cmpDir(a,b){ const x=edificioDe(a),y=edificioDe(b); return norm(x.calle).localeCompare(norm(y.calle))||(x.alt-y.alt)||cmpNat(x.un,y.un); }
+// ¿esa vuelta/día quedó ordenada a mano? Si no, manda el orden por dirección.
+function ordenManual(dia,vuelta){ return LIVE.reparto.some(r=>r.dia===dia&&r.vuelta===vuelta&&r.org==='manual'); }
+// Una parada por dirección (todos los pisos juntos). Default: la calle conserva su lugar en el recorrido y adentro va por altura de menor a mayor.
+function agruparParadas(list,manual){
+  const gm=new Map();
+  (list||[]).forEach(x=>{ const e=edificioDe(x.c.d); const k=norm(e.ed); let g=gm.get(k);
+    if(!g){ g={ed:e.ed,calle:e.calle,ck:norm(e.calle),alt:e.alt,cl:[],min:Infinity}; gm.set(k,g); }
+    g.cl.push(x); g.min=Math.min(g.min,x.orden||0); });
+  const gs=[...gm.values()];
+  gs.forEach(g=>g.cl.sort((a,b)=>cmpNat(edificioDe(a.c.d).un,edificioDe(b.c.d).un)||norm(a.c.n||'').localeCompare(norm(b.c.n||''))));
+  if(manual) gs.sort((a,b)=>a.min-b.min||a.ck.localeCompare(b.ck)||(a.alt-b.alt));
+  else { const cm={}; gs.forEach(g=>{ if(cm[g.ck]==null||g.min<cm[g.ck]) cm[g.ck]=g.min; });
+    gs.sort((a,b)=>(cm[a.ck]-cm[b.ck])||a.ck.localeCompare(b.ck)||(a.alt-b.alt)||a.ed.localeCompare(b.ed)); }
+  return gs;
+}
 // qué recibe un cliente en una fecha (según suscripciones + altas cargadas − suspensiones/bajas/feriados)
 function entregasDe(c,iso){
   const wd=wdDe(iso); const out=[], res=[];
@@ -1300,12 +1330,9 @@ function pintarReparto(){
     if(a&&porV[a.vuelta]) porV[a.vuelta].push({c,ent:e.out,orden:a.orden,rid:a.id});
     else sinV.push({c,ent:e.out});
   });
-  const agrupar=list=>{ // paradas = edificios consecutivos en orden
-    list.sort((a,b)=>a.orden-b.orden||edificioDe(a.c.d).ed.localeCompare(edificioDe(b.c.d).ed));
-    const paradas=[]; list.forEach(x=>{const ed=edificioDe(x.c.d).ed; const last=paradas[paradas.length-1]; if(last&&last.ed===ed) last.cl.push(x); else paradas.push({ed,cl:[x]});}); return paradas;
-  };
+  const agrupar=(list,vn)=>agruparParadas(list,ordenManual(RDIA,vn));
   const totStr=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]).map(([p,n])=>`<b>${n}</b> ${p}`).join(' · ')||'—';
-  const nParadas=Object.values(porV).reduce((n,l)=>n+agrupar([...l]).length,0);
+  const nParadas=Object.entries(porV).reduce((n,[vn,l])=>n+agrupar(l,vn).length,0);
   let h=titulo('Reparto',`${DIAS_L[RDIA][0].toUpperCase()+DIAS_L[RDIA].slice(1)} ${fecha(iso)} · ${nCli} clientes en ${nParadas} paradas · ${Object.values(totPub).reduce((a,b)=>a+b,0)} ejemplares`);
   h+=`<div class="fchips" style="margin:0 0 12px">${DIAS7.map((d,i)=>`<button class="fch${i===RDIA?' on':''}" data-rdia="${i}">${DIAS_L[i]}</button>`).join('')}<button class="fch" id="rimpall" style="margin-left:auto">🖨 Imprimir todas las vueltas</button><button class="fch" id="rimpmulti">🖨 Varios días…</button></div>`;
   if(feriado) h+=`<div class="aviso" style="margin-bottom:12px">${fecha(iso)} está cargado como feriado ${feriadoTotal(iso)?'sin reparto: no se entrega nada ese día.':'con diario'+(((LIVE.feriados.find(r=>r.f===iso)||{}).sp||[]).length?': no sale '+(LIVE.feriados.find(r=>r.f===iso)).sp.join(', ')+'.':' (salen todos); se suman las suscripciones "Fer".')}</div>`;
@@ -1314,11 +1341,11 @@ function pintarReparto(){
     <div class="kpi ${sinV.length?'amb':'gris'}"><i>Sin vuelta asignada</i><b>${sinV.length} <small>clientes</small></b><i>${sinV.length?'asignalos abajo':'todos asignados ✓'}</i></div>
     <div class="kpi ${reservas.length?'':'gris'}"><i>Reservas en la parada</i><b>${reservas.length} <small>ejemplares</small></b><i>los retiran en el puesto</i></div>
   </div>`;
-  h+=`<div class="sec"><span class="dot"></span>Vueltas del ${DIAS_L[RDIA]} <span class="mini" style="text-transform:none;letter-spacing:0">— arrastrá las paradas para cambiar el orden o pasarlas a otra vuelta; ⇄ mueve un cliente</span></div>`;
+  h+=`<div class="sec"><span class="dot"></span>Vueltas del ${DIAS_L[RDIA]} <span class="mini" style="text-transform:none;letter-spacing:0">— por default van agrupadas por dirección y ordenadas por altura; arrastrá las paradas para cambiar el orden o pasarlas a otra vuelta; ⇄ mueve un cliente</span></div>`;
   h+=`<div class="vgrid">`;
   const vacias=[];
   vueltasActivas().forEach(v=>{
-    const list=porV[v.nombre]; const paradas=agrupar(list);
+    const list=porV[v.nombre]; const man=ordenManual(RDIA,v.nombre); const paradas=agruparParadas(list,man);
     if(!paradas.length){vacias.push(v);return;}
     const tot={}; list.forEach(x=>x.ent.forEach(e=>tot[e.pub]=(tot[e.pub]||0)+e.qty));
     const nEj=Object.values(tot).reduce((a,b)=>a+b,0);
@@ -1326,7 +1353,7 @@ function pintarReparto(){
       <div class="vhead"><div><b>${v.nombre}</b> <span class="mini lnk" data-rrep="${v.nombre}" title="Cambiar repartidor">${v.repartidor||'sin repartidor'} ✎</span></div>
         <div class="mini">${paradas.length} paradas · ${nEj} ejemplares</div>
         <div class="mini vtot">${totStr(tot)}</div>
-        <button class="btn chico sec" data-rimp="${v.nombre}" style="margin-top:6px">🖨 Hoja</button></div>
+        <button class="btn chico sec" data-rimp="${v.nombre}" style="margin-top:6px">🖨 Hoja</button>${man?`<button class="btn chico sec" data-rord="${v.nombre}" style="margin-top:6px" title="Volver al orden automático: agrupado por dirección y por altura">↕ Orden por dirección</button>`:'<span class="mini" style="margin-top:6px">orden por dirección</span>'}</div>
       <div class="vlist" data-vuelta="${v.nombre}">`;
     paradas.forEach((p,i)=>{
       h+=`<div class="parada" draggable="true" data-ed="${p.ed}" data-vuelta="${v.nombre}" data-clis="${p.cl.map(x=>x.c.id).join(',')}">
@@ -1340,7 +1367,7 @@ function pintarReparto(){
   h+=`</div>`;
   if(vacias.length) h+=`<div class="mini" style="margin:14px 0 6px">Vueltas sin paradas el ${DIAS_L[RDIA]} (arrastrá una parada acá para usarlas):</div><div class="vgrid vacias">${vacias.map(v=>`<div class="vcol" data-vuelta="${v.nombre}"><div class="vhead"><b>${v.nombre}</b> <span class="mini lnk" data-rrep="${v.nombre}">${v.repartidor||'sin repartidor'} ✎</span></div><div class="vlist" data-vuelta="${v.nombre}"><div class="mini" style="padding:10px 6px;text-align:center">Soltá acá</div></div></div>`).join('')}</div>`;
   if(sinV.length){
-    h+=`<div class="sec amb"><span class="dot"></span>Sin vuelta asignada (${sinV.length})</div><div class="card">${sinV.sort((a,b)=>a.c.d.localeCompare(b.c.d)).map(x=>`<div class="pcli"><span class="un" style="min-width:0"><b>${x.c.d}</b></span><span class="pe">${x.ent.map(e=>(e.qty>1?e.qty+'× ':'')+e.pub).join(' + ')}</span><button class="btn chico sec" data-mv="${x.c.id}" style="margin:0;padding:6px 10px;font-size:13px">Asignar a una vuelta…</button></div>`).join('')}</div>`;
+    h+=`<div class="sec amb"><span class="dot"></span>Sin vuelta asignada (${sinV.length})</div><div class="card">${sinV.sort((a,b)=>cmpDir(a.c.d,b.c.d)).map(x=>`<div class="pcli"><span class="un" style="min-width:0"><b>${x.c.d}</b></span><span class="pe">${x.ent.map(e=>(e.qty>1?e.qty+'× ':'')+e.pub).join(' + ')}</span><button class="btn chico sec" data-mv="${x.c.id}" style="margin:0;padding:6px 10px;font-size:13px">Asignar a una vuelta…</button></div>`).join('')}</div>`;
   }
   if(reservas.length){
     h+=`<div class="sec"><span class="dot"></span>Reservas en la parada (${reservas.length})</div><div class="card"><div class="mini" style="margin-bottom:6px">Se los guardan en el puesto, no van en ninguna vuelta.</div>${reservas.map(r=>`<div class="pcli"><span class="un" style="min-width:0"><b>${r.c.d}</b>${r.c.n?' · '+r.c.n:''}</span><span class="pe">${r.qty>1?r.qty+'× ':''}${r.pub}</span></div>`).join('')}</div>`;
@@ -1359,20 +1386,27 @@ function pintarReparto(){
   el.querySelectorAll('.vlist').forEach(l=>{
     l.addEventListener('dragover',e=>{e.preventDefault();l.classList.add('over'); if(RDRAG&&!l.contains(RDRAG)&&!e.target.closest('.parada')) l.appendChild(RDRAG);});
     l.addEventListener('dragleave',()=>l.classList.remove('over'));
-    l.addEventListener('drop',e=>{e.preventDefault();l.classList.remove('over');guardarOrdenDOM();});
+    l.addEventListener('drop',e=>{e.preventDefault();l.classList.remove('over');const orig=RDRAG?RDRAG.dataset.vuelta:null;guardarOrdenDOM([l.dataset.vuelta,orig].filter(Boolean));});
   });
 }
 // lee el DOM y guarda vuelta+orden de todos los clientes del día (upsert por cliente/día)
-async function guardarOrdenDOM(){
+async function guardarOrdenDOM(tocadas){
+  const man=new Set(tocadas||[]); // vueltas que el usuario acomodó a mano en esta pantalla
   const rows=[];
   document.querySelectorAll('#v-reparto .vlist').forEach(l=>{
     const vuelta=l.dataset.vuelta;
+    const manual=man.has(vuelta)||ordenManual(RDIA,vuelta);
     [...l.querySelectorAll('.parada')].forEach((p,i)=>{
-      (p.dataset.clis||'').split(',').filter(Boolean).forEach(id=>rows.push({cliente_id:parseInt(id),dia:RDIA,vuelta:unesc(vuelta),orden:(i+1)*10}));
+      (p.dataset.clis||'').split(',').filter(Boolean).forEach(id=>rows.push({cliente_id:parseInt(id),dia:RDIA,vuelta:unesc(vuelta),orden:(i+1)*10,origen:manual?'manual':'app'}));
     });
   });
   try{
-    const{error}=await sb.from('reparto').upsert(rows,{onConflict:'cliente_id,dia'}); if(error)throw new Error(error.message);
+    let{error}=await sb.from('reparto').upsert(rows,{onConflict:'cliente_id,dia'});
+    if(error){ // por si la columna origen no se puede escribir: guardamos igual el orden
+      const r2=rows.map(({origen,...r})=>r);
+      const x=await sb.from('reparto').upsert(r2,{onConflict:'cliente_id,dia'}); error=x.error;
+    }
+    if(error)throw new Error(error.message);
     await cargarTabla('reparto'); toast('Orden guardado ✓'); pintarReparto();
   }catch(e){toast('Error: '+((e&&e.message)||e)); pintarReparto();}
 }
@@ -1464,10 +1498,15 @@ async function nuevaVuelta(){
   const n=$('rnv').value.trim(), r=$('rnr').value.trim(); if(!n){toast('Poné el nombre de la vuelta');return;}
   try{ const{error}=await sb.from('vueltas').insert({nombre:n,repartidor:r,orden:VUELTAS.length+1}); if(error)throw new Error(error.message); await cargarTabla('vueltas'); toast('Vuelta creada ✓'); pintarReparto(); }catch(e){toast('Error: '+((e&&e.message)||e));}
 }
+async function ordenPorDireccion(vuelta){ // saca el orden a mano de esa vuelta/día y vuelve al automático
+  try{ const{error}=await sb.from('reparto').update({origen:'app'}).eq('dia',RDIA).eq('vuelta',unesc(vuelta)); if(error)throw new Error(error.message);
+    await cargarTabla('reparto'); toast('Orden por dirección ✓'); pintarReparto();
+  }catch(e){toast('Error: '+((e&&e.message)||e));}
+}
 function moverParada(p,dir){
   const sib=dir==='up'?p.previousElementSibling:p.nextElementSibling; if(!sib||!sib.classList.contains('parada'))return;
   if(dir==='up') p.parentElement.insertBefore(p,sib); else p.parentElement.insertBefore(sib,p);
-  guardarOrdenDOM();
+  guardarOrdenDOM([p.dataset.vuelta]);
 }
 function hojaHTML(vnombre,iso){
   const v=VUELTAS.find(x=>x.nombre===vnombre)||{nombre:vnombre};
@@ -1475,8 +1514,7 @@ function hojaHTML(vnombre,iso){
   const asig={}; LIVE.reparto.filter(r=>r.dia===wdh&&r.vuelta===vnombre).forEach(r=>asig[r.cli]=r);
   const list=[]; const tot={};
   C.filter(c=>c.act&&asig[c.id]).forEach(c=>{const e=entregasDe(c,iso); if(!e.out.length)return; e.out.forEach(x=>tot[x.pub]=(tot[x.pub]||0)+x.qty); list.push({c,ent:e.out,orden:asig[c.id].orden});});
-  list.sort((a,b)=>a.orden-b.orden||a.c.d.localeCompare(b.c.d));
-  const paradas=[]; list.forEach(x=>{const ed=edificioDe(x.c.d).ed; const last=paradas[paradas.length-1]; if(last&&last.ed===ed) last.cl.push(x); else paradas.push({ed,cl:[x]});});
+  const paradas=agruparParadas(list,ordenManual(wdh,vnombre));
   return `<div class="hoja"><div class="hh"><div><b>COHAJ · Reparto del ${DIAS_L[wdh]} ${fecha(iso)}</b><div>Vuelta <b>${v.nombre}</b>${v.repartidor?' · '+v.repartidor:''}</div></div><div class="ht">${Object.entries(tot).sort((a,b)=>b[1]-a[1]).map(([p,n])=>`<b>${n}</b> ${p}`).join(' · ')||'—'}<div>${paradas.length} paradas · ${list.length} clientes</div></div></div>
   ${paradas.map((p,i)=>`<div class="hp"><div class="hpe">${i+1}. ${p.ed}</div>${p.cl.map(x=>`<div class="hpc"><span class="hq">☐</span><span class="hu">${edificioDe(x.c.d).un||''}</span><span class="he">${x.ent.map(e=>(e.qty>1?e.qty+'× ':'')+e.pub).join(' + ')}</span><span class="hpp">${x.c.part||''}</span></div>`).join('')}</div>`).join('')}
   ${paradas.length?'':'<div>Sin paradas.</div>'}</div>`;
@@ -2135,6 +2173,7 @@ document.addEventListener('click',function(e){
   if(fch&&fch.dataset.rdia!=null){RDIA=parseInt(fch.dataset.rdia);pintarReparto();return;}
   const rrep=e.target.closest('[data-rrep]'); if(rrep){editarRepartidor(rrep.dataset.rrep);return;}
   const rimp=e.target.closest('[data-rimp]'); if(rimp){imprimirHojas([rimp.dataset.rimp]);return;}
+  const rord=e.target.closest('[data-rord]'); if(rord){ordenPorDireccion(rord.dataset.rord);return;}
   const rva=e.target.closest('[data-rvact]'); if(rva){toggleVuelta(rva.dataset.rvact);return;}
   const mvb=e.target.closest('[data-mv]'); if(mvb){moverCliente(parseInt(mvb.dataset.mv));return;}
   const pmv=e.target.closest('[data-pmv]'); if(pmv){moverParada(pmv.closest('.parada'),pmv.dataset.pmv);return;}
