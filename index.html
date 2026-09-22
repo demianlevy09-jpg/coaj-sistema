@@ -263,7 +263,7 @@ select.apagado{opacity:.45}
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v76</span></div></div><div class="hb" id="hbtns"></div></header>
+<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v77</span></div></div><div class="hb" id="hbtns"></div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -1006,6 +1006,12 @@ function pintarCaja(){
   const hoyC=hoyISO(), deHoy=LIVE.caja.filter(r=>(r.f||'').startsWith(hoyC)), netoHoy=deHoy.reduce((n,r)=>n+(r.ing||0)-(r.egr||0),0);
   $('v-caja').innerHTML=`${titulo('Caja','Saldo por medio de pago y movimientos cargados acá')}
   <div class="kpis">${Object.keys(porMedio).length?Object.entries(porMedio).map(([m,v])=>`<div class="kpi ${v<-0.5?'rojo':'ok'}"><i>Caja ${(m||'sin medio').toLowerCase()}</i><b>${fmt(v)}</b><i>saldo actual</i></div>`).join(''):'<div class="kpi gris"><i>Caja</i><b>—</b><i>sin movimientos aún</i></div>'}<div class="kpi ${deHoy.length?(netoHoy<0?'rojo':''):'gris'}"><i>Hoy</i><b>${deHoy.length?fmt(netoHoy):'—'}</b><i>${deHoy.length?deHoy.length+' movimientos':'sin movimientos hoy'}</i></div></div>
+  <div class="card"><b>Pasar plata entre cajas</b><div class="mini" style="margin:2px 0 4px">Ej: depositaste efectivo y ahora está en la cuenta. Sale de una caja y entra en la otra; el total no cambia.</div>
+    <div class="grid2"><div><label>Sale de</label><select id="tdesde">${LISTAS.medios.map(m=>`<option${m==='Efectivo'?' selected':''}>${m}</option>`).join('')}</select></div>
+    <div><label>Entra a</label><select id="thacia">${LISTAS.medios.map(m=>`<option${m==='Transferencia'?' selected':''}>${m}</option>`).join('')}</select></div></div>
+    <div class="grid2"><div><label>Importe $</label><input id="timp" type="number" inputmode="decimal" placeholder="0"></div><div><label>Fecha</label><input id="tf" type="date" value="${hoyISO()}"></div></div>
+    <label>Nota</label><input id="tnota" placeholder="opcional, ej: depósito en el banco">
+    <button class="btn" id="tok">Pasar</button></div>
   <div class="card"><b>Cargar movimiento de caja</b>
     <label>Concepto</label><select id="cc">${CONCEPTOS_CAJA.map(c=>`<option>${c}</option>`).join('')}</select>
     <div class="grid2"><div><label>Ingreso $</label><input id="cing" type="number" inputmode="decimal" placeholder="0"></div>
@@ -1059,9 +1065,21 @@ async function addCaja(){
   const r={id:nid(),ts:new Date().toISOString(),f:$('cf').value,c:$('cc').value,d:$('cd').value,ing,egr,m:$('cm').value};
   try{ await guardar('caja',[...LIVE.caja,r]); toast('Caja guardada ✓'); pintarCaja(); }catch(e){toast('Error: '+((e&&e.message)||e));}
 }
+let TRANSF_BUSY=false;
+async function transferirCaja(){
+  const de=$('tdesde').value, a=$('thacia').value, imp=parseFloat($('timp').value)||0, f=$('tf').value, nota=$('tnota').value.trim();
+  if(de===a){toast('Elegí dos cajas distintas');return;} if(imp<=0){toast('Poné el importe');return;} if(TRANSF_BUSY)return;
+  const d=de+' → '+a+(nota?' · '+nota:''), ts=new Date().toISOString();
+  const r1={id:nid(),ts,f,c:'Transferencia entre cuentas',d,ing:0,egr:imp,m:de}, r2={id:nid(),ts,f,c:'Transferencia entre cuentas',d,ing:imp,egr:0,m:a};
+  TRANSF_BUSY=true;
+  try{ await guardar('caja',[...LIVE.caja,r1,r2]); toast(`Pasado ${fmt(imp)} de ${de} a ${a} ✓`); pintarCaja(); }catch(e){toast('Error: '+((e&&e.message)||e));} finally{TRANSF_BUSY=false;}
+}
+// contraparte de una transferencia entre cajas (misma fecha, detalle e importe, del otro lado)
+function parTransf(r){ if(!r||r.c!=='Transferencia entre cuentas'||!/ → /.test(r.d||''))return null; return LIVE.caja.find(x=>x.id!==r.id&&x.c===r.c&&x.f===r.f&&x.d===r.d&&Math.abs((x.ing||0)-(r.egr||0))<0.5&&Math.abs((x.egr||0)-(r.ing||0))<0.5)||null; }
 async function borrarCaja(id){
-  if(!confirm('¿Borrar?'))return;
-  try{ await guardar('caja',LIVE.caja.filter(r=>r.id!==id)); toast('Borrado'); pintarCaja(); }catch(e){toast('Error: '+((e&&e.message)||e));}
+  const r=LIVE.caja.find(x=>x.id===id), p=parTransf(r);
+  if(!confirm(p?'¿Borrar esta transferencia entre cajas? Se borran las dos partes ('+(r.egr?r.m+' → '+p.m:p.m+' → '+r.m)+').':'¿Borrar?'))return;
+  try{ await guardar('caja',LIVE.caja.filter(x=>x.id!==id&&(!p||x.id!==p.id))); toast('Borrado'); pintarCaja(); }catch(e){toast('Error: '+((e&&e.message)||e));}
 }
 
 /* ------- PRECIOS ------- */
@@ -2471,6 +2489,7 @@ document.addEventListener('click',function(e){
     case 'emok': guardarEmisor();break;
     case 'fok': addMov(parseInt(b.dataset.cli),b.dataset.tipo);break;
     case 'cok': addCaja();break;
+    case 'tok': transferirCaja();break;
     case 'pok': addPrecio();break;
     case 'nok': addNov();break;
     case 'dok': addDist();break;
