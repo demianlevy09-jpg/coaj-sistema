@@ -263,7 +263,7 @@ select.apagado{opacity:.45}
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v73</span></div></div><div class="hb" id="hbtns"></div></header>
+<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v74</span></div></div><div class="hb" id="hbtns"></div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -417,7 +417,7 @@ const DE_DB={
   vueltas:x=>({id:x.nombre,nombre:x.nombre,repartidor:x.repartidor||'',orden:x.orden||0,activo:x.activo!==false}),
   prov:x=>({id:x.id,nombre:x.nombre,tel:x.telefono||'',nota:x.nota||'',activo:x.activo!==false}),
   prod:x=>({id:x.id,nombre:x.nombre,cat:x.categoria||'',prov:x.proveedor_id,modo:x.modo_precio||'fijo',precio:Number(x.precio_venta)||0,margen:Number(x.margen)||0,costo:Number(x.costo)||0,activo:x.activo!==false}),
-  stock:x=>({id:String(x.id),ts:x.creado_en,prod:x.producto_id,f:x.fecha,tipo:x.tipo,qty:x.cantidad,prop:x.propiedad,prov:x.proveedor_id,costo:Number(x.costo_unit)||0,precio:Number(x.precio_unit)||0,medio:x.medio||'',cli:x.cliente_id,cajaId:x.caja_id,provMovId:x.prov_mov_id,movId:x.mov_id,nota:x.nota||''}),
+  stock:x=>({id:String(x.id),ts:x.creado_en,prod:x.producto_id,f:x.fecha,tipo:x.tipo,qty:x.cantidad,prop:x.propiedad,prov:x.proveedor_id,costo:Number(x.costo_unit)||0,precio:Number(x.precio_unit)||0,medio:x.medio||'',cli:x.cliente_id,cajaId:x.caja_id,provMovId:x.prov_mov_id,movId:x.mov_id,nota:x.nota||'',ed:x.edicion||''}),
   provmov:x=>({id:String(x.id),ts:x.creado_en,prov:x.proveedor_id,f:x.fecha,tipo:x.tipo,imp:Number(x.importe),d:x.detalle||'',cajaId:x.caja_id}),
   pubdist:x=>({id:x.publicacion,pub:x.publicacion,dist:x.distribuidor_id}),
   dists:x=>({id:x.id,nombre:x.nombre,activo:x.activo!==false,comision:x.comision==null?null:Number(x.comision)})
@@ -1585,6 +1585,12 @@ function stockDe(pid){
   Object.keys(s.consig).forEach(k=>{ if(!s.consig[k]) delete s.consig[k]; });
   return s;
 }
+// ediciones (revistas mensuales): stock por número; orden numérico
+function cmpEd(a,b){ const na=parseFloat(a),nb=parseFloat(b); if(!isNaN(na)&&!isNaN(nb)&&na!==nb)return na-nb; return String(a).localeCompare(String(b),'es',{numeric:true}); }
+function edsDe(pid,prop,prov){ const m={}; LIVE.stock.filter(x=>x.prod===pid&&(!prop||x.prop===prop)&&(prov==null||(x.prov||0)===prov)).forEach(x=>{m[x.ed||'']=(m[x.ed||'']||0)+x.qty;}); return Object.keys(m).filter(k=>m[k]).sort(cmpEd).map(k=>({ed:k,qty:m[k]})); }
+function edTxt(ed){ return ed?'nº '+ed:''; }
+// ediciones viejas con stock cuando ya llegó una más nueva → para devolver
+function paraDevolver(){ const r=[]; LIVE.prod.filter(p=>p.activo!==false).forEach(p=>{ const all=[...new Set(LIVE.stock.filter(x=>x.prod===p.id&&x.ed&&x.qty>0).map(x=>x.ed))].sort(cmpEd); if(all.length<2)return; const ult=all[all.length-1]; edsDe(p.id).filter(e=>e.ed&&e.qty>0&&cmpEd(e.ed,ult)<0).forEach(e=>r.push({p,ed:e.ed,qty:e.qty,nuevo:ult})); }); return r; }
 function saldoProv(pid){ return LIVE.provmov.filter(m=>m.prov===pid).reduce((n,m)=>n+(m.imp||0),0); }
 async function ins(table,row){ const{data,error}=await sb.from(table).insert(row).select('id').single(); if(error)throw new Error(error.message); return data.id; }
 async function anularFila(table,id){ if(!id)return; const{error}=await sb.from(table).update({anulado:true}).eq('id',id); if(error)throw new Error(error.message); }
@@ -1615,6 +1621,7 @@ function pintarStock(){
     <div class="kpi ${cons?'amb':'gris'}"><i>En consignación</i><b>${cons} <small>unidades</small></b><i>se deben al venderse</i></div>
     <div class="kpi"><i>Valor de venta del stock</i><b>${fmt(venta)}</b><i>todo lo que hay, a precio de venta</i></div>
   </div>
+  ${(()=>{const pd=paraDevolver(); return pd.length?`<div class="sec"><span class="dot"></span>Para devolver (ya llegó el número nuevo)</div><div class="card">${pd.map(x=>`<div class="mov"><span class="t"><b>${x.p.nombre}</b> ${edTxt(x.ed)} <span class="mini">· ya llegó el nº ${x.nuevo}</span></span><span class="m debe">${x.qty}</span></div>`).join('')}<div class="mini" style="margin-top:6px">Registralas en Compras → Devolución a proveedor, eligiendo el número.</div></div>`:'';})()}
   <div class="sec"><span class="dot"></span>Productos</div>
   <div class="filtros"><input id="sq" type="search" placeholder="Buscar producto o categoría…" value="${qv}" style="margin-top:0" oninput="pintarStockLista()"><button class="btn chico" id="snuevo" style="margin:0;white-space:nowrap">＋ Producto</button></div>
   <div id="sform"></div>
@@ -1625,7 +1632,7 @@ function pintarStockLista(){
   const q=norm(($('sq')||{}).value||'');
   const prods=LIVE.prod.filter(p=>p.activo!==false&&(!q||norm(p.nombre+' '+(p.cat||'')+' '+nomProv(p.prov)).includes(q))).map(p=>({p,s:stockDe(p.id)})).sort((a,b)=>a.p.nombre.localeCompare(b.p.nombre));
   $('slist').innerHTML=prods.length?prods.map(({p,s})=>`<div class="fila" data-prod="${p.id}" style="flex-wrap:wrap"><div style="flex:1;min-width:180px"><div class="dom">${p.nombre} ${p.cat?`<span class="pill p-inact">${p.cat}</span>`:''}</div><div class="nom">${nomProv(p.prov)!=='—'?'Prov. habitual: '+nomProv(p.prov)+' · ':''}costo ${fmt(p.costo)} · ${p.modo==='margen'?'costo +'+p.margen+'%':'precio fijo'}</div></div>
-    <div class="der"><div class="monto">${fmt(precioVenta(p))}</div><div class="mini ${s.total<=0?'debe':''}">${s.total} en stock${s.propio?' · '+s.propio+' propio':''}${Object.entries(s.consig).map(([k,v])=>' · '+v+' consig. '+nomProv(parseInt(k))).join('')}</div></div>
+    <div class="der"><div class="monto">${fmt(precioVenta(p))}</div><div class="mini ${s.total<=0?'debe':''}">${s.total} en stock${s.propio?' · '+s.propio+' propio':''}${Object.entries(s.consig).map(([k,v])=>' · '+v+' consig. '+nomProv(parseInt(k))).join('')}</div>${(()=>{const es=edsDe(p.id).filter(e=>e.ed);return es.length?`<div class="mini">${es.map(e=>edTxt(e.ed)+': '+e.qty).join(' · ')}</div>`:'';})()}</div>
     <div id="pdet-${p.id}" hidden style="flex-basis:100%"></div></div>`).join(''):'<div class="mini" style="padding:20px;text-align:center">Todavía no hay productos. Cargá el primero con "＋ Producto" o desde Compras.</div>';
   if(PSEL) abrirProd(PSEL,true);
 }
@@ -1658,15 +1665,15 @@ function abrirProd(pid,keep){
   box.innerHTML=`<div style="border-top:1px solid var(--linea);margin-top:10px;padding-top:10px">
     <div class="fchips" style="margin:0 0 8px"><button class="fch" data-pedit="${pid}">✎ Editar</button><button class="fch" data-pajuste="${pid}">± Ajustar stock</button><button class="fch" data-pvender="${pid}">Vender</button></div>
     <div id="pajbox-${pid}"></div>
-    <div class="mini" style="margin-bottom:4px">Últimos movimientos</div>${movs.map(m=>`<div class="mov"><span class="f">${fecha(m.f)}</span><span class="t">${m.tipo}${m.prop==='consignacion'?' (consig. '+nomProv(m.prov)+')':''}${m.cli?' · '+nomCli(m.cli):''}${m.medio?' · '+m.medio:''}${m.nota?' <span class="mini">· '+m.nota+'</span>':''}</span><span class="m ${m.qty<0?'debe':'favor'}">${m.qty>0?'+':''}${m.qty}</span></div>`).join('')||'<div class="mini">Sin movimientos.</div>'}</div>`;
+    <div class="mini" style="margin-bottom:4px">Últimos movimientos</div>${movs.map(m=>`<div class="mov"><span class="f">${fecha(m.f)}</span><span class="t">${m.tipo}${m.ed?' '+edTxt(m.ed):''}${m.prop==='consignacion'?' (consig. '+nomProv(m.prov)+')':''}${m.cli?' · '+nomCli(m.cli):''}${m.medio?' · '+m.medio:''}${m.nota?' <span class="mini">· '+m.nota+'</span>':''}</span><span class="m ${m.qty<0?'debe':'favor'}">${m.qty>0?'+':''}${m.qty}</span></div>`).join('')||'<div class="mini">Sin movimientos.</div>'}</div>`;
   box.hidden=false;
 }
-function formAjusteHTML(pid){ return `<div class="card" style="margin:6px 0"><b>Ajuste de stock</b><div class="mini" style="margin:2px 0 4px">Conteo, rotura, faltante. Positivo suma, negativo resta.</div><div class="grid2"><div><label>Cantidad (±)</label><input id="paj-q" type="number" inputmode="numeric" placeholder="ej: -2"></div><div><label>De qué stock</label><select id="paj-prop" onchange="$('paj-provbox').hidden=this.value!=='consignacion'"><option value="propio">Propio</option><option value="consignacion">En consignación</option></select></div></div><div id="paj-provbox" hidden><label>Proveedor</label><select id="paj-prov">${optsProv()}</select></div><label>Motivo</label><input id="paj-nota" placeholder="ej: conteo de fin de mes"><button class="btn chico" data-pajok="${pid}">Guardar ajuste</button></div>`; }
+function formAjusteHTML(pid){ return `<div class="card" style="margin:6px 0"><b>Ajuste de stock</b><div class="mini" style="margin:2px 0 4px">Conteo, rotura, faltante. Positivo suma, negativo resta.</div><div class="grid2"><div><label>Cantidad (±)</label><input id="paj-q" type="number" inputmode="numeric" placeholder="ej: -2"></div><div><label>De qué stock</label><select id="paj-prop" onchange="$('paj-provbox').hidden=this.value!=='consignacion'"><option value="propio">Propio</option><option value="consignacion">En consignación</option></select></div></div><div id="paj-provbox" hidden><label>Proveedor</label><select id="paj-prov">${optsProv()}</select></div><label>Número / edición (opcional)</label><input id="paj-ed" placeholder="ej: 389"><label>Motivo</label><input id="paj-nota" placeholder="ej: conteo de fin de mes"><button class="btn chico" data-pajok="${pid}">Guardar ajuste</button></div>`; }
 async function ajustarStock(pid){
   const q=parseInt($('paj-q').value); if(!q){toast('Poné la cantidad (+ suma, − resta)');return;}
   const prop=$('paj-prop').value; const prov=prop==='consignacion'?parseInt($('paj-prov').value)||null:null;
   if(prop==='consignacion'&&!prov){toast('Elegí el proveedor de la consignación');return;}
-  try{ await ins('stock_mov',{producto_id:pid,fecha:hoyISO(),tipo:'ajuste',cantidad:q,propiedad:prop,proveedor_id:prov,costo_unit:(prodDe(pid)||{}).costo||0,nota:$('paj-nota').value||'ajuste'}); await cargarTabla('stock'); toast('Stock ajustado ✓'); pintarStock(); }catch(e){toast('Error: '+((e&&e.message)||e));}
+  try{ await ins('stock_mov',{producto_id:pid,fecha:hoyISO(),tipo:'ajuste',cantidad:q,propiedad:prop,proveedor_id:prov,costo_unit:(prodDe(pid)||{}).costo||0,edicion:($('paj-ed').value||'').trim(),nota:$('paj-nota').value||'ajuste'}); await cargarTabla('stock'); toast('Stock ajustado ✓'); pintarStock(); }catch(e){toast('Error: '+((e&&e.message)||e));}
 }
 
 /* ---- VENTAS ---- */
@@ -1694,14 +1701,16 @@ function pintarVentas(){
     <button class="btn" id="v-ok">Vender</button>
   </div>
   <div class="sec"><span class="dot"></span>Últimas ventas</div>
-  <div class="card">${ventas.sort((a,b)=>(b.f||'').localeCompare(a.f||'')||(b.ts||'').localeCompare(a.ts||'')).slice(0,40).map(m=>`<div class="mov"><span class="f">${fecha(m.f)}</span><span class="t"><b>${-m.qty}×</b> ${(prodDe(m.prod)||{}).nombre||'?'} <span class="mini">· ${m.cli?'CC '+nomCli(m.cli):m.medio}${m.prop==='consignacion'?' · consig. '+nomProv(m.prov):''}${m.nota?' · '+m.nota:''}</span></span><span class="m">${fmt(-m.qty*(m.precio||0))}</span><button class="del" data-vdel="${m.id}">✕</button></div>`).join('')||'<div class="mini">Ninguna venta todavía.</div>'}</div>`;
+  <div class="card">${ventas.sort((a,b)=>(b.f||'').localeCompare(a.f||'')||(b.ts||'').localeCompare(a.ts||'')).slice(0,40).map(m=>`<div class="mov"><span class="f">${fecha(m.f)}</span><span class="t"><b>${-m.qty}×</b> ${(prodDe(m.prod)||{}).nombre||'?'}${m.ed?' '+edTxt(m.ed):''} <span class="mini">· ${m.cli?'CC '+nomCli(m.cli):m.medio}${m.prop==='consignacion'?' · consig. '+nomProv(m.prov):''}${m.nota?' · '+m.nota:''}</span></span><span class="m">${fmt(-m.qty*(m.precio||0))}</span><button class="del" data-vdel="${m.id}">✕</button></div>`).join('')||'<div class="mini">Ninguna venta todavía.</div>'}</div>`;
 }
 function ventaProdCambio(){
   const p=prodDe(parseInt($('v-prod').value)); const lb=$('v-lote'); VLOTE='';
   if(!p){lb.innerHTML='';return;}
   $('v-precio').value=precioVenta(p)||'';
-  const s=stockDe(p.id); const lotes=[]; if(s.propio>0)lotes.push({k:'propio|',t:'Stock propio ('+s.propio+')'}); Object.entries(s.consig).forEach(([k,v])=>lotes.push({k:'consignacion|'+k,t:'Consignación de '+nomProv(parseInt(k))+' ('+v+')'}));
-  if(lotes.length>1){ const c=lotes.find(l=>l.k.startsWith('consig')); VLOTE=(c||lotes[0]).k; lb.innerHTML=`<label>Sale de</label><select id="v-lotesel" onchange="VLOTE=this.value">${lotes.map(l=>`<option value="${l.k}"${l.k===VLOTE?' selected':''}>${l.t}</option>`).join('')}</select>`; }
+  const lotes=[]; edsDe(p.id,'propio').filter(e=>e.qty>0).forEach(e=>lotes.push({k:'propio||'+e.ed,t:'Stock propio'+(e.ed?' · '+edTxt(e.ed):'')+' ('+e.qty+')'}));
+  const provs=[...new Set(LIVE.stock.filter(x=>x.prod===p.id&&x.prop==='consignacion').map(x=>x.prov||0))];
+  provs.forEach(pv=>edsDe(p.id,'consignacion',pv).filter(e=>e.qty>0).forEach(e=>lotes.push({k:'consignacion|'+pv+'|'+e.ed,t:'Consignación de '+nomProv(pv)+(e.ed?' · '+edTxt(e.ed):'')+' ('+e.qty+')'})));
+  if(lotes.length>1){ const cs=lotes.filter(l=>l.k.startsWith('consig')); VLOTE=(cs.length?cs[cs.length-1]:lotes[lotes.length-1]).k; lb.innerHTML=`<label>Sale de</label><select id="v-lotesel" onchange="VLOTE=this.value">${lotes.map(l=>`<option value="${l.k}"${l.k===VLOTE?' selected':''}>${l.t}</option>`).join('')}</select>`; }
   else { VLOTE=lotes.length?lotes[0].k:'propio|'; lb.innerHTML=lotes.length?`<div class="mini" style="margin-top:4px">Sale de: ${lotes[0].t}</div>`:''; }
   ventaTotal();
 }
@@ -1709,18 +1718,18 @@ function ventaTotal(){ const q=parseInt($('v-qty').value)||0, pr=parseFloat($('v
 async function vender(){
   const pid=parseInt($('v-prod').value); const p=prodDe(pid); if(!p){toast('Elegí el producto');return;}
   const q=parseInt($('v-qty').value)||0, pr=parseFloat($('v-precio').value)||0; if(q<=0||pr<=0){toast('Cantidad y precio');return;}
-  const parts=(VLOTE||'propio|').split('|'); const prop=parts[0]; const prov=parts[1]?parseInt(parts[1]):null;
-  const s=stockDe(pid); const disp=prop==='propio'?s.propio:(s.consig[prov]||0);
+  const parts=(VLOTE||'propio|').split('|'); const prop=parts[0]; const prov=parts[1]?parseInt(parts[1]):null; const ed=parts[2]||'';
+  const disp=edsDe(pid,prop,prop==='propio'?null:(prov||0)).filter(e=>e.ed===ed).reduce((n,e)=>n+e.qty,0);
   if(q>disp&&!confirm('Hay '+disp+' en ese stock y querés vender '+q+'. ¿Seguir igual? (queda en negativo)'))return;
   const medio=$('v-medio').value, f=$('v-fecha').value, nota=$('v-nota').value.trim();
   let cli=null; if(medio==='CC'){ cli=parseInt($('v-cli').dataset.cli)||null; if(!cli){toast('Elegí el cliente');return;} }
-  const det=q+'× '+p.nombre;
+  const det=q+'× '+p.nombre+(ed?' '+edTxt(ed):'');
   try{
     let cajaId=null, movId=null, provMovId=null;
     if(cli){ movId=await ins('movimientos',{cliente_id:cli,fecha:f,tipo:'Ajuste',importe:q*pr,medio:'',nota:'Venta: '+det+(nota?' · '+nota:'')}); }
     else { cajaId=await ins('caja',{fecha:f,concepto:'Venta de stock',detalle:det+(nota?' · '+nota:''),ingreso:q*pr,egreso:0,medio}); }
     if(prop==='consignacion'&&prov){ provMovId=await ins('prov_movimientos',{proveedor_id:prov,fecha:f,tipo:'consignacion',importe:q*(p.costo||0),detalle:'Vendido en consignación: '+det}); }
-    await ins('stock_mov',{producto_id:pid,fecha:f,tipo:'venta',cantidad:-q,propiedad:prop,proveedor_id:prov,costo_unit:p.costo||0,precio_unit:pr,medio:cli?'':medio,cliente_id:cli,caja_id:cajaId,mov_id:movId,prov_mov_id:provMovId,nota});
+    await ins('stock_mov',{producto_id:pid,fecha:f,tipo:'venta',cantidad:-q,propiedad:prop,proveedor_id:prov,costo_unit:p.costo||0,precio_unit:pr,medio:cli?'':medio,cliente_id:cli,caja_id:cajaId,mov_id:movId,prov_mov_id:provMovId,edicion:ed,nota});
     await Promise.all(['stock','caja','movs','provmov'].map(cargarTabla)); SCACHE={};
     toast('Venta guardada ✓ '+fmt(q*pr)); pintarVentas(); pintarInicio();
   }catch(e){toast('Error: '+((e&&e.message)||e));}
@@ -1750,7 +1759,8 @@ function pintarCompras(){
 }
 function provSelHTML(id){ return `<label>Proveedor</label><select id="${id}" onchange="$('${id}-nuevo').hidden=this.value!=='nuevo'"><option value="">Elegí…</option>${optsProv()}<option value="nuevo">＋ Nuevo proveedor…</option></select><div id="${id}-nuevo" hidden class="grid2"><div><label>Nombre del proveedor</label><input id="${id}-nombre"></div><div><label>Teléfono</label><input id="${id}-tel"></div></div>`; }
 function prodSelHTML(id,conStock){ return `<label>Producto</label><select id="${id}" onchange="if($('${id}-nuevo'))$('${id}-nuevo').hidden=this.value!=='nuevo';prodSelCambio('${id}')"><option value="">Elegí…</option>${optsProd(conStock)}${conStock?'':'<option value="nuevo">＋ Nuevo producto…</option>'}</select>${conStock?'':`<div id="${id}-nuevo" hidden><div class="grid2"><div><label>Nombre del producto</label><input id="${id}-nombre"></div><div><label>Categoría</label><input id="${id}-cat"></div></div><div class="grid2"><div><label>Precio de venta</label><select id="${id}-modo"><option value="fijo">Precio fijo</option><option value="margen">Costo + %</option></select></div><div><label>Precio fijo $ / % ganancia</label><input id="${id}-pv" type="number" inputmode="decimal"></div></div></div>`}`; }
-function prodSelCambio(id){ const p=prodDe(parseInt($(id).value)); const c=$('c-costo'); if(p&&c&&!c.value){ c.value=p.costo||''; compraTotal(); } }
+function prodSelCambio(id){ const p=prodDe(parseInt($(id).value)); const c=$('c-costo'); if(p&&c&&!c.value){ c.value=p.costo||''; compraTotal(); }
+  const box=$('c-edsel'); if(box&&CTIPO==='devolucion'){ const es=p?edsDe(p.id).filter(e=>e.qty>0):[]; box.innerHTML=es.some(e=>e.ed)?`<label>Número / edición</label><select id="c-ed">${es.map(e=>`<option value="${e.ed}">${e.ed?edTxt(e.ed):'sin número'} (${e.qty})</option>`).join('')}</select>`:''; if(es.length&&$('c-qty'))$('c-qty').value=es[0].qty; } }
 async function resolverProv(id){
   const v=$(id).value; if(!v){toast('Elegí el proveedor');return null;}
   if(v!=='nuevo') return parseInt(v);
@@ -1769,12 +1779,12 @@ function pintarCForm(){
   const fFecha=`<div class="grid2"><div><label>Fecha</label><input id="c-fecha" type="date" value="${hoy}"></div><div><label>Nota</label><input id="c-nota" placeholder="opcional"></div></div>`;
   if(CTIPO==='compra') h=`<div class="mini" style="margin:6px 0 2px">La mercadería pasa a ser tuya. Si la pagás ahora sale de caja; si es a cuenta, queda en la CC del proveedor.</div>${provSelHTML('c-prov')}${prodSelHTML('c-prod')}
     <div class="grid2"><div><label>Cantidad</label><input id="c-qty" type="number" inputmode="numeric" min="1" value="1" oninput="compraTotal()"></div><div><label>Costo unitario $</label><input id="c-costo" type="number" inputmode="decimal" placeholder="0" oninput="compraTotal()"></div></div>
-    <div class="mini" id="c-total" style="margin-top:6px"></div>
+    <div id="c-edbox"><label>Número / edición <span class="mini">(revistas y coleccionables; vacío si no aplica)</span></label><input id="c-ed" placeholder="ej: 389"></div><div class="mini" id="c-total" style="margin-top:6px"></div>
     <label>Pago</label><select id="c-pago"><option value="cuenta">A cuenta (queda en la CC del proveedor)</option>${LISTAS.medios.map(m=>`<option value="${m}">Pagado ahora · ${m}</option>`).join('')}</select>${fFecha}<button class="btn" id="c-ok">Registrar compra</button>`;
   else if(CTIPO==='recepcion') h=`<div class="mini" style="margin:6px 0 2px">Entra al stock como del proveedor. No mueve caja ni cuenta: se le debe solo lo que se venda.</div>${provSelHTML('c-prov')}${prodSelHTML('c-prod')}
     <div class="grid2"><div><label>Cantidad</label><input id="c-qty" type="number" inputmode="numeric" min="1" value="1" oninput="compraTotal()"></div><div><label>Costo pactado por unidad $</label><input id="c-costo" type="number" inputmode="decimal" placeholder="lo que le vas a deber por cada uno vendido" oninput="compraTotal()"></div></div>
-    <div class="mini" id="c-total" style="margin-top:6px"></div>${fFecha}<button class="btn" id="c-ok">Registrar recepción</button>`;
-  else if(CTIPO==='devolucion') h=`<div class="mini" style="margin:6px 0 2px">Mercadería que vuelve al proveedor. Si era consignación no pasa nada más; si era tuya y a cuenta, podés acreditarla en su CC.</div>${provSelHTML('c-prov')}${prodSelHTML('c-prod',true)}
+    <div id="c-edbox"><label>Número / edición <span class="mini">(revistas y coleccionables; vacío si no aplica)</span></label><input id="c-ed" placeholder="ej: 389"></div><div class="mini" id="c-total" style="margin-top:6px"></div>${fFecha}<button class="btn" id="c-ok">Registrar recepción</button>`;
+  else if(CTIPO==='devolucion') h=`<div class="mini" style="margin:6px 0 2px">Mercadería que vuelve al proveedor. Si era consignación no pasa nada más; si era tuya y a cuenta, podés acreditarla en su CC.</div>${provSelHTML('c-prov')}${prodSelHTML('c-prod',true)}<div id="c-edsel"></div>
     <div class="grid2"><div><label>Cantidad</label><input id="c-qty" type="number" inputmode="numeric" min="1" value="1"></div><div><label>Sale de</label><select id="c-prop"><option value="consignacion">Stock en consignación</option><option value="propio">Stock propio</option></select></div></div>
     <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="c-credito" style="width:auto;margin:0">Acreditar en la CC del proveedor (nota de crédito)</label>
     <label>Costo unitario a acreditar $</label><input id="c-costo" type="number" inputmode="decimal">${fFecha}<button class="btn" id="c-ok">Registrar devolución</button>`;
@@ -1791,7 +1801,7 @@ function pintarCForm(){
     L.innerHTML=`<div class="sec"><span class="dot"></span>Últimos pagos</div><div class="card">${ps.map(m=>`<div class="mov"><span class="f">${fecha(m.f)}</span><span class="t">${nomProv(m.prov)}${m.d?' · '+m.d:''}</span><span class="m">${fmt(m.imp)}</span><button class="del" data-pdel="${m.id}">✕</button></div>`).join('')||'<div class="mini">Ninguno.</div>'}</div>`;
   } else {
     const ms=LIVE.stock.filter(m=>m.tipo===CTIPO).sort((a,b)=>(b.f||'').localeCompare(a.f||'')||(b.ts||'').localeCompare(a.ts||'')).slice(0,30);
-    L.innerHTML=`<div class="sec"><span class="dot"></span>Últimos movimientos</div><div class="card">${ms.map(m=>`<div class="mov"><span class="f">${fecha(m.f)}</span><span class="t"><b>${Math.abs(m.qty)}×</b> ${(prodDe(m.prod)||{}).nombre||'?'} <span class="mini">· ${nomProv(m.prov)}${m.medio?' · '+m.medio:''}${m.nota?' · '+m.nota:''}</span></span><span class="m">${fmt(Math.abs(m.qty)*(m.costo||0))}</span><button class="del" data-cdel="${m.id}">✕</button></div>`).join('')||'<div class="mini">Ninguno.</div>'}</div>`;
+    L.innerHTML=`<div class="sec"><span class="dot"></span>Últimos movimientos</div><div class="card">${ms.map(m=>`<div class="mov"><span class="f">${fecha(m.f)}</span><span class="t"><b>${Math.abs(m.qty)}×</b> ${(prodDe(m.prod)||{}).nombre||'?'}${m.ed?' '+edTxt(m.ed):''} <span class="mini">· ${nomProv(m.prov)}${m.medio?' · '+m.medio:''}${m.nota?' · '+m.nota:''}</span></span><span class="m">${fmt(Math.abs(m.qty)*(m.costo||0))}</span><button class="del" data-cdel="${m.id}">✕</button></div>`).join('')||'<div class="mini">Ninguno.</div>'}</div>`;
   }
 }
 function compraTotal(){ const q=parseInt(($('c-qty')||{}).value)||0, c=parseFloat(($('c-costo')||{}).value)||0; const t=$('c-total'); if(t) t.innerHTML=q&&c?`Total: <b>${fmt(q*c)}</b>`:''; }
@@ -1808,22 +1818,23 @@ async function registrarCompra(){
     const q=parseInt($('c-qty').value)||0; if(q<=0){toast('Poné la cantidad');return;}
     const costo=parseFloat(($('c-costo')||{}).value)||0;
     const pid=await resolverProd('c-prod',costo); if(!pid)return; const p=prodDe(pid);
-    const det=q+'× '+(p?p.nombre:'');
+    const ed=(($('c-ed')||{}).value||'').trim();
+    const det=q+'× '+(p?p.nombre:'')+(ed?' '+edTxt(ed):'');
     if(CTIPO==='compra'){
       if(!costo){toast('Poné el costo unitario');return;}
       const pago=$('c-pago').value; let cajaId=null, provMovId=null;
       if(pago==='cuenta') provMovId=await ins('prov_movimientos',{proveedor_id:prov,fecha:f,tipo:'compra',importe:q*costo,detalle:'Compra: '+det+(nota?' · '+nota:'')});
       else cajaId=await ins('caja',{fecha:f,concepto:'Compra de mercadería',detalle:det+' · '+nomProv(prov)+(nota?' · '+nota:''),ingreso:0,egreso:q*costo,medio:pago});
-      await ins('stock_mov',{producto_id:pid,fecha:f,tipo:'compra',cantidad:q,propiedad:'propio',proveedor_id:prov,costo_unit:costo,medio:pago==='cuenta'?'':pago,caja_id:cajaId,prov_mov_id:provMovId,nota});
+      await ins('stock_mov',{producto_id:pid,fecha:f,tipo:'compra',cantidad:q,propiedad:'propio',proveedor_id:prov,costo_unit:costo,medio:pago==='cuenta'?'':pago,caja_id:cajaId,prov_mov_id:provMovId,edicion:ed,nota});
       if(p&&p.costo!==costo) await sb.from('productos').update({costo}).eq('id',pid);
     } else if(CTIPO==='recepcion'){
       if(!costo){toast('Poné el costo pactado por unidad');return;}
-      await ins('stock_mov',{producto_id:pid,fecha:f,tipo:'recepcion',cantidad:q,propiedad:'consignacion',proveedor_id:prov,costo_unit:costo,nota});
+      await ins('stock_mov',{producto_id:pid,fecha:f,tipo:'recepcion',cantidad:q,propiedad:'consignacion',proveedor_id:prov,costo_unit:costo,edicion:ed,nota});
       if(p&&p.costo!==costo) await sb.from('productos').update({costo}).eq('id',pid);
     } else if(CTIPO==='devolucion'){
       const prop=$('c-prop').value; let provMovId=null;
       if($('c-credito').checked&&costo) provMovId=await ins('prov_movimientos',{proveedor_id:prov,fecha:f,tipo:'credito',importe:-q*costo,detalle:'Devolución: '+det});
-      await ins('stock_mov',{producto_id:pid,fecha:f,tipo:'devolucion',cantidad:-q,propiedad:prop,proveedor_id:prov,costo_unit:costo,prov_mov_id:provMovId,nota});
+      await ins('stock_mov',{producto_id:pid,fecha:f,tipo:'devolucion',cantidad:-q,propiedad:prop,proveedor_id:prov,costo_unit:costo,prov_mov_id:provMovId,edicion:ed,nota});
     }
     await Promise.all(['stock','caja','provmov','prod'].map(cargarTabla)); toast('Registrado ✓'); pintarCompras(); pintarInicio();
   }catch(e){toast('Error: '+((e&&e.message)||e));}
