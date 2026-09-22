@@ -263,7 +263,7 @@ select.apagado{opacity:.45}
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v75</span></div></div><div class="hb" id="hbtns"></div></header>
+<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v76</span></div></div><div class="hb" id="hbtns"></div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -977,6 +977,9 @@ async function addMov(id,tipo){
   if(!imp||(imp<=0&&tipo!=='Ajuste')){toast('Poné un importe');return;}
   const nota=$('fnota')?$('fnota').value:'';
   const r={id:nid(),ts:new Date().toISOString(),cli:id,tipo,imp,f:$('ffec').value,medio:tipo==='Cobro'?$('fmed').value:'',nota};
+  if(tipo==='Cobro'){ const dup=LIVE.movs.filter(m=>m.cli===id&&m.tipo==='Cobro'&&Math.abs(m.imp-imp)<0.5&&(m.f||'').slice(0,10)===r.f);
+    if(dup.length&&!confirm(`Ya hay ${dup.length===1?'un cobro':dup.length+' cobros'} de ${fmt(imp)} para este cliente con fecha ${fecha(r.f)} (${dup.map(m=>(m.medio||'')+' '+(m.ts||'').slice(11,16)).join(', ')}).\n\n¿Es un cobro NUEVO y lo querés cargar igual?`))return; }
+  if(ADDMOV_BUSY){toast('Guardando…');return;} ADDMOV_BUSY=true;
   try{
     await guardar('movs',[...LIVE.movs,r]);
     if(tipo==='Cobro'){
@@ -985,10 +988,14 @@ async function addMov(id,tipo){
     }
     toast(tipo+' guardado ✓'); ficha(id);
   }catch(e){toast('No se pudo guardar: '+((e&&e.message)||e));}
+  finally{ ADDMOV_BUSY=false; }
 }
+let ADDMOV_BUSY=false;
 async function borrarMov(mid,cli){
-  if(!confirm('¿Borrar este movimiento?'))return;
-  try{ await guardar('movs',LIVE.movs.filter(m=>m.id!==mid)); toast('Borrado'); ficha(cli);}catch(e){toast('Error: '+((e&&e.message)||e));}
+  const m=LIVE.movs.find(x=>x.id===mid);
+  const k=m&&m.tipo==='Cobro'?LIVE.caja.filter(x=>x.c==='Cobro a cliente'&&x.f===(m.f||'').slice(0,10)&&Math.abs((x.ing||0)-m.imp)<0.5&&(x.m||'')===(m.medio||'')&&(x.d||'')===nomCli(cli)).sort((a,b)=>Math.abs(new Date(a.ts)-new Date(m.ts))-Math.abs(new Date(b.ts)-new Date(m.ts)))[0]:null;
+  if(!confirm('¿Borrar este movimiento?'+(k?' También se saca de la caja ('+fmt(k.ing)+' '+(k.m||'')+').':'')))return;
+  try{ await guardar('movs',LIVE.movs.filter(x=>x.id!==mid)); if(k) await guardar('caja',LIVE.caja.filter(x=>x.id!==k.id)); toast('Borrado'); ficha(cli);}catch(e){toast('Error: '+((e&&e.message)||e));}
 }
 
 /* ------- CAJA ------- */
@@ -1009,16 +1016,35 @@ function pintarCaja(){
     <button class="btn" id="cok">Guardar</button></div>
   <h2>Movimientos cargados</h2>
   <div class="filtros"><select id="fcc"><option value="">Concepto: todos</option>${[...new Set([...CONCEPTOS_CAJA,...rows.map(r=>r.c).filter(Boolean)])].map(c=>`<option>${c}</option>`).join('')}</select>
-  <select id="fcm"><option value="">Medio: todos</option>${LISTAS.medios.map(m=>`<option>${m}</option>`).join('')}</select></div>
-  <input id="fct" type="search" placeholder="Buscar en detalle…" style="margin-bottom:8px">
-  <div class="card" id="clist"></div>
+  <select id="fcm"><option value="">Medio: todos</option>${LISTAS.medios.map(m=>`<option>${m}</option>`).join('')}</select>
+  <select id="fcv"><option value="">Movimientos de caja</option><option value="cc">Cuentas de clientes (cobros y ajustes)</option></select></div>
+  <div class="grid2"><div><label>Cliente</label>${acHTML('fcli','Todos · buscá por Nº, dirección o nombre')}</div><div class="grid2"><div><label>Desde</label><input id="fcd" type="date"></div><div><label>Hasta</label><input id="fch" type="date"></div></div></div>
+  <div class="filtros" style="margin-top:6px"><input id="fct" type="search" placeholder="Buscar en detalle…" style="margin:0"><label style="display:flex;align-items:center;gap:6px;white-space:nowrap;margin:0"><input type="checkbox" id="fcdup" style="width:auto;margin:0">Solo posibles duplicados</label><button class="btn chico sec" id="fclimp" style="margin:0;white-space:nowrap">Limpiar filtros</button></div>
+  <div class="mini" id="ctot" style="margin:6px 0"></div>
+  <div class="card" id="clist"></div><button class="btn chico sec" id="cmas" hidden>Mostrar más</button>
   <h2>Histórico NewsPaper 2026 <span class="mini" style="text-transform:none">(solo consulta)</span></h2>
   <input id="fch2" type="search" placeholder="Buscar en el histórico…" style="margin-bottom:8px">
   <div class="card" id="chlist"></div>`;
+  window.CLIM=50;
   window.pintaC=function(){
-    const fc=$('fcc').value,fm=$('fcm').value,ft=norm($('fct').value);
-    const rs=rows.filter(r=>(!fc||r.c===fc)&&(!fm||r.m===fm)&&(!ft||norm((r.c||'')+' '+(r.d||'')).includes(ft)));
-    $('clist').innerHTML=rs.length?rs.slice(0,50).map(r=>`<div class="mov"><span class="f">${fecha(r.f)}</span><span class="t">${r.c||''}${r.d?' · '+r.d:''} <span class="mini">${r.m||''}</span></span><span class="m ${r.egr?'debe':'favor'}">${r.egr?'−':''}${fmt(r.ing||r.egr)}</span>${r.fijo?'':`<button class="del" data-cid="${r.id}">✕</button>`}</div>`).join(''):'<div class="mini">Nada con ese filtro.</div>';
+    const fc=$('fcc').value,fm=$('fcm').value,ft=norm($('fct').value),fv=$('fcv').value,cli=parseInt($('fcli').dataset.cli)||null,fd=$('fcd').value,fh=$('fch').value,soloDup=$('fcdup').checked;
+    $('fcc').disabled=fv==='cc';
+    const enRango=f=>(!fd||(f||'').slice(0,10)>=fd)&&(!fh||(f||'').slice(0,10)<=fh);
+    if(fv==='cc'){ // cuentas de clientes
+      const key=m=>m.cli+'|'+m.tipo+'|'+Math.round(m.imp)+'|'+(m.f||'').slice(0,10); const cnt={}; LIVE.movs.forEach(m=>{cnt[key(m)]=(cnt[key(m)]||0)+1;});
+      const ms=[...LIVE.movs].sort((a,b)=>(b.f||'').localeCompare(a.f||'')||(b.ts||'').localeCompare(a.ts||'')).filter(m=>(!cli||m.cli===cli)&&(!fm||m.medio===fm)&&enRango(m.f)&&(!ft||norm(m.tipo+' '+(m.nota||'')+' '+nomCli(m.cli)+' '+m.cli).includes(ft))&&(!soloDup||cnt[key(m)]>1));
+      const cob=ms.filter(m=>m.tipo==='Cobro').reduce((n,m)=>n+m.imp,0), aj=ms.filter(m=>m.tipo!=='Cobro').reduce((n,m)=>n+m.imp,0);
+      $('ctot').innerHTML=`${ms.length} movimientos · cobros <b>${fmt(cob)}</b> · ajustes/cargos <b>${fmt(aj)}</b>`;
+      $('clist').innerHTML=ms.length?ms.slice(0,CLIM).map(m=>`<div class="mov"><span class="f">${fecha(m.f)}</span><span class="t"><span class="lnk" onclick="ficha(${m.cli})">${nomCli(m.cli)} · Nº ${m.cli}</span> · ${m.tipo}${m.medio?' <span class="mini">'+m.medio+'</span>':''}${m.nota?' <span class="mini">· '+m.nota+'</span>':''}${cnt[key(m)]>1?' <span class="pill p-warn">¿duplicado?</span>':''}</span><span class="m ${m.tipo==='Cobro'?'favor':'debe'}">${fmt(m.imp)}</span></div>`).join(''):'<div class="mini">Nada con ese filtro.</div>';
+      $('cmas').hidden=ms.length<=CLIM; return;
+    }
+    const kkey=r=>r.f+'|'+r.c+'|'+(r.d||'')+'|'+(r.ing||0)+'|'+(r.egr||0); const kc={}; rows.forEach(r=>{kc[kkey(r)]=(kc[kkey(r)]||0)+1;});
+    const nc=cli?norm(nomCli(cli)):'';
+    const rs=rows.filter(r=>(!fc||r.c===fc)&&(!fm||r.m===fm)&&enRango(r.f)&&(!cli||norm(r.d||'')===nc||norm(r.d||'').includes(nc))&&(!ft||norm((r.c||'')+' '+(r.d||'')).includes(ft))&&(!soloDup||kc[kkey(r)]>1));
+    const ti=rs.reduce((n,r)=>n+(r.ing||0),0), te=rs.reduce((n,r)=>n+(r.egr||0),0);
+    $('ctot').innerHTML=`${rs.length} movimientos · ingresos <b>${fmt(ti)}</b> · egresos <b>${fmt(te)}</b> · neto <b>${fmt(ti-te)}</b>`;
+    $('cmas').hidden=rs.length<=CLIM;
+    $('clist').innerHTML=rs.length?rs.slice(0,CLIM).map(r=>`<div class="mov"><span class="f">${fecha(r.f)}</span><span class="t">${r.c||''}${r.d?' · '+r.d:''} <span class="mini">${r.m||''}</span>${kc[kkey(r)]>1?' <span class="pill p-warn">¿duplicado?</span>':''}</span><span class="m ${r.egr?'debe':'favor'}">${r.egr?'−':''}${fmt(r.ing||r.egr)}</span>${r.fijo?'':`<button class="del" data-cid="${r.id}">✕</button>`}</div>`).join(''):'<div class="mini">Nada con ese filtro.</div>';
   }
   window.pintaH=function(){
     const ft=norm($('fch2').value);
@@ -1636,7 +1662,7 @@ function sugCliG(inp){
   const rs=buscarCli(inp.value); if(!rs.length){box.hidden=true;return;}
   box.innerHTML=rs.map(c=>`<div class="aci" onmousedown="elegirCliG('${inp.id}',${c.id})"><b>${c.d}</b> <span class="mini">${c.n?c.n+' · ':''}Nº ${c.id}</span></div>`).join(''); box.hidden=false;
 }
-function elegirCliG(inpId,id){ const c=C.find(x=>x.id===id); const inp=$(inpId); if(!c||!inp)return; inp.value=c.d+' · Nº '+c.id; inp.dataset.cli=String(id); $(inpId+'-ac').hidden=true; }
+function elegirCliG(inpId,id){ const c=C.find(x=>x.id===id); const inp=$(inpId); if(!c||!inp)return; inp.value=c.d+' · Nº '+c.id; inp.dataset.cli=String(id); $(inpId+'-ac').hidden=true; if(inpId==='fcli'&&window.pintaC){CLIM=50;pintaC();} }
 function acHTML(id,ph){ return `<div class="acwrap"><input id="${id}" placeholder="${ph||'Nº, dirección o nombre'}" autocomplete="off" oninput="sugCliG(this)" onfocus="sugCliG(this)"><div class="ac" id="${id}-ac" hidden></div></div>`; }
 function faltaSQL(v){ return titulo(v,'')+'<div class="aviso">Falta crear las tablas en la base (archivo <b>supabase/2026-09-10_stock.sql</b>). Corrélo en el SQL Editor de Supabase y recargá.</div>'; }
 
@@ -2281,6 +2307,8 @@ document.addEventListener('click',function(e){
   const pajok=e.target.closest('[data-pajok]'); if(pajok){ajustarStock(parseInt(pajok.dataset.pajok));return;}
   const prep=e.target.closest('[data-prepartir]'); if(prep){repartirUltimo(parseInt(prep.dataset.prepartir));return;}
   const edel=e.target.closest('[data-edel]'); if(edel){anularEntrega(edel.dataset.edel);return;}
+  if(e.target.closest('#cmas')){CLIM+=100;pintaC();return;}
+  if(e.target.closest('#fclimp')){['fcc','fcm','fcv','fcd','fch','fct','fcli'].forEach(i=>{$(i).value='';});$('fcli').dataset.cli='';$('fcdup').checked=false;CLIM=50;pintaC();return;}
   if(e.target.closest('#pf-ok')){guardarProd(parseInt(e.target.closest('#pf-ok').dataset.pid)||null);return;}
   if(e.target.closest('#pf-cancel')){const f=$('sform');if(f)f.innerHTML='';if(PSEL)abrirProd(PSEL,true);return;}
   if(e.target.closest('#pf-baja')){bajaProd(parseInt(e.target.closest('#pf-baja').dataset.pid));return;}
@@ -2455,7 +2483,7 @@ document.addEventListener('input',function(e){
   NEV++;
   switch(e.target.id){
     case 'bq': buscar();break;
-    case 'fct': if(window.pintaC)pintaC();break;
+    case 'fct': case 'fcli': if(window.pintaC){CLIM=50;pintaC();}break;
     case 'fch2': if(window.pintaH)pintaH();break;
     case 'pfil': {const q=norm(e.target.value);document.querySelectorAll('#plist .card').forEach(c=>{c.hidden=q&&!norm(c.textContent).includes(q);});break;}
     case 'nft': if(window.pintaN)pintaN();break;
@@ -2463,7 +2491,7 @@ document.addEventListener('input',function(e){
   }
 });
 document.addEventListener('change',function(e){
-  if(e.target.id==='fcc'||e.target.id==='fcm'){if(window.pintaC)pintaC();}
+  if(['fcc','fcm','fcv','fcd','fch','fcdup'].includes(e.target.id)){if(window.pintaC){CLIM=50;pintaC();}}
   if(e.target.id==='nfil'){if(window.pintaN)pintaN();}
   if(e.target.dataset&&e.target.dataset.pubdist){asignarPubDist(e.target.dataset.pubdist,parseInt(e.target.value));}
 
