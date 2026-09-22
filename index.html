@@ -263,7 +263,7 @@ select.apagado{opacity:.45}
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v74</span></div></div><div class="hb" id="hbtns"></div></header>
+<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v75</span></div></div><div class="hb" id="hbtns"></div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -416,7 +416,7 @@ const DE_DB={
   reparto:x=>({id:String(x.id),cli:x.cliente_id,dia:x.dia,vuelta:x.vuelta,orden:x.orden||0,org:x.origen||''}),
   vueltas:x=>({id:x.nombre,nombre:x.nombre,repartidor:x.repartidor||'',orden:x.orden||0,activo:x.activo!==false}),
   prov:x=>({id:x.id,nombre:x.nombre,tel:x.telefono||'',nota:x.nota||'',activo:x.activo!==false}),
-  prod:x=>({id:x.id,nombre:x.nombre,cat:x.categoria||'',prov:x.proveedor_id,modo:x.modo_precio||'fijo',precio:Number(x.precio_venta)||0,margen:Number(x.margen)||0,costo:Number(x.costo)||0,activo:x.activo!==false}),
+  prod:x=>({id:x.id,nombre:x.nombre,cat:x.categoria||'',prov:x.proveedor_id,modo:x.modo_precio||'fijo',precio:Number(x.precio_venta)||0,margen:Number(x.margen)||0,costo:Number(x.costo)||0,activo:x.activo!==false,pubs:x.publicaciones||[]}),
   stock:x=>({id:String(x.id),ts:x.creado_en,prod:x.producto_id,f:x.fecha,tipo:x.tipo,qty:x.cantidad,prop:x.propiedad,prov:x.proveedor_id,costo:Number(x.costo_unit)||0,precio:Number(x.precio_unit)||0,medio:x.medio||'',cli:x.cliente_id,cajaId:x.caja_id,provMovId:x.prov_mov_id,movId:x.mov_id,nota:x.nota||'',ed:x.edicion||''}),
   provmov:x=>({id:String(x.id),ts:x.creado_en,prov:x.proveedor_id,f:x.fecha,tipo:x.tipo,imp:Number(x.importe),d:x.detalle||'',cajaId:x.caja_id}),
   pubdist:x=>({id:x.publicacion,pub:x.publicacion,dist:x.distribuidor_id}),
@@ -1318,6 +1318,7 @@ function entregasDe(c,iso){
     if(suspendida(c.id,x[0],iso,null,altaDe(x))) return;
     const q=x[5]||1; (q<0?res:out).push({pub:x[0],qty:Math.abs(q),via:x[2]});
   });
+  if(LIVE.stock) out.push(...entregasRevista(c.id,iso));
   return {out,res};
 }
 function vueltasActivas(){ const mv=misVueltas(); return VUELTAS.filter(v=>v.activo!==false&&(!mv||mv.includes(v.nombre))).sort((a,b)=>(a.orden||0)-(b.orden||0)); }
@@ -1591,6 +1592,38 @@ function edsDe(pid,prop,prov){ const m={}; LIVE.stock.filter(x=>x.prod===pid&&(!
 function edTxt(ed){ return ed?'nº '+ed:''; }
 // ediciones viejas con stock cuando ya llegó una más nueva → para devolver
 function paraDevolver(){ const r=[]; LIVE.prod.filter(p=>p.activo!==false).forEach(p=>{ const all=[...new Set(LIVE.stock.filter(x=>x.prod===p.id&&x.ed&&x.qty>0).map(x=>x.ed))].sort(cmpEd); if(all.length<2)return; const ult=all[all.length-1]; edsDe(p.id).filter(e=>e.ed&&e.qty>0&&cmpEd(e.ed,ult)<0).forEach(e=>r.push({p,ed:e.ed,qty:e.qty,nuevo:ult})); }); return r; }
+// ---- revistas a suscriptores (v75): al llegar un número se genera una "entrega" por suscriptor en su próximo día de reparto
+function pubsRevista(){ const cnt={}; C.filter(c=>c.act).forEach(c=>c.subs.filter(x=>x[3]==='V'&&!(FD(x[1])||[]).length).forEach(x=>{cnt[x[0]]=(cnt[x[0]]||0)+1;})); return Object.keys(cnt).sort((a,b)=>a.localeCompare(b)); }
+function proximoReparto(cid,F){ const dias=new Set(LIVE.reparto.filter(r=>r.cli===cid).map(r=>r.dia)); const d=new Date(F+'T12:00:00'); for(let i=1;i<=21;i++){ d.setDate(d.getDate()+1); const iso=d.toISOString().slice(0,10); if(feriadoTotal(iso)) continue; if(!dias.size||dias.has(wdDe(iso))) return iso; } return null; }
+function suscriptoresDe(p,F){ const keys=(p.pubs||[]).map(norm); if(!keys.length) return []; const out=[]; C.filter(c=>c.act).forEach(c=>{ const x=c.subs.find(x=>x[3]==='V'&&keys.includes(norm(x[0]))&&(x[4]||'').slice(0,10)<=F); if(x) out.push({c,x}); }); return out; }
+async function generarEntregas(pid,ed,F,prop,prov){
+  const p=prodDe(pid); if(!p||!(p.pubs||[]).length||!ed) return {n:0,sinPrecio:0};
+  const ya=new Set(LIVE.stock.filter(m=>m.tipo==='entrega'&&m.prod===pid&&m.ed===ed).map(m=>m.cli));
+  const pr=precioVenta(p); let n=0, sinPrecio=0;
+  for(const {c,x} of suscriptoresDe(p,F)){
+    if(ya.has(c.id)) continue;
+    const D=proximoReparto(c.id,F); if(!D) continue;
+    if(suspendida(c.id,x[0],D,null,altaDe(x))) continue;
+    const q=Math.abs(x[5]||1); const det=q+'× '+p.nombre+' '+edTxt(ed);
+    let movId=null, provMovId=null, nota='suscripción '+x[0];
+    if(x[2]!=='S'){ // le cobrás vos: se anota en su cuenta y, si es consignación, se le debe al proveedor
+      if(pr>0){ movId=await ins('movimientos',{cliente_id:c.id,fecha:D,tipo:'Ajuste',importe:q*pr,medio:'',nota:'Revista: '+det}); if(prop==='consignacion'&&prov) provMovId=await ins('prov_movimientos',{proveedor_id:prov,fecha:D,tipo:'consignacion',importe:q*(p.costo||0),detalle:'Entregado a suscriptor: '+det}); }
+      else { sinPrecio++; nota+=' · SIN COBRAR (faltaba el precio)'; }
+    }
+    await ins('stock_mov',{producto_id:pid,fecha:D,tipo:'entrega',cantidad:-q,propiedad:prop||'propio',proveedor_id:prov||null,costo_unit:p.costo||0,precio_unit:x[2]!=='S'?pr:0,cliente_id:c.id,mov_id:movId,prov_mov_id:provMovId,edicion:ed,nota});
+    n++;
+  }
+  return {n,sinPrecio};
+}
+function entregasRevista(cid,iso){ return LIVE.stock.filter(m=>m.tipo==='entrega'&&m.cli===cid&&m.f===iso).map(m=>({pub:((prodDe(m.prod)||{}).nombre||'Revista')+(m.ed?' '+edTxt(m.ed):''),qty:-m.qty,via:'R'})); }
+function pendientesDe(pid,ed){ const h=hoyISO(); return LIVE.stock.filter(m=>m.tipo==='entrega'&&m.prod===pid&&m.f>h&&(ed==null||m.ed===ed)); }
+async function repartirUltimo(pid){
+  const p=prodDe(pid); if(!p)return; if(!(p.pubs||[]).length){toast('Primero editá el producto y marcá qué suscripciones la reciben');return;}
+  const r=LIVE.stock.filter(m=>m.prod===pid&&(m.tipo==='recepcion'||m.tipo==='compra')&&m.ed).sort((a,b)=>cmpEd(a.ed,b.ed)).pop(); if(!r){toast('No hay una llegada con número cargado');return;}
+  try{ const g=await generarEntregas(pid,r.ed,r.f,r.prop,r.prov); await Promise.all(['stock','movs','provmov'].map(cargarTabla)); SCACHE={}; toast(g.n?`${g.n} entregas de ${edTxt(r.ed)} agregadas al reparto ✓`+(g.sinPrecio?` (${g.sinPrecio} sin cobrar: falta el precio)`:''):'No había suscriptores nuevos para repartir'); pintarStock(); }catch(e){toast('Error: '+((e&&e.message)||e));}
+}
+async function anularEntrega(id){ const m=LIVE.stock.find(x=>x.id===id); if(!m)return; if(!confirm('¿Sacar esta entrega del reparto? Vuelve al stock'+(m.movId?' y se revierte el cargo en la cuenta del cliente':'')+'.'))return;
+  try{ await anularFila('stock_mov',id); await anularFila('movimientos',m.movId); await anularFila('prov_movimientos',m.provMovId); await Promise.all(['stock','movs','provmov'].map(cargarTabla)); SCACHE={}; toast('Entrega anulada'); pintarStock(); }catch(e){toast('Error: '+((e&&e.message)||e));} }
 function saldoProv(pid){ return LIVE.provmov.filter(m=>m.prov===pid).reduce((n,m)=>n+(m.imp||0),0); }
 async function ins(table,row){ const{data,error}=await sb.from(table).insert(row).select('id').single(); if(error)throw new Error(error.message); return data.id; }
 async function anularFila(table,id){ if(!id)return; const{error}=await sb.from(table).update({anulado:true}).eq('id',id); if(error)throw new Error(error.message); }
@@ -1632,7 +1665,7 @@ function pintarStockLista(){
   const q=norm(($('sq')||{}).value||'');
   const prods=LIVE.prod.filter(p=>p.activo!==false&&(!q||norm(p.nombre+' '+(p.cat||'')+' '+nomProv(p.prov)).includes(q))).map(p=>({p,s:stockDe(p.id)})).sort((a,b)=>a.p.nombre.localeCompare(b.p.nombre));
   $('slist').innerHTML=prods.length?prods.map(({p,s})=>`<div class="fila" data-prod="${p.id}" style="flex-wrap:wrap"><div style="flex:1;min-width:180px"><div class="dom">${p.nombre} ${p.cat?`<span class="pill p-inact">${p.cat}</span>`:''}</div><div class="nom">${nomProv(p.prov)!=='—'?'Prov. habitual: '+nomProv(p.prov)+' · ':''}costo ${fmt(p.costo)} · ${p.modo==='margen'?'costo +'+p.margen+'%':'precio fijo'}</div></div>
-    <div class="der"><div class="monto">${fmt(precioVenta(p))}</div><div class="mini ${s.total<=0?'debe':''}">${s.total} en stock${s.propio?' · '+s.propio+' propio':''}${Object.entries(s.consig).map(([k,v])=>' · '+v+' consig. '+nomProv(parseInt(k))).join('')}</div>${(()=>{const es=edsDe(p.id).filter(e=>e.ed);return es.length?`<div class="mini">${es.map(e=>edTxt(e.ed)+': '+e.qty).join(' · ')}</div>`:'';})()}</div>
+    <div class="der"><div class="monto">${fmt(precioVenta(p))}</div><div class="mini ${s.total<=0?'debe':''}">${s.total} en stock${s.propio?' · '+s.propio+' propio':''}${Object.entries(s.consig).map(([k,v])=>' · '+v+' consig. '+nomProv(parseInt(k))).join('')}</div>${(()=>{const es=edsDe(p.id).filter(e=>e.ed);const pe=pendientesDe(p.id); return (es.length?`<div class="mini">${es.map(e=>edTxt(e.ed)+': '+e.qty).join(' · ')}${pe.length?' libres':''}</div>`:'')+(pe.length?`<div class="mini" style="color:var(--azul)">+${pe.reduce((n,m)=>n-m.qty,0)} reservadas para suscriptores (reparto hasta el ${fecha(pe.map(m=>m.f).sort().pop())})</div>`:'');})()}</div>
     <div id="pdet-${p.id}" hidden style="flex-basis:100%"></div></div>`).join(''):'<div class="mini" style="padding:20px;text-align:center">Todavía no hay productos. Cargá el primero con "＋ Producto" o desde Compras.</div>';
   if(PSEL) abrirProd(PSEL,true);
 }
@@ -1644,12 +1677,13 @@ function formProdHTML(p){
     <div class="grid2"><div><label>Precio de venta</label><select id="pf-modo" onchange="$('pf-precio').disabled=this.value!=='fijo';$('pf-margen').disabled=this.value!=='margen'"><option value="fijo"${p.modo!=='margen'?' selected':''}>Precio fijo</option><option value="margen"${p.modo==='margen'?' selected':''}>Costo + % de ganancia</option></select></div>
     <div><label>Costo unitario</label><input id="pf-costo" type="number" inputmode="decimal" value="${p.costo||''}" placeholder="0"></div></div>
     <div class="grid2"><div><label>Precio fijo $</label><input id="pf-precio" type="number" inputmode="decimal" value="${p.precio||''}" ${p.modo==='margen'?'disabled':''}></div><div><label>% de ganancia</label><input id="pf-margen" type="number" inputmode="decimal" value="${p.margen||''}" ${p.modo!=='margen'?'disabled':''}></div></div>
+    <label>Se reparte a los suscriptores de <span class="mini">(al cargar la llegada de un número, esos clientes aparecen en Reparto en su próximo día)</span></label><div class="dias diasel" id="pf-pubs" style="flex-wrap:wrap">${[...new Set([...(p.pubs||[]),...pubsRevista()])].map(x=>`<div class="dia${(p.pubs||[]).includes(x)?' on':''}" data-pfpub="${x}" style="width:auto;padding:0 8px">${x}</div>`).join('')}</div>
     ${p.id?'':'<label>Stock inicial (propio, ya en tu poder)</label><input id="pf-stock" type="number" inputmode="numeric" placeholder="0">'}
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="pf-ok" data-pid="${p.id||''}">${p.id?'Guardar cambios':'Crear producto'}</button><button class="btn sec" id="pf-cancel">Cancelar</button>${p.id?`<button class="btn sec" id="pf-baja" data-pid="${p.id}" style="color:var(--rojo);border-color:var(--rojo)">Dar de baja</button>`:''}</div></div>`;
 }
 async function guardarProd(pid){
   const nombre=$('pf-nombre').value.trim(); if(!nombre){toast('Poné el nombre');return;}
-  const row={nombre,categoria:$('pf-cat').value.trim(),proveedor_id:$('pf-prov').value?parseInt($('pf-prov').value):null,modo_precio:$('pf-modo').value,precio_venta:parseFloat($('pf-precio').value)||0,margen:parseFloat($('pf-margen').value)||0,costo:parseFloat($('pf-costo').value)||0};
+  const row={nombre,categoria:$('pf-cat').value.trim(),proveedor_id:$('pf-prov').value?parseInt($('pf-prov').value):null,modo_precio:$('pf-modo').value,precio_venta:parseFloat($('pf-precio').value)||0,margen:parseFloat($('pf-margen').value)||0,costo:parseFloat($('pf-costo').value)||0,publicaciones:[...document.querySelectorAll('#pf-pubs .dia.on')].map(x=>unesc(x.dataset.pfpub))};
   try{
     if(pid){ const{error}=await sb.from('productos').update(row).eq('id',pid); if(error)throw new Error(error.message); }
     else{ const id=await ins('productos',row); const st=parseInt(($('pf-stock')||{}).value)||0; if(st) await ins('stock_mov',{producto_id:id,fecha:hoyISO(),tipo:'ajuste',cantidad:st,propiedad:'propio',costo_unit:row.costo,nota:'stock inicial'}); }
@@ -1661,11 +1695,11 @@ function abrirProd(pid,keep){
   const p=prodDe(pid); const box=$('pdet-'+pid); if(!p||!box)return;
   if(!keep&&PSEL===pid&&!box.hidden){box.hidden=true;PSEL=null;return;}
   document.querySelectorAll('[id^=pdet-]').forEach(b=>b.hidden=true); PSEL=pid;
-  const movs=LIVE.stock.filter(m=>m.prod===pid).sort((a,b)=>(b.f||'').localeCompare(a.f||'')||(b.ts||'').localeCompare(a.ts||'')).slice(0,15);
+  const movs=LIVE.stock.filter(m=>m.prod===pid).sort((a,b)=>(b.f||'').localeCompare(a.f||'')||(b.ts||'').localeCompare(a.ts||'')).slice(0,40);
   box.innerHTML=`<div style="border-top:1px solid var(--linea);margin-top:10px;padding-top:10px">
-    <div class="fchips" style="margin:0 0 8px"><button class="fch" data-pedit="${pid}">✎ Editar</button><button class="fch" data-pajuste="${pid}">± Ajustar stock</button><button class="fch" data-pvender="${pid}">Vender</button></div>
+    <div class="fchips" style="margin:0 0 8px"><button class="fch" data-pedit="${pid}">✎ Editar</button><button class="fch" data-pajuste="${pid}">± Ajustar stock</button><button class="fch" data-pvender="${pid}">Vender</button>${(p.pubs||[]).length?`<button class="fch" data-prepartir="${pid}">📦 Repartir último número a suscriptores</button>`:''}</div>${(p.pubs||[]).length?`<div class="mini" style="margin-bottom:6px">La reciben: ${p.pubs.join(', ')} · ${suscriptoresDe(p,hoyISO()).length} suscriptores activos</div>`:''}
     <div id="pajbox-${pid}"></div>
-    <div class="mini" style="margin-bottom:4px">Últimos movimientos</div>${movs.map(m=>`<div class="mov"><span class="f">${fecha(m.f)}</span><span class="t">${m.tipo}${m.ed?' '+edTxt(m.ed):''}${m.prop==='consignacion'?' (consig. '+nomProv(m.prov)+')':''}${m.cli?' · '+nomCli(m.cli):''}${m.medio?' · '+m.medio:''}${m.nota?' <span class="mini">· '+m.nota+'</span>':''}</span><span class="m ${m.qty<0?'debe':'favor'}">${m.qty>0?'+':''}${m.qty}</span></div>`).join('')||'<div class="mini">Sin movimientos.</div>'}</div>`;
+    <div class="mini" style="margin-bottom:4px">Últimos movimientos</div>${movs.map(m=>`<div class="mov"><span class="f">${fecha(m.f)}</span><span class="t">${m.tipo}${m.ed?' '+edTxt(m.ed):''}${m.prop==='consignacion'?' (consig. '+nomProv(m.prov)+')':''}${m.cli?' · '+nomCli(m.cli):''}${m.medio?' · '+m.medio:''}${m.nota?' <span class="mini">· '+m.nota+'</span>':''}</span><span class="m ${m.qty<0?'debe':'favor'}">${m.qty>0?'+':''}${m.qty}</span>${m.tipo==='entrega'?`<button class="del" data-edel="${m.id}">✕</button>`:''}</div>`).join('')||'<div class="mini">Sin movimientos.</div>'}</div>`;
   box.hidden=false;
 }
 function formAjusteHTML(pid){ return `<div class="card" style="margin:6px 0"><b>Ajuste de stock</b><div class="mini" style="margin:2px 0 4px">Conteo, rotura, faltante. Positivo suma, negativo resta.</div><div class="grid2"><div><label>Cantidad (±)</label><input id="paj-q" type="number" inputmode="numeric" placeholder="ej: -2"></div><div><label>De qué stock</label><select id="paj-prop" onchange="$('paj-provbox').hidden=this.value!=='consignacion'"><option value="propio">Propio</option><option value="consignacion">En consignación</option></select></div></div><div id="paj-provbox" hidden><label>Proveedor</label><select id="paj-prov">${optsProv()}</select></div><label>Número / edición (opcional)</label><input id="paj-ed" placeholder="ej: 389"><label>Motivo</label><input id="paj-nota" placeholder="ej: conteo de fin de mes"><button class="btn chico" data-pajok="${pid}">Guardar ajuste</button></div>`; }
@@ -1836,12 +1870,16 @@ async function registrarCompra(){
       if($('c-credito').checked&&costo) provMovId=await ins('prov_movimientos',{proveedor_id:prov,fecha:f,tipo:'credito',importe:-q*costo,detalle:'Devolución: '+det});
       await ins('stock_mov',{producto_id:pid,fecha:f,tipo:'devolucion',cantidad:-q,propiedad:prop,proveedor_id:prov,costo_unit:costo,prov_mov_id:provMovId,edicion:ed,nota});
     }
-    await Promise.all(['stock','caja','provmov','prod'].map(cargarTabla)); toast('Registrado ✓'); pintarCompras(); pintarInicio();
+    let msg='Registrado ✓';
+    if((CTIPO==='compra'||CTIPO==='recepcion')&&ed){ await cargarTabla('stock'); await cargarTabla('prod'); const g=await generarEntregas(pid,ed,f,CTIPO==='recepcion'?'consignacion':'propio',prov); if(g.n) msg+=` · ${g.n} suscriptores lo reciben en su próximo reparto`+(g.sinPrecio?` (${g.sinPrecio} sin cobrar: falta el precio)`:''); }
+    await Promise.all(['stock','caja','provmov','prod','movs'].map(cargarTabla)); SCACHE={}; toast(msg); pintarCompras(); pintarInicio();
   }catch(e){toast('Error: '+((e&&e.message)||e));}
 }
 async function anularIngreso(id){
-  const m=LIVE.stock.find(x=>x.id===id); if(!m)return; if(!confirm('¿Anular este movimiento? Se revierte el stock y lo enlazado (caja / CC proveedor).'))return;
-  try{ await anularFila('stock_mov',id); await anularFila('caja',m.cajaId); await anularFila('prov_movimientos',m.provMovId); await Promise.all(['stock','caja','provmov'].map(cargarTabla)); toast('Anulado'); pintarCompras(); pintarInicio(); }catch(e){toast('Error: '+((e&&e.message)||e));}
+  const m=LIVE.stock.find(x=>x.id===id); if(!m)return; const pe=(m.tipo==='recepcion'||m.tipo==='compra')&&m.ed?pendientesDe(m.prod,m.ed):[];
+  if(!confirm('¿Anular este movimiento? Se revierte el stock y lo enlazado (caja / CC proveedor).'+(pe.length?' También se sacan del reparto las '+pe.length+' entregas pendientes de ese número.':'')))return;
+  try{ for(const e of pe){ await anularFila('stock_mov',e.id); await anularFila('movimientos',e.movId); await anularFila('prov_movimientos',e.provMovId); } if(pe.length) await Promise.all(['movs','provmov'].map(cargarTabla));
+    await anularFila('stock_mov',id); await anularFila('caja',m.cajaId); await anularFila('prov_movimientos',m.provMovId); await Promise.all(['stock','caja','provmov'].map(cargarTabla)); toast('Anulado'); pintarCompras(); pintarInicio(); }catch(e){toast('Error: '+((e&&e.message)||e));}
 }
 async function anularPagoProv(id){
   const m=LIVE.provmov.find(x=>x.id===id); if(!m)return; if(!confirm('¿Anular este pago? Vuelve a la caja y a la CC del proveedor.'))return;
@@ -2241,6 +2279,8 @@ document.addEventListener('click',function(e){
   const dren=e.target.closest('[data-dren]'); if(dren){renombrarDist(parseInt(dren.dataset.dren));return;}
   const pren=e.target.closest('[data-pren]'); if(pren){renombrarProv(parseInt(pren.dataset.pren));return;}
   const pajok=e.target.closest('[data-pajok]'); if(pajok){ajustarStock(parseInt(pajok.dataset.pajok));return;}
+  const prep=e.target.closest('[data-prepartir]'); if(prep){repartirUltimo(parseInt(prep.dataset.prepartir));return;}
+  const edel=e.target.closest('[data-edel]'); if(edel){anularEntrega(edel.dataset.edel);return;}
   if(e.target.closest('#pf-ok')){guardarProd(parseInt(e.target.closest('#pf-ok').dataset.pid)||null);return;}
   if(e.target.closest('#pf-cancel')){const f=$('sform');if(f)f.innerHTML='';if(PSEL)abrirProd(PSEL,true);return;}
   if(e.target.closest('#pf-baja')){bajaProd(parseInt(e.target.closest('#pf-baja').dataset.pid));return;}
