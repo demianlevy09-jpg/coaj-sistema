@@ -185,6 +185,7 @@ textarea{resize:vertical;min-height:70px;line-height:1.4}
 .dias{display:flex;gap:4px;margin-top:8px}
 .dia{width:29px;height:25px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;border-radius:6px;background:var(--papel);color:var(--tinta2);border:1px solid var(--linea)}
 .dia.on{background:var(--azul);color:#fff;border-color:var(--azul)}
+.dia.susp{text-decoration:line-through;color:var(--tinta2);opacity:.7}
 .cabecera .dom{font-family:'Archivo',sans-serif;font-weight:900;font-size:23px;line-height:1.15;text-wrap:balance}
 .saldonum{font-family:'Archivo',sans-serif;font-weight:900;font-size:32px;font-variant-numeric:tabular-nums;margin-top:10px}
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
@@ -262,7 +263,7 @@ select.apagado{opacity:.45}
 
 
 <div class="wrap" id="appwrap" hidden>
-<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v72</span></div></div><div class="hb" id="hbtns"></div></header>
+<header><div class="hl"><div class="marca">COHAJ <span>· Sistema</span></div><div class="mini"><span id="estado-db"></span> <span id="lat">v73</span></div></div><div class="hb" id="hbtns"></div></header>
 <div id="cargando">Cargando los datos del puesto…</div>
 <div id="app" hidden>
   <div id="v-inicio"></div>
@@ -789,7 +790,7 @@ function diasHTML(fr){
   if(!dd)return fr?`<div class="mini" style="margin-top:6px">${fr}</div>`:'';
   return diasHTMLArr(dd);
 }
-function diasHTMLArr(dd){ return '<div class="dias">'+DIAS.map((d,i)=>`<div class="dia${dd.includes(i)?' on':''}">${d}</div>`).join('')+'</div>'; }
+function diasHTMLArr(dd,susp){ susp=susp||[]; return '<div class="dias">'+DIAS.map((d,i)=>{const s=dd.includes(i)&&susp.includes(i);return `<div class="dia${dd.includes(i)&&!s?' on':''}${s?' susp':''}"${s?' title="Suspendido"':''}>${d}</div>`;}).join('')+'</div>'; }
 function diasSuspHoy(cid,pub,dias,alta){
   if(!dias||!dias.length) return [];
   const hoy0=hoyISO();
@@ -859,7 +860,7 @@ function ficha(id,mas){
   h+=`<h2>Anotaciones${notas.length?' ('+notas.length+')':''}</h2><div class="card" id="notascard">${notas.length?notas.map((n,i)=>`<div class="nota"><div class="nt">${n.f?`<span class="nf">${n.f}${n.a?' · '+n.a:''}</span>`:''}${n.t}</div><button class="mini-btn" data-nborrar="${i}" data-cli="${id}" title="Borrar anotación">✕</button></div>`).join(''):'<div class="mini">Sin anotaciones. Usá “📝 Anotación” para dejar algo registrado (ej. “paga los 10”, “avisar antes de tocar timbre”).</div>'}</div>`;
   if(novs.length){h+=`<h2>Novedades cargadas acá</h2><div class="card">`+novs.map(n=>`<div class="subrow"><b>${n.tipo}</b> <span class="mini">${descNov(n)}${n.nota?' · '+n.nota:''}</span></div>`).join('')+`</div>`;}
   h+=`<h2>Suscripciones vigentes (${vig.length})</h2>`;
-  if(vig.length) agruparSubs(vig).forEach((e,ix)=>{const todasDeLaPub=vig.filter(x=>x[0]===e.pub).length===e.rows.length;const dsx=e.dias?diasSuspHoy(id,e.pub,e.dias,altaDe(e.rows[0])):[];h+=`<div class="card"><b>${e.pub}</b>${e.qty>1&&!e.qtyMix?` <span class="mini">×${e.qty}</span>`:''} <span class="pill ${e.via==='S'?'p-susc':'p-cli'}">${e.via==='S'?'vía distribuidora':'le cobrás vos'}</span>${e.app?' <span class="pill p-warn">alta cargada acá</span>':''}${e.dias?diasHTMLArr(e.dias):(e.txt?`<div class="mini" style="margin-top:6px">${e.txt}</div>`:'')}${dsx.length?`<div class="mini" style="margin-top:4px;color:var(--rojo)">Ahora no recibe: ${dsx.map(d=>DIAS[d]).join(', ')}</div>`:''}${e.rows.length>1?`<div class="mini" style="margin-top:4px">${e.rows.length} suscripciones agrupadas (una por día)</div>`:''}<div class="mini" style="margin-top:6px">desde ${fecha(e.desde)}</div>
+  if(vig.length) agruparSubs(vig).forEach((e,ix)=>{const todasDeLaPub=vig.filter(x=>x[0]===e.pub).length===e.rows.length;const dsx=e.dias?diasSuspHoy(id,e.pub,e.dias,altaDe(e.rows[0])):[];h+=`<div class="card"><b>${e.pub}</b>${e.qty>1&&!e.qtyMix?` <span class="mini">×${e.qty}</span>`:''} <span class="pill ${e.via==='S'?'p-susc':'p-cli'}">${e.via==='S'?'vía distribuidora':'le cobrás vos'}</span>${e.app?' <span class="pill p-warn">alta cargada acá</span>':''}${e.dias?diasHTMLArr(e.dias,dsx):(e.txt?`<div class="mini" style="margin-top:6px">${e.txt}</div>`:'')}${e.rows.length>1?`<div class="mini" style="margin-top:4px">${e.rows.length} suscripciones agrupadas (una por día)</div>`:''}<div class="mini" style="margin-top:6px">desde ${fecha(e.desde)}</div>
   <div id="sf-${ix}"><button class="btn chico sec" data-sform="${ix}" data-pub="${e.pub}" data-dias="${(e.dias||[]).join(',')}" ${todasDeLaPub?'data-todas="1"':''} data-cli="${id}" data-acc="Suspensión">Suspender / dar de baja</button>${e.dias&&e.dias.length?` <button class="btn chico sec" data-cvia="${ix}" data-pub="${e.pub}" data-dias="${e.dias.join(',')}" data-via="${e.via}" data-qty="${e.qty}" data-cli="${id}">${e.via==='S'?'Pasar a "le cobrás vos"':'Pasar a "vía distribuidora"'}</button>`:''}</div></div>`;});
   else h+='<div class="card mini">Sin publicaciones vigentes.</div>';
   h+=`<div id="altabox"><button class="btn chico" id="altabtn" data-cli="${id}">＋ Alta de suscripción nueva</button></div>`;
