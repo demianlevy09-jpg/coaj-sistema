@@ -1520,16 +1520,48 @@ function moverParada(p,dir){
   if(dir==='up') p.parentElement.insertBefore(p,sib); else p.parentElement.insertBefore(sib,p);
   guardarOrdenDOM([p.dataset.vuelta]);
 }
-function hojaHTML(vnombre,iso){
+function construirParadasHoja(vnombre,iso){
   const v=VUELTAS.find(x=>x.nombre===vnombre)||{nombre:vnombre};
   const wdh=wdDe(iso);
   const asig={}; LIVE.reparto.filter(r=>r.dia===wdh&&r.vuelta===vnombre).forEach(r=>asig[r.cli]=r);
   const list=[]; const tot={};
   C.filter(c=>c.act&&asig[c.id]).forEach(c=>{const e=entregasDe(c,iso); if(!e.out.length)return; e.out.forEach(x=>tot[x.pub]=(tot[x.pub]||0)+x.qty); list.push({c,ent:e.out,orden:asig[c.id].orden});});
   const paradas=agruparParadas(list,ordenManual(wdh,vnombre));
-  return `<div class="hoja"><div class="hh"><div><b>COHAJ · Reparto del ${DIAS_L[wdh]} ${fecha(iso)}</b><div>Vuelta <b>${v.nombre}</b>${v.repartidor?' · '+v.repartidor:''}</div></div><div class="ht">${Object.entries(tot).sort((a,b)=>b[1]-a[1]).map(([p,n])=>`<b>${n}</b> ${p}`).join(' · ')||'—'}<div>${paradas.length} paradas · ${list.length} clientes</div></div></div>
-  ${paradas.map((p,i)=>`<div class="hp"><div class="hpe">${i+1}. ${p.ed}</div>${p.cl.map(x=>`<div class="hpc"><span class="hq">☐</span><span class="hu">${edificioDe(x.c.d).un||''}</span><span class="he">${x.ent.map(e=>(e.qty>1?e.qty+'× ':'')+e.pub).join(' + ')}</span><span class="hpp">${x.c.part||''}</span></div>`).join('')}</div>`).join('')}
-  ${paradas.length?'':'<div>Sin paradas.</div>'}</div>`;
+  return {v,wdh,paradas,tot,list};
+}
+function encabezadoHojaHTML(v,iso,wdh,tot,paradasN,clientesN,pag,pags){
+  return `<div class="hh"><div><b>COHAJ · Reparto del ${DIAS_L[wdh]} ${fecha(iso)}</b><div>Vuelta <b>${v.nombre}</b>${v.repartidor?' · '+v.repartidor:''}${pags>1?` · HOJA ${pag}/${pags}`:''}</div></div><div class="ht">${Object.entries(tot).sort((a,b)=>b[1]-a[1]).map(([p,n])=>`<b>${n}</b> ${p}`).join(' · ')||'—'}<div>${paradasN} paradas · ${clientesN} clientes</div></div></div>`;
+}
+function paradaHojaHTML(p,n){
+  return `<div class="hp"><div class="hpe">${n}. ${p.ed}</div>${p.cl.map(x=>`<div class="hpc"><span class="hq">☐</span><span class="hu">${edificioDe(x.c.d).un||''}</span><span class="he">${x.ent.map(e=>(e.qty>1?e.qty+'× ':'')+e.pub).join(' + ')}</span><span class="hpp">${x.c.part||''}</span></div>`).join('')}</div>`;
+}
+// Reparte las paradas en las páginas físicas que realmente entran en una hoja A4 (mide en el DOM real, igual fuente/ancho que la impresión)
+function paginarParadasHoja(paradas,v,iso,wdh,tot,clientesN){
+  if(!paradas.length) return [];
+  const mmpx=96/25.4, anchoMM=210-16, altoUtilPx=(297-10)*mmpx;
+  const cont=document.createElement('div');
+  cont.className='hoja';
+  cont.style.cssText=`position:fixed;left:-9999px;top:0;width:${anchoMM}mm`;
+  document.body.appendChild(cont);
+  cont.innerHTML=encabezadoHojaHTML(v,iso,wdh,tot,paradas.length,clientesN,1,2);
+  const hHeader=cont.getBoundingClientRect().height+8;
+  const alturas=paradas.map(p=>{ cont.innerHTML=paradaHojaHTML(p,1); return cont.getBoundingClientRect().height; });
+  document.body.removeChild(cont);
+  const pages=[]; let cur=[], h=hHeader;
+  paradas.forEach((p,i)=>{
+    const ph=alturas[i];
+    if(cur.length&&h+ph>altoUtilPx){ pages.push(cur); cur=[]; h=hHeader; }
+    cur.push(p); h+=ph;
+  });
+  if(cur.length) pages.push(cur);
+  return pages;
+}
+function hojaHTML(vnombre,iso){
+  const{v,wdh,paradas,tot,list}=construirParadasHoja(vnombre,iso);
+  if(!paradas.length) return `<div class="hoja">${encabezadoHojaHTML(v,iso,wdh,{},0,0,1,1)}<div>Sin paradas.</div></div>`;
+  const pages=paginarParadasHoja(paradas,v,iso,wdh,tot,list.length);
+  const N=pages.length; let n=0;
+  return pages.map((pg,ix)=>`<div class="hoja">${encabezadoHojaHTML(v,iso,wdh,tot,paradas.length,list.length,ix+1,N)}${pg.map(p=>paradaHojaHTML(p,++n)).join('')}</div>`).join('');
 }
 function imprimirHojas(nombres,fechas){
   const isos=fechas&&fechas.length?fechas:[fechaParaDia(RDIA)];
