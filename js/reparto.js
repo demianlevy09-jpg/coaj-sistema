@@ -8,7 +8,7 @@ function fechaParaDia(wd){ // próxima fecha (hoy inclusive) que cae en ese día
   const h=hoyISO(); const d=new Date(h+'T12:00:00'); const cur=(d.getDay()+6)%7; d.setDate(d.getDate()+((wd-cur+7)%7)); return d.toISOString().slice(0,10);
 }
 function edificioDe(dom){ // "Húsares 2255 1 14 3" → ed:"Húsares 2255" · calle:"Húsares" · alt:2255 · un:"1 14 3"
-  const s=(dom||'').trim(); const m=s.match(/^(.*?\s(\d+))(\s.*)?$/);
+  const s=(dom||'').trim(); const m=s.match(/^(.*?(?<!\bde)\s(\d+))(?!\s+de\b)(\s.*)?$/i); // "11 de Septiembre de 1888 1990 3 A": los números de "... de 1888" o "9 de ..." son parte del nombre
   if(!m) return {ed:s,un:'',calle:s,alt:0};
   return {ed:m[1],un:(m[3]||'').trim(),calle:m[1].slice(0,m[1].length-m[2].length).trim(),alt:parseInt(m[2],10)||0};
 }
@@ -62,14 +62,18 @@ function pintarReparto(){
   const asig={}; LIVE.reparto.filter(r=>r.dia===RDIA).forEach(r=>asig[r.cli]=r);
   const porV={}; vueltasActivas().forEach(v=>porV[v.nombre]=[]);
   const sinV=[], reservas=[], totPub={};
+  const mv=misVueltas(), esRep=!!(PERFIL&&PERFIL.rol==='repartidor');
+  if(esRep&&!mv){ el.innerHTML=titulo('Reparto','')+'<div class="aviso">Todavía no tenés vueltas asignadas. Pedile a Demian que te asigne una.</div>'; return; }
   let nCli=0;
-  C.filter(c=>c.act).forEach(c=>{
+  // todos los clientes: entregasDe ya descarta bajas y suspensiones de ESE día (c.act es el estado de hoy, no sirve para otros días)
+  C.forEach(c=>{
     const e=entregasDe(c,iso);
-    e.res.forEach(r=>reservas.push({c,...r}));
+    const a=asig[c.id];
+    if(mv&&!(a&&porV[a.vuelta])) return; // repartidor: solo lo de sus vueltas
+    if(!mv) e.res.forEach(r=>reservas.push({c,...r}));
     if(!e.out.length) return;
     nCli++;
     e.out.forEach(x=>totPub[x.pub]=(totPub[x.pub]||0)+x.qty);
-    const a=asig[c.id];
     if(a&&porV[a.vuelta]) porV[a.vuelta].push({c,ent:e.out,orden:a.orden,rid:a.id});
     else sinV.push({c,ent:e.out});
   });
@@ -81,8 +85,8 @@ function pintarReparto(){
   if(feriado) h+=`<div class="aviso" style="margin-bottom:12px">${fecha(iso)} está cargado como feriado ${feriadoTotal(iso)?'sin reparto: no se entrega nada ese día.':'con diario'+(((LIVE.feriados.find(r=>r.f===iso)||{}).sp||[]).length?': no sale '+(LIVE.feriados.find(r=>r.f===iso)).sp.join(', ')+'.':' (salen todos); se suman las suscripciones "Fer".')}</div>`;
   h+=`<div class="kpis">
     <div class="kpi ancha"><i>Para armar los paquetes · total del día</i><div class="tots">${Object.entries(totPub).sort((a,b)=>b[1]-a[1]).map(([p,n])=>`<span><b>${n}</b> ${p}</span>`).join('')||'<span class="mini">nada que repartir</span>'}</div></div>
-    <div class="kpi ${sinV.length?'amb':'gris'}"><i>Sin vuelta asignada</i><b>${sinV.length} <small>clientes</small></b><i>${sinV.length?'asignalos abajo':'todos asignados ✓'}</i></div>
-    <div class="kpi ${reservas.length?'':'gris'}"><i>Reservas en la parada</i><b>${reservas.length} <small>ejemplares</small></b><i>los retiran en el puesto</i></div>
+    ${mv?'':`<div class="kpi ${sinV.length?'amb':'gris'}"><i>Sin vuelta asignada</i><b>${sinV.length} <small>clientes</small></b><i>${sinV.length?'asignalos abajo':'todos asignados ✓'}</i></div>
+    <div class="kpi ${reservas.length?'':'gris'}"><i>Reservas en la parada</i><b>${reservas.reduce((n,r)=>n+(r.qty||1),0)} <small>ejemplares</small></b><i>los retiran en el puesto</i></div>`}
   </div>`;
   h+=`<div class="sec"><span class="dot"></span>Vueltas del ${DIAS_L[RDIA]} <span class="mini" style="text-transform:none;letter-spacing:0">— por default van agrupadas por dirección y ordenadas por altura; arrastrá las paradas para cambiar el orden o pasarlas a otra vuelta; ⇄ mueve un cliente</span></div>`;
   h+=`<div class="vgrid">`;
@@ -115,10 +119,9 @@ function pintarReparto(){
   if(reservas.length){
     h+=`<div class="sec"><span class="dot"></span>Reservas en la parada (${reservas.length})</div><div class="card"><div class="mini" style="margin-bottom:6px">Se los guardan en el puesto, no van en ninguna vuelta.</div>${reservas.map(r=>`<div class="pcli"><span class="un" style="min-width:0"><b>${r.c.d}</b>${r.c.n?' · '+r.c.n:''}</span><span class="pe">${r.qty>1?r.qty+'× ':''}${r.pub}</span></div>`).join('')}</div>`;
   }
-  if(!misVueltas()) h+=`<div class="card" style="margin-top:14px"><b>Vueltas y repartidores</b><div class="mini" style="margin:4px 0 8px">Tocá el nombre del repartidor para cambiarlo. Las vueltas vienen de NewsPaper; se pueden agregar más.</div>
+  if(!mv&&!esRep) h+=`<div class="card" style="margin-top:14px"><b>Vueltas y repartidores</b><div class="mini" style="margin:4px 0 8px">Tocá el nombre del repartidor para cambiarlo. Las vueltas vienen de NewsPaper; se pueden agregar más.</div>
     ${VUELTAS.sort((a,b)=>(a.orden||0)-(b.orden||0)).map(v=>`<div class="mov"><span class="t"><b>${v.nombre}</b> · <span class="lnk" data-rrep="${v.nombre}">${v.repartidor||'sin repartidor'} ✎</span></span><span class="mini">${LIVE.reparto.filter(r=>r.vuelta===v.nombre).length} asignaciones</span><button class="mini-btn" data-rvact="${v.nombre}" title="${v.activo===false?'Activar':'Desactivar'}">${v.activo===false?'○':'●'}</button></div>`).join('')}
     <div style="display:flex;gap:8px;align-items:center;margin-top:8px"><input id="rnv" placeholder="Nueva vuelta (ej: Moto 1)" style="margin:0;max-width:220px"><input id="rnr" placeholder="Repartidor" style="margin:0;max-width:180px"><button class="btn chico" id="rnvok" style="margin:0">Agregar</button></div></div>`;
-  if(misVueltas()) h=h.replace(/<div class="sec amb"><span class="dot"><\/span>Sin vuelta asignada[\s\S]*?<\/div><div class="card">[\s\S]*?<\/div>/,'');
   el.innerHTML=h;
   // drag & drop (escritorio)
   el.querySelectorAll('.parada').forEach(p=>{
@@ -141,6 +144,8 @@ async function guardarOrdenDOM(tocadas){
     const manual=man.has(vuelta)||ordenManual(RDIA,vuelta);
     [...l.querySelectorAll('.parada')].forEach((p,i)=>{
       (p.dataset.clis||'').split(',').filter(Boolean).forEach(id=>rows.push({cliente_id:parseInt(id),dia:RDIA,vuelta:unesc(vuelta),orden:(i+1)*10,origen:manual?'manual':'app'}));
+      // vecinos del mismo edificio que hoy no reciben (suspendidos, etc.): toman el mismo orden, así cuando vuelvan no saltan a otro lugar
+      LIVE.reparto.filter(r=>r.dia===RDIA&&unesc(r.vuelta)===unesc(vuelta)&&unesc(edificioDe(nomCli(r.cli)).ed)===p.dataset.ed&&!rows.some(x=>x.cliente_id===r.cli)).forEach(r=>rows.push({cliente_id:r.cli,dia:RDIA,vuelta:unesc(vuelta),orden:(i+1)*10,origen:manual?'manual':'app'}));
     });
   });
   try{
@@ -156,7 +161,7 @@ async function guardarOrdenDOM(tocadas){
 // dias: array de días (0=lunes) o true = todos; pos: 'fin' (default) o 'inicio'
 async function asignarVuelta(cli,vuelta,dias,pos){
   if(dias===true) dias=[0,1,2,3,4,5,6]; if(!Array.isArray(dias)) dias=[RDIA];
-  const rows=dias.map(d=>{const en=LIVE.reparto.filter(r=>r.dia===d&&r.vuelta===vuelta); const max=en.reduce((m,r)=>Math.max(m,r.orden||0),0), min=en.reduce((m,r)=>Math.min(m,r.orden||0),1e9); return {cliente_id:cli,dia:d,vuelta:unesc(vuelta),orden:pos==='inicio'?(en.length?min-10:10):max+10,anulado:false};});
+  const rows=dias.map(d=>{const en=LIVE.reparto.filter(r=>r.dia===d&&r.vuelta===vuelta); const max=en.reduce((m,r)=>Math.max(m,r.orden||0),0), min=en.reduce((m,r)=>Math.min(m,r.orden||0),1e9); return {cliente_id:cli,dia:d,vuelta:unesc(vuelta),orden:pos==='inicio'?(en.length?min-10:10):max+10,anulado:false,origen:ordenManual(d,vuelta)?'manual':'app'};}); // origen de la vuelta destino (antes arrastraba el 'manual' de la vuelta de origen)
   try{ const{error}=await sb.from('reparto').upsert(rows,{onConflict:'cliente_id,dia'}); if(error)throw new Error(error.message); await cargarTabla('reparto'); toast(nomCli(cli)+' → '+vuelta+' ('+(dias.length===7?'todos los días':dias.map(d=>DIAS[d]).join(' '))+') ✓'); pintarReparto(); }catch(e){toast('Error: '+((e&&e.message)||e));}
 }
 async function quitarDeVuelta(cli,dias){
@@ -256,7 +261,7 @@ function construirParadasHoja(vnombre,iso){
   const wdh=wdDe(iso);
   const asig={}; LIVE.reparto.filter(r=>r.dia===wdh&&r.vuelta===vnombre).forEach(r=>asig[r.cli]=r);
   const list=[]; const tot={};
-  C.filter(c=>c.act&&asig[c.id]).forEach(c=>{const e=entregasDe(c,iso); if(!e.out.length)return; e.out.forEach(x=>tot[x.pub]=(tot[x.pub]||0)+x.qty); list.push({c,ent:e.out,orden:asig[c.id].orden});});
+  C.filter(c=>asig[c.id]).forEach(c=>{const e=entregasDe(c,iso); if(!e.out.length)return; e.out.forEach(x=>tot[x.pub]=(tot[x.pub]||0)+x.qty); list.push({c,ent:e.out,orden:asig[c.id].orden});});
   const paradas=agruparParadas(list,ordenManual(wdh,vnombre));
   return {v,wdh,paradas,tot,list};
 }
@@ -276,7 +281,7 @@ function paginarParadasHoja(paradas,v,iso,wdh,tot,clientesN){
   document.body.appendChild(cont);
   cont.innerHTML=encabezadoHojaHTML(v,iso,wdh,tot,paradas.length,clientesN,1,2);
   const hHeader=cont.getBoundingClientRect().height+8;
-  const alturas=paradas.map(p=>{ cont.innerHTML=paradaHojaHTML(p,1); return cont.getBoundingClientRect().height; });
+  const alturas=paradas.map(p=>{ cont.innerHTML=paradaHojaHTML(p,1); const el=cont.firstElementChild; return el?el.getBoundingClientRect().height:cont.getBoundingClientRect().height; }); // se mide la parada sola (antes sumaba el margen de la hoja a cada parada y salían hojas de más)
   document.body.removeChild(cont);
   const pages=[]; let cur=[], h=hHeader;
   paradas.forEach((p,i)=>{

@@ -10,7 +10,7 @@
       const st = { tabla, op: 'select', filtros: [], orden: null, rango: null, uno: null, fila: null, cambios: null, conflicto: null, devolver: false };
       const api = {
         select() { if (st.op !== 'select') st.devolver = true; return api; },
-        eq(c, v) { st.filtros.push(r => r[c] === v || (r[c] == null && v === false && c === 'anulado')); return api; },
+        eq(c, v) { st.filtros.push(r => r[c] === v || (r[c] != null && v != null && typeof v !== 'boolean' && String(r[c]) === String(v)) || (r[c] == null && v === false && c === 'anulado')); return api; },
         in(c, vs) { const s = new Set(vs); st.filtros.push(r => s.has(r[c])); return api; },
         match(o) { for (const k in o) api.eq(k, o[k]); return api; },
         order(c, o) { st.orden = { c, asc: !o || o.ascending !== false }; return api; },

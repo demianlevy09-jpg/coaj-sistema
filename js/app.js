@@ -2,13 +2,13 @@
 // Parte del código de la app (antes todo estaba en index.html). Se cargan en orden, como scripts comunes: comparten las variables globales.
 /* ------- latido de diagnóstico ------- */
 let NEV=0;
-const PINTAR={inicio:pintarInicio,caja:pintarCaja,precios:pintarPrecios,novedades:pintarNovedades,dist:pintarDist,reparto:pintarReparto,ventas:pintarVentas,stock:pintarStock,compras:pintarCompras};
+const PINTAR={clientes:()=>{ if($('bq')) buscar(true); else pintarClientes(); } /* al volver a Clientes, saldos al día */,inicio:pintarInicio,caja:pintarCaja,precios:pintarPrecios,novedades:pintarNovedades,dist:pintarDist,reparto:pintarReparto,ventas:pintarVentas,stock:pintarStock,compras:pintarCompras};
 /* ------- DELEGACIÓN GLOBAL (sobrevive a cualquier re-render) ------- */
 document.addEventListener('click',function(e){
   NEV++;
   const t=e.target.closest?e.target:null; if(!t)return;
   const tab=e.target.closest('.tab');
-  if(tab){ if(tab.classList.contains('mas')){$('massheet').hidden=!$('massheet').hidden;return;} $('massheet').hidden=true; ver(tab.dataset.v);const p=PINTAR[tab.dataset.v];if(p)p();return;}
+  if(tab){ if(tab.classList.contains('mas')){$('massheet').hidden=!$('massheet').hidden;return;} $('massheet').hidden=true; const vv=ver(tab.dataset.v);const p=PINTAR[vv];if(p)p();return;}
   if($('massheet')&&!$('massheet').hidden&&(!e.target.closest('#massheet')||e.target.closest('#massheet .btn'))){ $('massheet').hidden=true; }
   if(e.target.closest('#mv-cancel')||(e.target.id==='ovl')){cerrarModal();return;}
   if(e.target.closest('#mv-ok')){mvConfirmar(parseInt(e.target.closest('#mv-ok').dataset.cli));return;}
@@ -62,14 +62,15 @@ document.addEventListener('click',function(e){
   if(sf&&!sf.dataset.done){
     const cont=sf.parentElement;
     const dd=(sf.dataset.dias||'').split(',').filter(x=>x!=='').map(Number);
-    const otras=(()=>{const c=C.find(x=>x.id===parseInt(sf.dataset.cli));if(!c)return 0;return c.subs.filter(x=>x[3]==='V'&&x[0]===sf.dataset.pub).length;})();
+    const otras=(()=>{const c=C.find(x=>x.id===parseInt(sf.dataset.cli));if(!c)return 0;return c.subs.filter(x=>x[3]==='V'&&mismaPub(unesc(x[0]),sf.dataset.pub)).length;})();
     const cerr=sf.dataset.cerrada==='1';
     const esSusp=sf.dataset.acc==='Suspensión';
-    cont.innerHTML=(esSusp?`<div class="grid2"><div>`:'')+`<label>${cerr?'Reactivar':sf.dataset.acc+' de'} ${sf.dataset.pub}${dd.length?' ('+dd.map(d=>DIAS[d]).join(' ')+')':''} desde</label><input type="date" class="sfec" value="${hoyISO()}">`
+    const pubH=esc(sf.dataset.pub);
+    cont.innerHTML=(esSusp?`<div class="grid2"><div>`:'')+`<label>${cerr?'Reactivar':sf.dataset.acc+' de'} ${pubH}${dd.length?' ('+dd.map(d=>DIAS[d]).join(' ')+')':''} desde</label><input type="date" class="sfec" value="${hoyISO()}">`
     +(esSusp?`</div><div><label>Vuelve a recibir el <span class="mini">(opcional; vacío = hasta que la reactives)</span></label><input type="date" class="sfhasta"></div></div>`:'')+`
     ${cerr?`<div class="mini" style="margin:2px 0 6px">Esta suscripción estaba cerrada en el sistema viejo: se vuelve a dar de alta desde esa fecha (${sf.dataset.via==='S'?'vía distribuidora':'le cobrás vos'}${parseInt(sf.dataset.qty)>1?', ×'+sf.dataset.qty:''}) y devenga desde ahí.</div>`:''}
-    ${otras>1&&dd.length&&sf.dataset.todas!=='1'?`<label class="chkl"><input type="checkbox" class="sftodas"> Aplicar a todas las suscripciones de ${sf.dataset.pub} de este cliente (${otras})</label>`:''}
-    <button class="btn chico" data-sok data-pub="${sf.dataset.pub}" data-dias="${sf.dataset.dias||''}" data-via="${sf.dataset.via||''}" data-qty="${sf.dataset.qty||''}" ${cerr?'data-cerrada="1"':''} data-cli="${sf.dataset.cli}" data-acc="${sf.dataset.acc}">Confirmar ${cerr?'reactivación':sf.dataset.acc.toLowerCase()}</button> <button class="btn chico sec" data-fcancel="${sf.dataset.cli}">Cancelar</button>`;
+    ${otras>1&&dd.length&&sf.dataset.todas!=='1'?`<label class="chkl"><input type="checkbox" class="sftodas"> Aplicar a todas las suscripciones de ${pubH} de este cliente (${otras})</label>`:''}
+    <button class="btn chico" data-sok data-pub="${pubH}" data-dias="${sf.dataset.dias||''}" data-via="${sf.dataset.via||''}" data-qty="${sf.dataset.qty||''}" ${cerr?'data-cerrada="1"':''} data-cli="${sf.dataset.cli}" data-acc="${sf.dataset.acc}">Confirmar ${cerr?'reactivación':sf.dataset.acc.toLowerCase()}</button> <button class="btn chico sec" data-fcancel="${sf.dataset.cli}">Cancelar</button>`;
     return;
   }
   const ab=e.target.closest('#altabtn');
@@ -92,17 +93,21 @@ document.addEventListener('click',function(e){
   if(cv){
     const nueva=cv.dataset.via==='S'?'C':'S';
     const dd=(cv.dataset.dias||'').split(',').filter(x=>x!=='').map(Number);
-    cv.parentElement.innerHTML=`<label>${cv.dataset.pub}${dd.length?' ('+dd.map(d=>DIAS[d]).join(' ')+')':''}: pasa a <b>${nueva==='S'?'vía distribuidora':'le cobrás vos'}</b> desde</label><input type="date" class="cvfec" value="${hoyISO()}">
+    const pubH=esc(cv.dataset.pub);
+    cv.parentElement.innerHTML=`<label>${pubH}${dd.length?' ('+dd.map(d=>DIAS[d]).join(' ')+')':''}: pasa a <b>${nueva==='S'?'vía distribuidora':'le cobrás vos'}</b> desde</label><input type="date" class="cvfec" value="${hoyISO()}">
     <div class="mini" style="margin:2px 0 6px">${nueva==='C'?'Desde ese día el diario se le cobra en su cuenta corriente (precio de tapa).':'Desde ese día lo cobra la distribuidora y a vos te queda la comisión.'} La suscripción anterior se cierra el día anterior, sola.</div>
-    <button class="btn chico" data-cvok data-pub="${cv.dataset.pub}" data-dias="${cv.dataset.dias||''}" data-via="${nueva}" data-qty="${cv.dataset.qty||1}" data-cli="${cv.dataset.cli}">Confirmar cambio</button> <button class="btn chico sec" data-fcancel="${cv.dataset.cli}">Cancelar</button>`;
+    <button class="btn chico" data-cvok data-pub="${pubH}" data-dias="${cv.dataset.dias||''}" data-via="${nueva}" data-qty="${cv.dataset.qty||1}" data-cli="${cv.dataset.cli}">Confirmar cambio</button> <button class="btn chico sec" data-fcancel="${cv.dataset.cli}">Cancelar</button>`;
     return;
   }
   const cvo=e.target.closest('[data-cvok]');
   if(cvo){
     const cli=parseInt(cvo.dataset.cli), desde=cvo.parentElement.querySelector('.cvfec').value; if(!desde){toast('Poné la fecha');return;}
     const dias=(cvo.dataset.dias||'').split(',').filter(x=>x!=='').map(Number);
+    if(!dias.length){toast('Esta suscripción no tiene días fijos: dala de baja y cargá un alta nueva');return;}
     const r={id:nid(),ts:new Date().toISOString(),cli,tipo:'Alta',pub:cvo.dataset.pub,desde,hasta:'',dias,via:cvo.dataset.via,qty:parseInt(cvo.dataset.qty)||1,nota:'cambio de modalidad: '+(cvo.dataset.via==='S'?'le cobrás vos → vía distribuidora':'vía distribuidora → le cobrás vos')};
-    guardar('novedades',[...LIVE.novedades,r]).then(()=>{toast('Modalidad cambiada ✓ (la anterior quedó cerrada)');ficha(cli);}).catch(err=>toast('Error: '+(err&&err.message)));
+    // las suspensiones que siguen vigentes pasan a la suscripción nueva (si no, el cambio reactivaba días suspendidos)
+    const sigue=suspensionesQueSiguen(cli,cvo.dataset.pub,dias,desde).map(n=>({id:nid(),ts:r.ts,cli,tipo:n.tipo,pub:unesc(n.pub||''),desde,hasta:n.hasta||'',dias:n.dias,nota:'sigue desde el '+fecha(n.desde)+' (cambio de modalidad)'}));
+    guardar('novedades',[...LIVE.novedades,r,...sigue]).then(()=>{toast('Modalidad cambiada ✓ (la anterior quedó cerrada)');ficha(cli);}).catch(err=>toast('Error: '+(err&&err.message)));
     return;
   }
   const ao=e.target.closest('[data-altaok]');
@@ -112,7 +117,7 @@ document.addEventListener('click',function(e){
     if(!pub){toast('Poné la publicación');return;}
     if(!dias.length){toast('Marcá al menos un día');return;}
     const cli=parseInt(ao.dataset.cli);
-    const desde=$('adesde').value;
+    const desde=$('adesde').value; if(!desde){toast('Poné desde cuándo recibe');return;}
     const c=C.find(x=>x.id===cli);
     // Bloqueo: si ya recibe esa publicación alguno de esos días (y no está suspendida/dada de baja a esa fecha), no se puede dar de alta otra vez.
     const choque=[]; if(c) c.subs.filter(x=>x[3]==='V'&&norm(x[0])===norm(pub)).forEach(x=>{const dd=FD(x[1])||[]; const com=dd.length?dd.filter(d=>dias.includes(d)):dias; if(!com.length)return; if(suspendida(cli,x[0],desde,com,altaDe(x)))return; choque.push({via:x[2],dias:com});});
@@ -120,7 +125,7 @@ document.addEventListener('click',function(e){
     if(choque.length){
       const ds=[...new Set(choque.flatMap(x=>x.dias))].sort().map(d=>DIAS[d]).join(' ');
       const via=[...new Set(choque.map(x=>x.via==='S'?'vía distribuidora':'le cobrás vos'))].join(' / ');
-      ao.insertAdjacentHTML('beforebegin',`<div class="aviso" id="altaaviso" style="background:var(--rojosuave);color:var(--rojo)">⚠ Este cliente <b>ya está suscripto a ${pub}</b> los días ${ds} (${via}). No se puede dar de alta dos veces: primero dale de baja o suspendela arriba, o usá el botón "Pasar a…" si lo que querés es cambiar quién la cobra.</div>`);
+      ao.insertAdjacentHTML('beforebegin',`<div class="aviso" id="altaaviso" style="background:var(--rojosuave);color:var(--rojo)">⚠ Este cliente <b>ya está suscripto a ${esc(pub)}</b> los días ${ds} (${via}). No se puede dar de alta dos veces: primero dale de baja o suspendela arriba, o usá el botón "Pasar a…" si lo que querés es cambiar quién la cobra.</div>`);
       toast('Ya está suscripto a '+pub+' esos días');
       return;
     }
@@ -130,7 +135,7 @@ document.addEventListener('click',function(e){
   }
   const sok=e.target.closest('[data-sok]');
   if(sok){
-    const f=sok.parentElement.querySelector('.sfec').value;
+    const f=sok.parentElement.querySelector('.sfec').value; if(!f){toast('Poné la fecha');return;}
     const hEl=sok.parentElement.querySelector('.sfhasta'); let hasta='';
     if(hEl&&hEl.value){ const vuelve=hEl.value; if(vuelve<=f){toast('La fecha en que vuelve tiene que ser posterior al inicio de la suspensión');return;} const d=new Date(vuelve+'T12:00:00'); d.setDate(d.getDate()-1); hasta=d.toISOString().slice(0,10); }
     const cli=parseInt(sok.dataset.cli);
@@ -138,6 +143,7 @@ document.addEventListener('click',function(e){
     let r;
     if(sok.dataset.cerrada==='1'&&sok.dataset.acc==='Reanudación'){
       const dias=(sok.dataset.dias||'').split(',').filter(x=>x!=='').map(Number);
+      if(!dias.length){toast('Esta suscripción no tiene días fijos: usá "+ Alta de suscripción nueva" y marcá los días');return;}
       r={id:nid(),ts:new Date().toISOString(),cli,tipo:'Alta',pub:sok.dataset.pub,desde:f,hasta:'',dias,via:sok.dataset.via||'C',qty:parseInt(sok.dataset.qty)||1,nota:'reactivación desde la ficha'};
     } else r={id:nid(),ts:new Date().toISOString(),cli,tipo:sok.dataset.acc,pub:sok.dataset.pub,desde:f,hasta,dias:dd.length?dd:null,nota:'desde la ficha'};
     guardar('novedades',[...LIVE.novedades,r]).then(()=>{SCACHE={};toast((r.tipo==='Alta'?'Reactivación':sok.dataset.acc)+' guardada ✓');ficha(cli);}).catch(err=>toast('Error: '+(err&&err.message)));
@@ -157,7 +163,7 @@ document.addEventListener('click',function(e){
   const b=e.target.closest('button');
   switch(id){
     case 'bmas': MOSTR+=30;pintarLista();break;
-    case 'qcobrar': ver('clientes');setTimeout(()=>$('bq')&&$('bq').focus(),50);break;
+    case 'qcobrar': ver('clientes');PINTAR.clientes();setTimeout(()=>$('bq')&&$('bq').focus(),50);break;
     case 'qcaja': ver('caja');pintarCaja();break;
     case 'qusuarios': ver('usuarios');pintarUsuarios();break;
     case 'dmas': masDist();break;
@@ -236,7 +242,7 @@ async function iniciarApp(){
       const mf=hs.match(/^ficha-(\d+)$/);
       if(mf){ficha(parseInt(mf[1]));return;}
       if(hs==='usuarios'){if(esAdmin()){ver('usuarios');pintarUsuarios();}return;}
-      if(VISTAS.includes(hs)&&hs!=='ficha'){ver(hs);const p=PINTAR[hs];if(p&&hs!=='inicio')p();}
+      if(VISTAS.includes(hs)&&hs!=='ficha'){const vv=ver(hs);const p=PINTAR[vv];if(p&&vv!=='inicio')p();}
     })();
     aplicarPermisos();
     const hdrEl=document.getElementById('hbtns');
@@ -255,4 +261,11 @@ function ubicarBotones(){
   if(h&&dest&&h.parentElement!==dest)dest.appendChild(h);
 }
 try{window.matchMedia('(min-width:900px)').addEventListener('change',ubicarBotones);}catch(_){}
+/* ------- Doble toque (v83) -------
+   Las acciones que guardan quedan bloqueadas mientras se están guardando: un segundo toque no carga dos veces
+   (pasaba con Caja, Corregir saldo, Vender, Compras, Repartir revista, Distribuidores, Precios, Resumen...). */
+let ULT_BTN=null; document.addEventListener('click',e=>{ULT_BTN=e.target.closest&&e.target.closest('button');},true);
+function bloq(fn){ let ocupado=false; return async function(...a){ if(ocupado){ toast('Guardando…'); return; } ocupado=true; const b=ULT_BTN; if(b) b.disabled=true; try{ return await fn.apply(this,a); } finally{ ocupado=false; if(b) b.disabled=false; } }; }
+['addCaja','transferirCaja','borrarCaja','editarClienteOK','notaOK','borrarNota','corregirSaldo','borrarMov','nuevoDist','addFeriado','borrarFeriado','addDevol','borrarDevol','guardarComision','addDist','borrarDist','addNov','reactivarCliente','borrarNov','addPrecio','asignarVuelta','quitarDeVuelta','nuevaVuelta','imprimirResumenes','guardarEmisor','repartirUltimo','anularEntrega','guardarProd','bajaProd','ajustarStock','vender','anularVenta','registrarCompra','anularIngreso','anularPagoProv','nuevoProveedor','guardarPermisos','crearUsuario','cambiarClave','bloquearUsuario','borrarUsuario']
+  .forEach(n=>{ if(typeof window[n]==='function') window[n]=bloq(window[n]); });
 gate();

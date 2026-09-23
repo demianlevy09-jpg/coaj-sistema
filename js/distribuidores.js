@@ -2,7 +2,7 @@
 // Parte del código de la app (antes todo estaba en index.html). Se cargan en orden, como scripts comunes: comparten las variables globales.
 /* ---- DISTRIBUIDORES (varios) ---- */
 async function nuevoDist(){ const n=$('dnuevo').value.trim(); if(!n){toast('Poné el nombre');return;} try{ const id=await ins('distribuidores',{nombre:n,comision:32}); await cargarTabla('dists'); DSEL=id; toast('Distribuidor creado ✓'); pintarDist(); }catch(e){toast('Error: '+((e&&e.message)||e));} }
-async function renombrarDist(id){ const d=distDe(id); const n=prompt('Nombre del distribuidor:',d?d.nombre:''); if(n===null||!n.trim())return; try{ const{error}=await sb.from('distribuidores').update({nombre:n.trim()}).eq('id',id); if(error)throw new Error(error.message); await cargarTabla('dists'); pintarDist(); pintarInicio(); }catch(e){toast('Error: '+((e&&e.message)||e));} }
+async function renombrarDist(id){ const d=distDe(id); const n=prompt('Nombre del distribuidor:',d?unesc(d.nombre):''); if(n===null||!n.trim())return; try{ const{error}=await sb.from('distribuidores').update({nombre:n.trim()}).eq('id',id); if(error)throw new Error(error.message); await cargarTabla('dists'); pintarDist(); pintarInicio(); }catch(e){toast('Error: '+((e&&e.message)||e));} }
 async function asignarPubDist(pub,distId){ try{ const{error}=await sb.from('publicaciones_dist').upsert({publicacion:unesc(pub),distribuidor_id:distId,anulado:false},{onConflict:'publicacion'}); if(error)throw new Error(error.message); await cargarTabla('pubdist'); SCACHE={}; toast(pub+' → '+nomDist(distId)); pintarDist(); }catch(e){toast('Error: '+((e&&e.message)||e));} }
 function todasLasPubs(){ const s=new Set([...PRECIOS,...LIVE.precios].map(p=>p.pub)); C.forEach(c=>c.subs.forEach(x=>s.add(x[0]))); return [...s].filter(Boolean).sort(); }
 
@@ -42,7 +42,7 @@ function pintarDist(){
   <div class="card">
     <div class="mini">La comisión, los diarios de tus clientes y las devoluciones se calculan solos: no los cargues acá.</div>
     <label>Qué pasó</label><select id="dtipo"><option value="2">${d.nombre} te pagó</option><option value="-1">Le pagaste a ${d.nombre}</option><option value="1">Te vendió mercadería para el mostrador (le debés más)</option><option value="-2">Te hizo un crédito o nota de crédito (le debés menos)</option></select>
-    <div class="grid2"><div><label>Importe $</label><input id="dimp" type="number" inputmode="decimal"></div><div><label>Fecha</label><input id="dfec" type="date" value="${hoyISO()}"></div></div>
+    <div class="grid2"><div><label>Importe $</label><input id="dimp" type="text" inputmode="decimal" autocomplete="off"></div><div><label>Fecha</label><input id="dfec" type="date" value="${hoyISO()}"></div></div>
     <label>Detalle (opcional)</label><input id="ddet" placeholder="ej: liquidación de septiembre">
     <button class="btn" id="dok">Guardar movimiento</button></div>
   <details class="card plegable"><summary>Qué publicaciones son de ${d.nombre} <span class="mini">${misPubs.length} publicaciones</span></summary><div class="mini" style="margin:12px 0 6px">Cada publicación pertenece a un distribuidor: su comisión y su CC se calculan con eso. Las que no asignes quedan en ${nomDist(1)}.</div>
@@ -52,7 +52,7 @@ function pintarDist(){
   <div class="card"><div class="mini" style="margin-bottom:6px">Diarios o revistas <b>no vendidos</b> que el encargado le devuelve a ${d.nombre}. El valor de la devolución <b>se descuenta del saldo</b> con el distribuidor (te lo acredita). Se acredita <b>al costo</b> (precio de tapa menos tu ${comisionDist(DSEL)}% de margen: no perdés ni ganás); el valor unitario se propone solo y podés corregirlo.</div>
     <div class="grid2"><div><label>Fecha</label><input id="dvfec" type="date" value="${hoyISO()}" onchange="dvSugerir()"></div><div><label>Cantidad</label><input id="dvqty" type="number" inputmode="numeric" min="1" placeholder="0" oninput="dvTotal()"></div></div>
     <label>Publicación</label><input id="dvpub" list="dvpubs" placeholder="ej: CLARIN" oninput="dvSugerir()" onchange="dvSugerir()"><datalist id="dvpubs">${misPubs.map(p=>`<option value="${p}">`).join('')}</datalist>
-    <div class="grid2"><div><label>Valor unitario que te acredita $ <span class="mini">(costo)</span></label><input id="dvvu" type="number" inputmode="decimal" step="any" placeholder="costo" oninput="dvTotal()"></div><div><label>Total a descontar</label><div id="dvtot" style="padding:11px 0;font-weight:700;font-size:18px">—</div></div></div>
+    <div class="grid2"><div><label>Valor unitario que te acredita $ <span class="mini">(costo)</span></label><input id="dvvu" type="text" inputmode="decimal" autocomplete="off" step="any" placeholder="costo" oninput="dvTotal()"></div><div><label>Total a descontar</label><div id="dvtot" style="padding:11px 0;font-weight:700;font-size:18px">—</div></div></div>
     <label>Nota</label><input id="dvnota" placeholder="ej: sobrantes del domingo">
     <button class="btn chico" id="dvok">Registrar devolución</button>
     <div style="margin-top:8px">${(()=>{const rs=[...LIVE.devol].filter(r=>(r.dist||1)===DSEL).sort((a,b)=>(b.f||'').localeCompare(a.f||'')||(b.ts||'').localeCompare(a.ts||''));const mes=hoyISO().slice(0,7);const tot=rs.filter(r=>(r.f||'').startsWith(mes)).reduce((n,r)=>n+(r.qty||0),0);return (tot?`<div class="mini" style="margin-bottom:6px">Este mes: <b>${tot}</b> ejemplares devueltos.</div>`:'')+(rs.slice(0,30).map(r=>{const wd=(new Date(r.f+'T12:00:00').getDay()+6)%7;const p=precioDe(r.pub,wd,r.f)||0;return `<div class="mov"><span class="f">${fecha(r.f)}</span><span class="t"><b>${r.qty}</b> × ${r.pub}${r.vu!=null?' <span class="mini">a '+fmt(r.vu)+' c/u</span>':''}${r.nota?' · '+r.nota:''}</span><span class="m favor">${r.imp!=null?'−'+fmt(r.imp):(p?'<span class="mini">ref. '+fmt(p*r.qty)+'</span>':'—')}</span><button class="del" data-dvid="${r.id}">✕</button></div>`;}).join('')||'<div class="mini">Ninguna devolución cargada.</div>');})()}</div>
@@ -63,7 +63,7 @@ function pintarDist(){
   <div style="text-align:center"><button class="btn chico sec" id="dmas">Ver más</button></div>
   <h2>Comisión</h2>
   <div class="card"><div class="mini" style="margin-bottom:8px">Porcentaje del precio de tapa que te corresponde. Se usa para la comisión por repartir a sus suscriptores y para el costo de los diarios que te vende.</div>
-    <div style="display:flex;gap:8px;align-items:center"><input id="dcom" type="number" inputmode="decimal" step="0.5" min="0" max="100" value="${comisionDist(DSEL)}" style="max-width:110px;margin:0"> <span>%</span> <button class="btn chico sec" id="dcomok" style="margin:0">Guardar</button></div>
+    <div style="display:flex;gap:8px;align-items:center"><input id="dcom" type="text" inputmode="decimal" autocomplete="off" step="0.5" min="0" max="100" value="${comisionDist(DSEL)}" style="max-width:110px;margin:0"> <span>%</span> <button class="btn chico sec" id="dcomok" style="margin:0">Guardar</button></div>
   </div>`;
   let DMOSTR=40;
   window.pintaDH=function(){
@@ -71,7 +71,7 @@ function pintarDist(){
     const hist=(DSEL===1&&$('dhist')&&$('dhist').checked)?DISTH.map(r=>({...r,_h:1})):[];
     const todos=[...hist,...LIVE.dist.filter(r=>(r.dist||1)===DSEL)].filter(r=>!q||norm((r.d||'')+' '+r.f+' '+fecha(r.f)).includes(q)).sort((a,b)=>(b.f||'').localeCompare(a.f||'')||(b.ts||'').localeCompare(a.ts||''));
     const rs=todos.slice(0,DMOSTR);
-    $('dhlist').innerHTML=rs.map(r=>`<div class="mov"><span class="f">${fecha(r.f)}</span><span class="t">${r.d||''}${r._h?' <span class="mini">· NewsPaper</span>':''}</span><span class="m ${r.imp>0?'debe':(r.imp<0?'favor':'')}">${r.imp<0?'−':''}${fmt(r.imp)}</span>${r._h?'':`<button class="del" data-did="${r.id}">✕</button>`}</div>`).join('')||(q?'<div class="mini">Nada con ese filtro.</div>':'<div class="mini">Todavía no cargaste pagos ni movimientos con este distribuidor.</div>');
+    $('dhlist').innerHTML=rs.map(r=>`<div class="mov"><span class="f">${fecha(r.f)}</span><span class="t">${r.d||''}${r._h?' <span class="mini">· NewsPaper</span>':''}</span><span class="m" title="${r.imp>0?'le debés más / te debe menos':'le debés menos / te debe más'}">${r._h?(r.imp<0?'−':''):(r.imp>0?'−':'+')}${fmt(r.imp)}</span>${r._h?'':`<button class="del" data-did="${r.id}">✕</button>`}</div>`).join('')||(q?'<div class="mini">Nada con ese filtro.</div>':'<div class="mini">Todavía no cargaste pagos ni movimientos con este distribuidor.</div>');
     $('dmas').hidden=todos.length<=DMOSTR;
   }
   window.masDist=function(){DMOSTR+=40;pintaDH();};
@@ -90,11 +90,11 @@ async function borrarFeriado(id){
   try{ await guardar('feriados',LIVE.feriados.filter(r=>r.id!==id)); SCACHE={}; toast('Borrado'); pintarNovedades(); }catch(e){toast('Error: '+((e&&e.message)||e));}
 }
 window.dvSugerir=function(){ const pub=($('dvpub').value||'').trim().toUpperCase(), f=$('dvfec').value; if(!pub||!f)return; const wd=(new Date(f+'T12:00:00').getDay()+6)%7; const p=precioDe(pub,wd,f); const el=$('dvvu'); if(p&&(!el.value||el.dataset.auto==='1')){el.value=Math.round(p*(100-comisionDist(DSEL))/100);el.dataset.auto='1';} dvTotal(); };
-window.dvTotal=function(){ const q=parseInt($('dvqty').value)||0, vu=parseFloat($('dvvu').value)||0; if(document.activeElement===$('dvvu')) $('dvvu').dataset.auto=''; $('dvtot').textContent=(q&&vu)?fmt(q*vu):'—'; };
+window.dvTotal=function(){ const q=parseInt($('dvqty').value)||0, vu=num($('dvvu').value)||0; if(document.activeElement===$('dvvu')) $('dvvu').dataset.auto=''; $('dvtot').textContent=(q&&vu)?fmt(q*vu):'—'; };
 async function addDevol(){
   const qty=parseInt($('dvqty').value),pub=$('dvpub').value.trim().toUpperCase(),f=$('dvfec').value;
   if(!qty||qty<=0||!pub||!f){toast('Completá fecha, cantidad y publicación');return;}
-  const vu=parseFloat($('dvvu').value); if(isNaN(vu)||vu<0){toast('Poné el valor unitario que te acredita (si no lo sabés, dejá el precio de tapa)');return;}
+  const vu=num($('dvvu').value); if(isNaN(vu)||vu<0){toast('Poné el valor unitario que te acredita (si no lo sabés, dejá el precio de tapa)');return;}
   const r={id:nid(),ts:new Date().toISOString(),f,pub,qty,nota:$('dvnota').value||'',dist:DSEL,vu,imp:Math.round(qty*vu*100)/100};
   try{ await guardar('devol',[...LIVE.devol,r]); toast('Devolución registrada ✓ · se descontó '+fmt(r.imp)); pintarDist(); pintarInicio(); }catch(e){toast('Error: '+((e&&e.message)||e));}
 }
@@ -103,12 +103,12 @@ async function borrarDevol(id){
   try{ await guardar('devol',LIVE.devol.filter(r=>r.id!==id)); toast('Borrado'); pintarDist(); pintarInicio(); }catch(e){toast('Error: '+((e&&e.message)||e));}
 }
 async function guardarComision(){
-  const v=parseFloat($('dcom').value);
+  const v=num($('dcom').value);
   if(isNaN(v)||v<0||v>100){toast('Poné un porcentaje entre 0 y 100');return;}
   try{ const{error}=await sb.from('distribuidores').update({comision:v}).eq('id',DSEL); if(error)throw error; if(DSEL===1){ await sb.from('config').upsert({clave:'comision',valor:v}); CONFIG.comision=v; } await cargarTabla('dists'); SCACHE={}; toast('Comisión guardada ✓'); pintarDist(); }catch(e){toast('Error: '+((e&&e.message)||e));}
 }
 async function addDist(){
-  const imp=parseFloat($('dimp').value);
+  const imp=num($('dimp').value);
   if(!imp||imp<=0){toast('Poné un importe');return;}
   const t=$('dtipo').value;
   const r={id:nid(),ts:new Date().toISOString(),f:$('dfec').value,d:$('ddet').value||($('dtipo').selectedOptions[0].textContent.split('(')[0].trim()),imp:(t==='1'||t==='2')?imp:-imp,dist:DSEL};

@@ -21,8 +21,13 @@ const esc=v=>typeof v==='string'?v.replace(/&/g,'&amp;').replace(/</g,'&lt;').re
 const unesc=v=>typeof v==='string'?v.replace(/&quot;/g,'"').replace(/&gt;/g,'>').replace(/&lt;/g,'<').replace(/&amp;/g,'&'):v;
 const escObj=o=>{ if(!o||typeof o!=='object') return o; for(const k in o){ const v=o[k]; if(typeof v==='string') o[k]=esc(v); else if(Array.isArray(v)) o[k]=v.map(x=>typeof x==='string'?esc(x):x); } return o; };
 const unescObj=o=>{ if(!o||typeof o!=='object') return o; for(const k in o){ const v=o[k]; if(typeof v==='string') o[k]=unesc(v); else if(Array.isArray(v)) o[k]=v.map(x=>typeof x==='string'?unesc(x):x); } return o; };
+// Importe escrito como en Argentina: "1.500" = mil quinientos, "1.500,50" o "1500,5" con coma decimal, "$ 2.000" también.
+// (Con <input type=number>, "1.500" llegaba como 1,5.) Devuelve NaN si está vacío.
+function num(v){ let t=String(v==null?'':v).trim().replace(/[$\s]/g,''); if(!t) return NaN; if(t.includes(',')) t=t.replace(/\./g,'').replace(',','.'); else if(/^-?\d{1,3}(\.\d{3})+$/.test(t)) t=t.replace(/\./g,''); return parseFloat(t); }
 const norm=s=>(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 const hoyISO=()=>{try{return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Argentina/Buenos_Aires',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());}catch(_){return new Date().toISOString().slice(0,10);}};
+// día en Argentina de un timestamp (creado_en viene en UTC: después de las 21 h ya es el día siguiente)
+const diaAR=ts=>{ if(!ts) return ''; try{ return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Argentina/Buenos_Aires',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(ts)); }catch(_){ return String(ts).slice(0,10); } };
 const fecha=s=>{if(!s)return'';const[a,m,d]=s.slice(0,10).split('-');return d+'/'+m+'/'+a.slice(2);};
 const DIAS=['Lu','Ma','Mi','Ju','Vi','Sa','Do','Fer']; // 7 = "Fer": solo los días feriados (con diario)
 const DIAS7=DIAS.slice(0,7);

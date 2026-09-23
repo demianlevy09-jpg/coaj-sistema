@@ -33,7 +33,7 @@ function pasaFiltro(c,s){
   }
   return true;
 }
-function buscar(){
+function buscar(mantener){
  try{
   const el=$('bq');
   const q=norm(((el||{}).value||'').trim());
@@ -43,7 +43,7 @@ function buscar(){
   else if(!FSEL.has('inactivos')) base=base.filter(x=>x.c.act);
   base=base.filter(x=>pasaFiltro(x.c,x.s));
   RES=base.sort((a,b)=>(b.c.act-a.c.act)||Math.abs(b.s)-Math.abs(a.s));
-  MOSTR=30;pintarLista();
+  if(!mantener) MOSTR=30; pintarLista();
   const tot=RES.reduce((n,x)=>n+x.s,0);
   const conDeuda=RES.filter(x=>saldoDe(x.c,cierreISO())>0.5).length;
   $('bres').innerHTML=RES.length+' clientes · saldo neto '+(tot>=0?'debe ':'a favor ')+fmt(tot)+
@@ -56,7 +56,7 @@ function buscar(){
   const b=$('bres'); if(b) b.textContent='ERROR: '+(e&&e.message);
  }
 }
-function toggleSel(id){ if(SELCLI.has(id))SELCLI.delete(id); else SELCLI.add(id); const y=window.scrollY; buscar(); window.scrollTo(0,y); }
+function toggleSel(id){ if(SELCLI.has(id))SELCLI.delete(id); else SELCLI.add(id); const y=window.scrollY; buscar(true); window.scrollTo(0,y); }
 function pintarLista(){
   const l=$('blist');l.innerHTML='';
   RES.slice(0,MOSTR).forEach(x=>{
@@ -188,7 +188,7 @@ function ficha(id,mas){
   }).join(''):'<div class="mini">Sin movimientos desde 2024.</div>')+`</div>
   ${movs.length>FMOSTR?`<div style="text-align:center"><button class="btn chico sec" id="fmas" data-cli="${id}">Ver más (${movs.length-FMOSTR} anteriores)</button></div>`:''}
   <div class="mini" style="margin:8px 0 20px">Cobro = pagó (baja deuda) · el consumo diario se devenga solo según sus suscripciones y precios. Las filas con ✕ se cargaron en este sistema y se pueden borrar.</div>`;
-  $('v-ficha').innerHTML=h; ver('ficha'); try{history.replaceState(null,'','#ficha-'+id);}catch(_){}
+  $('v-ficha').innerHTML=h; if(ver('ficha')==='ficha'){ try{history.replaceState(null,'','#ficha-'+id);}catch(_){} }
 }
 /* ------- DATOS DEL CLIENTE Y ANOTACIONES (v70) ------- */
 // Las anotaciones viven en clientes.observaciones, una por línea, la más nueva arriba: "dd/mm/aa · Autor: texto" (saltos de línea internos como ⏎).
@@ -243,14 +243,14 @@ async function borrarNota(id,i){
   catch(e){toast('No se pudo borrar: '+((e&&e.message)||e));}
 }
 function formCobro(id){
-  $('fform').innerHTML=`<label>Importe cobrado</label><input id="fimp" type="number" inputmode="decimal" placeholder="0">
+  $('fform').innerHTML=`<label>Importe cobrado</label><input id="fimp" type="text" inputmode="decimal" autocomplete="off" placeholder="0">
   <label>Medio de pago</label><select id="fmed">${LISTAS.medios.map(m=>`<option>${m}</option>`).join('')}</select>
   <label>Fecha</label><input id="ffec" type="date" value="${hoyISO()}">
   <button class="btn" id="fok" data-cli="${id}" data-tipo="Cobro">Guardar cobro</button>`;
   $('fimp').focus();
 }
 function formLiq(id){
-  $('fform').innerHTML=`<label>Importe del ajuste (positivo suma deuda, negativo la baja; el consumo diario ya se devenga solo)</label><input id="fimp" type="number" inputmode="decimal" step="any" placeholder="0">
+  $('fform').innerHTML=`<label>Importe del ajuste (positivo suma deuda, negativo la baja; el consumo diario ya se devenga solo)</label><input id="fimp" type="text" inputmode="decimal" autocomplete="off" step="any" placeholder="0">
   <label>Fecha</label><input id="ffec" type="date" value="${hoyISO()}">
   <label>Nota</label><input id="fnota" placeholder="ej: venta extra revista">
   <button class="btn" id="fok" data-cli="${id}" data-tipo="Ajuste">Guardar ajuste</button>`;
@@ -261,17 +261,17 @@ function formCorregir(id){
   $('fform').innerHTML=`<div class="mini" style="margin-bottom:4px"><b>Corrección por revisión.</b> Ponés el saldo que tiene que quedar y el sistema carga un Ajuste por la diferencia (queda registrado, se puede borrar). Por defecto se corrige el saldo <b>al cierre del mes vencido (${fecha(cierreISO())})</b>: lo de este mes sigue corriendo solo por devengo.</div>
   <label>Fecha de la corrección</label><input id="ffec" type="date" value="${cierreISO()}">
   <div class="mini" style="margin:4px 0">Saldo del sistema a esa fecha: <b id="fcor-act"></b></div>
-  <label>Saldo correcto (positivo = te debe, negativo = a favor, 0 = al día)</label><input id="fimp" type="number" inputmode="decimal" step="any" placeholder="0">
+  <label>Saldo correcto (positivo = te debe, negativo = a favor, 0 = al día)</label><input id="fimp" type="text" inputmode="decimal" autocomplete="off" step="any" placeholder="0">
   <div class="mini" style="margin:4px 0">Ajuste que se va a cargar: <b id="fcor-dif">—</b></div>
   <label>Nota</label><input id="fnota" value="Corrección por revisión">
   <button class="btn" id="fcorok" data-cli="${id}">Guardar corrección</button>`;
   const act=()=>{const s=saldoDe(c,$('ffec').value||hoyISO()); $('fcor-act').textContent=Math.abs(s)>0.5?fmt(s):'al día ($0)'; return s;};
-  const dif=()=>{const s=act(); const v=parseFloat($('fimp').value); const d=isNaN(v)?null:v-s; $('fcor-dif').textContent=d===null?'—':(Math.abs(d)<0.5?'nada (ya coincide)':(d>0?'+':'−')+fmt(Math.abs(d))+(d>0?' (sube la deuda)':' (baja la deuda)'));};
+  const dif=()=>{const s=act(); const v=num($('fimp').value); const d=isNaN(v)?null:v-s; $('fcor-dif').textContent=d===null?'—':(Math.abs(d)<0.5?'nada (ya coincide)':(d>0?'+':'−')+fmt(Math.abs(d))+(d>0?' (sube la deuda)':' (baja la deuda)'));};
   $('ffec').onchange=dif; $('fimp').oninput=dif; act(); $('fimp').focus();
 }
 async function corregirSaldo(id){
   const c=C.find(x=>x.id===id); if(!c)return;
-  const v=parseFloat($('fimp').value); if(isNaN(v)){toast('Poné el saldo correcto');return;}
+  const v=num($('fimp').value); if(isNaN(v)){toast('Poné el saldo correcto');return;}
   const fch=$('ffec').value||hoyISO();
   const d=Math.round((v-saldoDe(c,fch))*100)/100;
   if(Math.abs(d)<0.5){toast('El saldo ya coincide, no hay nada que corregir');return;}
@@ -281,27 +281,41 @@ async function corregirSaldo(id){
   catch(e){toast('No se pudo guardar: '+((e&&e.message)||e));}
 }
 async function addMov(id,tipo){
-  const imp=parseFloat($('fimp').value);
+  const imp=num($('fimp').value);
   if(!imp||(imp<=0&&tipo!=='Ajuste')){toast('Poné un importe');return;}
   const nota=$('fnota')?$('fnota').value:'';
   const r={id:nid(),ts:new Date().toISOString(),cli:id,tipo,imp,f:$('ffec').value,medio:tipo==='Cobro'?$('fmed').value:'',nota};
   if(tipo==='Cobro'){ const dup=LIVE.movs.filter(m=>m.cli===id&&m.tipo==='Cobro'&&Math.abs(m.imp-imp)<0.5&&(m.f||'').slice(0,10)===r.f);
     if(dup.length&&!confirm(`Ya hay ${dup.length===1?'un cobro':dup.length+' cobros'} de ${fmt(imp)} para este cliente con fecha ${fecha(r.f)} (${dup.map(m=>(m.medio||'')+' '+(m.ts||'').slice(11,16)).join(', ')}).\n\n¿Es un cobro NUEVO y lo querés cargar igual?`))return; }
+  if(!r.f){toast('Poné la fecha');return;}
   if(ADDMOV_BUSY){toast('Guardando…');return;} ADDMOV_BUSY=true;
   try{
-    await guardar('movs',[...LIVE.movs,r]);
     if(tipo==='Cobro'){
-      const cc={id:nid(),ts:r.ts,f:r.f,c:'Cobro a cliente',d:nomCli(id),ing:imp,egr:0,m:r.medio};
-      await guardar('caja',[...LIVE.caja,cc]);
-    }
+      // el cobro y su ingreso en caja quedan enlazados por movimiento_id: borrar uno saca el otro (antes se buscaba por texto)
+      const mid=await ins('movimientos',A_DB.movs(r));
+      try{ await ins('caja',{...A_DB.caja({f:r.f,c:'Cobro a cliente',d:nomCli(id),ing:imp,egr:0,m:r.medio||'Efectivo'}),movimiento_id:mid}); }
+      catch(e){ await anularFila('movimientos',mid).catch(()=>{}); throw e; }
+      await Promise.all(['movs','caja'].map(cargarTabla));
+    } else await guardar('movs',[...LIVE.movs,r]);
     toast(tipo+' guardado ✓'); ficha(id);
   }catch(e){toast('No se pudo guardar: '+((e&&e.message)||e));}
   finally{ ADDMOV_BUSY=false; }
 }
 let ADDMOV_BUSY=false;
+// Fila de caja de un cobro: la enlazada por movimiento_id; para cobros viejos (sin enlace) se busca por fecha, importe y domicilio,
+// y solo si hay tantas filas de caja como cobros iguales (si el cobro está repetido y la caja una sola vez, no se toca la caja).
+function cajaDeCobro(m){
+  const ln=LIVE.caja.find(x=>x.mid===String(m.id)); if(ln) return ln;
+  const f=(m.f||'').slice(0,10);
+  const cand=LIVE.caja.filter(x=>!x.mid&&x.c==='Cobro a cliente'&&x.f===f&&Math.abs((x.ing||0)-m.imp)<0.5&&(x.d||'')===nomCli(m.cli));
+  const iguales=LIVE.movs.filter(x=>x.cli===m.cli&&x.tipo==='Cobro'&&(x.f||'').slice(0,10)===f&&Math.abs(x.imp-m.imp)<0.5&&!LIVE.caja.some(y=>y.mid===String(x.id)));
+  if(!cand.length||cand.length<iguales.length) return null;
+  return cand.sort((a,b)=>Math.abs(new Date(a.ts)-new Date(m.ts))-Math.abs(new Date(b.ts)-new Date(m.ts)))[0];
+}
 async function borrarMov(mid,cli){
   const m=LIVE.movs.find(x=>x.id===mid);
-  const k=m&&m.tipo==='Cobro'?LIVE.caja.filter(x=>x.c==='Cobro a cliente'&&x.f===(m.f||'').slice(0,10)&&Math.abs((x.ing||0)-m.imp)<0.5&&(x.m||'')===(m.medio||'')&&(x.d||'')===nomCli(cli)).sort((a,b)=>Math.abs(new Date(a.ts)-new Date(m.ts))-Math.abs(new Date(b.ts)-new Date(m.ts)))[0]:null;
-  if(!confirm('¿Borrar este movimiento?'+(k?' También se saca de la caja ('+fmt(k.ing)+' '+(k.m||'')+').':'')))return;
+  const k=m&&m.tipo==='Cobro'?cajaDeCobro(m):null;
+  const sinCaja=m&&m.tipo==='Cobro'&&!k;
+  if(!confirm('¿Borrar este movimiento?'+(k?' También se saca de la caja ('+fmt(k.ing)+' '+(k.m||'')+').':(sinCaja?' No tiene un ingreso propio en la caja (es un cobro repetido o se cargó sin caja): la caja no se toca.':''))))return;
   try{ await guardar('movs',LIVE.movs.filter(x=>x.id!==mid)); if(k) await guardar('caja',LIVE.caja.filter(x=>x.id!==k.id)); toast('Borrado'); ficha(cli);}catch(e){toast('Error: '+((e&&e.message)||e));}
 }

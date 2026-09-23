@@ -4,9 +4,10 @@
 async function apiUsuarios(body){
   const{data,error}=await sb.functions.invoke('usuarios',{body});
   if(error){
-    let msg=error.message||String(error);
-    try{ const j=await error.context.json(); if(j&&j.error)msg=j.error; }catch(_){}
-    if(/Failed to send|Failed to fetch|not found|404/i.test(msg)) msg='La función de usuarios no está publicada en Supabase todavía.';
+    let msg=error.message||String(error), j=null;
+    try{ j=await error.context.json(); if(j&&j.error)msg=j.error; }catch(_){}
+    // "no publicada" solo si ni siquiera se llegó a la función (antes también atrapaba el "User not found" de un usuario ya borrado)
+    if(!(j&&j.error)&&(/Failed to send|Failed to fetch/i.test(msg)||(error.context&&error.context.status===404))) msg='La función de usuarios no está publicada en Supabase todavía.';
     throw new Error(msg);
   }
   if(data&&data.error)throw new Error(data.error);
@@ -54,8 +55,9 @@ async function pintarUsuarios(){
   <div class="card"><div class="mini" style="margin-bottom:8px">Compara, cliente por cliente, el saldo que calcula la app con el que calcula la base de datos (dos programas distintos que tienen que dar lo mismo) a hoy y al último cierre, y la tapa repartida a suscriptores. Si algo no coincide, hay un error en alguno de los dos.</div>
     <button class="btn chico sec" id="uverif" onclick="verificarCalculos()">Verificar ahora</button><div id="uverif-res" style="margin-top:10px"></div></div>`;
   try{
-    const[{usuarios},pfs]=await Promise.all([apiUsuarios({accion:'listar'}),sb.from('perfiles').select('*')]);
-    PERFILES=pfs.data||[];
+    const[lst,pfs]=await Promise.all([apiUsuarios({accion:'listar'}),sb.from('perfiles').select('*')]);
+    const usuarios=((lst&&lst.usuarios)||[]).map(u=>escObj({...u}));
+    PERFILES=(pfs.data||[]).map(p=>escObj({...p}));
     $('ulist').innerHTML=usuarios.length?usuarios.map(u=>{const pf=PERFILES.find(p=>p.id===u.id)||{rol:u.admin?'admin':'operador'};
       return `<div class="card" style="margin-bottom:8px" id="ucard-${u.id}">
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="font-size:16px">${pf.nombre||u.email||'(sin email)'}</b><span class="mini">${u.email||''}</span>
@@ -86,7 +88,7 @@ async function crearUsuario(){
   try{
     const r=await apiUsuarios({accion:'crear',email,password});
     const id=r&&r.id;
-    if(id){ await new Promise(res=>setTimeout(res,600)); const{error}=await sb.from('perfiles').upsert({id,email:email.toLowerCase(),nombre:nombre||email.split('@')[0],rol:p.rol,permisos:p.permisos,vueltas:p.vueltas},{onConflict:'id'}); if(error) toast('Usuario creado, pero no pude guardar el rol: '+error.message); }
+    if(id){ await new Promise(res=>setTimeout(res,600)); const{error}=await sb.from('perfiles').upsert({id,email:email.toLowerCase(),nombre:nombre||email.split('@')[0],rol:p.rol,permisos:p.permisos,vueltas:p.vueltas},{onConflict:'id'}); if(error){ pintarUsuarios(); setTimeout(()=>{ const l=$('ulist'); if(l) l.insertAdjacentHTML('beforebegin',`<div class="aviso" style="background:var(--rojosuave);color:var(--rojo)">Se creó ${esc(email)} pero NO se pudo guardar su rol (${esc(error.message)}): quedó como Operador, que ve todo. Tocá "Permisos" en su tarjeta y guardalo de nuevo.</div>`); },300); return; } }
     toast('Usuario creado ✓'); pintarUsuarios();
   }catch(e){toast(e.message||e);}
 }
@@ -97,7 +99,10 @@ async function cambiarClave(id,email){
 }
 async function bloquearUsuario(id,email,bloqueado){
   if(!confirm((bloqueado?'¿Desbloquear a ':'¿Bloquear a ')+email+'?'))return;
-  try{ await apiUsuarios({accion:'bloquear',id,bloquear:!bloqueado}); toast(bloqueado?'Desbloqueado':'Bloqueado'); pintarUsuarios(); }catch(e){toast(e.message||e);}
+  try{ await apiUsuarios({accion:'bloquear',id,bloquear:!bloqueado});
+    // el bloqueo de Supabase recién corta cuando vence la sesión (~1 h): con el perfil inactivo la base le niega todo ya mismo
+    await sb.from('perfiles').update({activo:!!bloqueado}).eq('id',id);
+    toast(bloqueado?'Desbloqueado':'Bloqueado'); pintarUsuarios(); }catch(e){toast(e.message||e);}
 }
 async function borrarUsuario(id,email){
   if(!confirm('¿Borrar definitivamente a '+email+'? No va a poder entrar más.'))return;

@@ -11,14 +11,17 @@ function armarPIDX(){
   Object.values(PIDX).forEach(v=>v.sort((a,b)=>(a.desde||'').localeCompare(b.desde||'')));
   SCACHE={};
 }
+// Precio vigente: el de fecha "desde" más reciente entre el precio de ese día de la semana y el precio "Todos / único".
+// Si empatan en fecha gana el del día; si hay dos con la misma fecha, el último cargado. (Igual que precio_en() en la base, v83.)
 function precioDe(pub,wd,dia){
-  for(const k of [norm(pub)+'|'+wd,norm(pub)+'|x']){
+  let best=null, bestDesde='', bestDia=false;
+  for(const [k,esDia] of [[norm(pub)+'|'+wd,true],[norm(pub)+'|x',false]]){
     const v=PIDX[k]; if(!v) continue;
-    let best=null;
-    for(const p of v){ if(p.desde<=dia) best=p.precio; else break; }
-    if(best) return best;
+    let p0=null; for(const p of v){ if(p.desde<=dia) p0=p; else break; }
+    if(!p0||!p0.precio) continue;
+    if(best==null||p0.desde>bestDesde||(p0.desde===bestDesde&&esDia&&!bestDia)){ best=p0.precio; bestDesde=p0.desde; bestDia=esDia; }
   }
-  return null;
+  return best;
 }
 /* ------- devengo diario (desde 01/09/2026; la liquidación del 02/09 cubrió agosto) ------- */
 const DEV0='2026-09-01';
@@ -31,18 +34,28 @@ function vigenteAlgunDia(x,desde){ return x[3]==='V'||String(x[3]).slice(0,10)>d
 // Una novedad con `dias` cargados solo afecta a esos días (ej: suspender LA NACION solo los miércoles).
 // desdeAlta (opcional): si se evalúa un alta cargada acá, las suspensiones/bajas anteriores a su fecha no la afectan (son de la suscripción vieja).
 // Un Alta nunca "reactiva" una suscripción suspendida: solo Reanudación lo hace.
+// Está suspendida si hay una Suspensión/Baja que cubre ese día y ninguna Reanudación posterior la levantó (v83).
+// Antes mandaba solo la última novedad: una suspensión ya terminada "tapaba" otra abierta anterior o una baja de cliente.
+// Publicación: igual exacta (sin tildes ni mayúsculas); vacía = todas. Antes "CLARIN" también agarraba "MUESTRA CLARIN".
+// Una Reanudación sin publicación levanta todo menos las bajas de una suscripción puntual; con publicación, solo lo de esa publicación.
+// Novedades sin fecha "desde" no cuentan (igual que la base).
+function mismaPub(a,b){ return norm(a).trim()===norm(b).trim(); }
 function suspendida(cli,titulo,dia,dias,desdeAlta){
-  let sus=false;
   const wd=(new Date(dia+'T12:00:00').getDay()+6)%7;
   const aplicaDias=n=>!n.dias||!n.dias.length||(dias&&dias.length?n.dias.some(d=>dias.includes(d)):n.dias.includes(wd));
-  const nvs=LIVE.novedades.filter(n=>n.cli===cli&&n.tipo!=='Alta'&&(!desdeAlta||(n.desde||'')>=desdeAlta)&&(!n.pub||norm(titulo).includes(norm(n.pub))||norm(n.pub).includes(norm(titulo)))&&aplicaDias(n)).sort((a,b)=>(a.desde||'').localeCompare(b.desde||''));
-  for(const n of nvs){
-    if((n.desde||'')<=dia){
-      if(n.tipo==='Suspensión'||n.tipo==='Baja'){ if(!n.hasta||n.hasta>=dia) sus=true; else sus=false; }
-      if(n.tipo==='Reanudación') sus=false;
-    }
-  }
-  return sus;
+  const nvs=LIVE.novedades.filter(n=>n.cli===cli&&n.tipo!=='Alta'&&n.desde&&n.desde<=dia&&(!desdeAlta||n.desde>=desdeAlta)&&(!n.pub||mismaPub(n.pub,titulo))&&aplicaDias(n));
+  const posterior=(r,n)=>r.desde>n.desde||(r.desde===n.desde&&Number(r.id)>Number(n.id));
+  const levanta=(r,n)=>r.pub?(!!n.pub&&mismaPub(r.pub,n.pub)):!(n.tipo==='Baja'&&n.pub);
+  return nvs.some(n=>(n.tipo==='Suspensión'||n.tipo==='Baja')&&(!n.hasta||n.hasta>=dia)&&!nvs.some(r=>r.tipo==='Reanudación'&&posterior(r,n)&&levanta(r,n)));
+}
+// Suspensiones/bajas que siguen vigentes el día `desde` para esa publicación y días. Un Alta ignora las novedades
+// anteriores a su fecha, así que al "Pasar a…" hay que copiarlas con desde = fecha del alta (si no, el alta reactiva días suspendidos).
+function suspensionesQueSiguen(cli,pub,dias,desde){
+  const nvs=LIVE.novedades.filter(n=>n.cli===cli&&n.desde&&n.desde<desde&&(!n.pub||mismaPub(n.pub,pub)));
+  const posterior=(r,n)=>r.desde>n.desde||(r.desde===n.desde&&Number(r.id)>Number(n.id));
+  return nvs.filter(n=>(n.tipo==='Suspensión'||n.tipo==='Baja')&&(!n.hasta||n.hasta>=desde)
+    &&(!n.dias||!n.dias.length||!dias.length||n.dias.some(d=>dias.includes(d)))
+    &&!nvs.some(r=>r.tipo==='Reanudación'&&posterior(r,n)&&(r.pub?!!n.pub:!(n.tipo==='Baja'&&n.pub))&&(!r.dias||!r.dias.length||!n.dias||!n.dias.length||r.dias.some(d=>n.dias.includes(d)))));
 }
 const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 let SCACHE={};
@@ -111,7 +124,7 @@ function saldoHTML(s){
 
 function bajaVigente(c,dia){
   dia=dia||hoyISO(); let b=false;
-  LIVE.novedades.filter(n=>n.cli===c.id&&!n.pub&&(n.tipo==='Baja'||n.tipo==='Reanudación')&&(n.desde||'')<=dia).sort((x,y)=>(x.desde||'').localeCompare(y.desde||'')||(x.ts||'').localeCompare(y.ts||'')).forEach(n=>{b=(n.tipo==='Baja');});
+  LIVE.novedades.filter(n=>n.cli===c.id&&!n.pub&&!(n.dias&&n.dias.length)&&(n.tipo==='Baja'||n.tipo==='Reanudación')&&n.desde&&n.desde<=dia).sort((x,y)=>(x.desde||'').localeCompare(y.desde||'')||(x.ts||'').localeCompare(y.ts||'')).forEach(n=>{b=(n.tipo==='Baja');});
   return b;
 }
 function recalcActivos(){ C.forEach(c=>{c.act=bajaVigente(c)?0:1;}); }
@@ -172,7 +185,7 @@ function consumoMes(c,y,m){ // misma regla que devengoDe (via C): suscripciones 
         if(x[2]!=='C')continue;
         if(!feriadoSale(dia,x[0]))continue;
         const desde=(x[4]||'').slice(0,10), hasta=x[3]==='V'?'9999':(x[3]||'');
-        if(!desde||desde>dia||hasta<dia)continue;
+        if(!desde||desde>dia||hasta<=dia)continue; // hasta exclusivo
         if(!tocaDia(FD(x[1]),wd,dia))continue;
         const p=precioDe(x[0],wd,dia), k=x[0], qn=Math.abs(x[5])||1;
         agg[k]=agg[k]||{n:0,tot:0,sp:0}; agg[k].n+=qn;

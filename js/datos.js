@@ -16,7 +16,7 @@ const A_DB={
 };
 const DE_DB={
   movs:x=>({id:String(x.id),ts:x.creado_en,cli:x.cliente_id,tipo:x.tipo,imp:Number(x.importe),f:x.fecha,medio:x.medio||'',nota:x.nota||'',fijo:x.fijo?1:0}),
-  caja:x=>({id:String(x.id),ts:x.creado_en,f:x.fecha,c:x.concepto,d:x.detalle||'',ing:Number(x.ingreso)||0,egr:Number(x.egreso)||0,m:x.medio||'',fijo:x.fijo?1:0}),
+  caja:x=>({id:String(x.id),ts:x.creado_en,f:x.fecha,c:x.concepto,d:x.detalle||'',ing:Number(x.ingreso)||0,egr:Number(x.egreso)||0,m:x.medio||'',fijo:x.fijo?1:0,mid:x.movimiento_id!=null?String(x.movimiento_id):null}),
   precios:x=>({id:String(x.id),pub:x.publicacion,dia:x.dia==null?null:x.dia,desde:x.desde,precio:Number(x.precio),nuevo:x.origen!=='newspaper'?1:0,ts:x.creado_en}),
   novedades:x=>({id:String(x.id),ts:x.creado_en,cli:x.cliente_id,tipo:x.tipo,pub:x.publicacion||'',desde:x.desde||'',hasta:x.hasta||'',dias:x.dias||null,via:x.via||null,qty:x.cantidad||null,nota:x.nota||''}),
   dist:x=>({id:String(x.id),ts:x.creado_en,f:x.fecha,d:x.detalle||'',imp:Number(x.importe),dist:x.distribuidor_id}),
@@ -73,7 +73,10 @@ async function cargarConfig(){
 async function boot(){
   db=true;
   try{
-    const{data:pf}=await sb.from('perfiles').select('*').eq('id',USUARIO.id).maybeSingle(); PERFIL=pf||{rol:'operador',activo:true};
+    const{data:pf,error:epf}=await sb.from('perfiles').select('*').eq('id',USUARIO.id).maybeSingle();
+    if(epf) throw epf;
+    if(!pf||pf.activo===false){ $('cargando').innerHTML=(pf?'Tu usuario está bloqueado.':'Tu usuario no tiene permisos cargados.')+' Avisale a Demian.<br><br><button class="btn sec" id="lsalir">Salir</button>'; return; }
+    PERFIL=pf;
     await cargarConfig();
     await cargarClientes();
     await Promise.all(['precios','caja','movs','novedades','dist','feriados','devol'].map(cargarTabla));
@@ -100,10 +103,12 @@ async function guardar(col,rows){
   const nuevos=rows.filter(r=>!antes.has(String(r.id)));
   const idsDespues=new Set(rows.map(r=>String(r.id)));
   const anulados=LIVE[col].filter(r=>!idsDespues.has(String(r.id))&&!r.fijo);
-  for(const r of nuevos){ const fila=unescObj(A_DB[col](r)); const{error}=await (t==='feriados'?sb.from(t).upsert({...fila,anulado:false,anulado_en:null,anulado_por:null},{onConflict:'fecha'}):sb.from(t).insert(fila)); if(error)throw new Error(error.message); }
+  // primero se anula lo viejo y después se inserta lo nuevo: al editar un Alta, el trigger de la base reabre la suscripción
+  // que la vieja había cerrado y la nueva la vuelve a cerrar (al revés quedaba abierta y cobraba doble).
   for(const r of anulados){
     const q=sb.from(t).update({anulado:true}); const{error}=await (t==='feriados'?q.eq('fecha',r.id):q.eq('id',r.id)); if(error)throw new Error(error.message);
   }
+  for(const r of nuevos){ const fila=unescObj(A_DB[col](r)); const{error}=await (t==='feriados'?sb.from(t).upsert({...fila,anulado:false,anulado_en:null,anulado_por:null},{onConflict:'fecha'}):sb.from(t).insert(fila)); if(error)throw new Error(error.message); }
   await cargarTabla(col);
   if(col==='novedades'){ await cargarClientes(); SCACHE={}; }
 }

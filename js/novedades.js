@@ -12,7 +12,7 @@ function pubsDelPadron(){
 function pintarNovedades(){
   const rows=[...LIVE.novedades].sort((a,b)=>(b.ts||'').localeCompare(a.ts||''));
   const hoy=hoyISO(), mes=hoy.slice(0,7);
-  const delMes=rows.filter(n=>(n.ts||'').startsWith(mes));
+  const delMes=rows.filter(n=>diaAR(n.ts).startsWith(mes));
   const suspAct=C.reduce((n,c)=>n+c.subs.filter(x=>x[3]==='V'&&suspendida(c.id,x[0],hoy,FD(x[1]))).length,0);
   const bajas=C.filter(c=>!c.act).length;
   $('v-novedades').innerHTML=`
@@ -154,8 +154,9 @@ async function addNov(){
       const dom=$('ncdom').value.trim(); if(!dom){toast('Poné el domicilio');return;}
       const sub=leerSub();
       if(sub.pub&&!sub.dias.length){toast('Marcá los días de la suscripción (o dejá la publicación vacía)');return;}
+      if(sub.pub&&!sub.desde){toast('Poné desde cuándo recibe');return;}
       if(!sub.pub&&sub.dias.length){toast('Poné la publicación');return;}
-      const fila={domicilio:dom,nombre:$('ncnom').value.trim(),telefono:$('nctel').value.trim(),particularidad:$('ncpart').value.trim(),observaciones:$('ncobs').value.trim(),activo:true,ficha:'actual',saldo_inicial:0,saldo_inicial_fecha:hoyISO()};
+      const fila={domicilio:dom,nombre:$('ncnom').value.trim(),telefono:$('nctel').value.trim(),particularidad:$('ncpart').value.trim(),observaciones:$('ncobs').value.trim(),activo:true,ficha:'actual',saldo_inicial:0,saldo_inicial_fecha:'2026-08-31'} /* como los demás: la base devenga desde el día siguiente (01/09) y la app también */;
       const{data,error}=await sb.from('clientes').insert(fila).select('id').single(); if(error)throw new Error(error.message);
       const id=data.id;
       await cargarClientes();
@@ -167,6 +168,7 @@ async function addNov(){
     let r=null;
     if(NTIPO==='altasub'){
       const sub=leerSub(); if(!sub.pub){toast('Poné la publicación');return;} if(!sub.dias.length){toast('Marcá al menos un día');return;}
+      if(!sub.desde){toast('Poné desde cuándo recibe');return;}
       r={id:nid(),ts,cli,tipo:'Alta',pub:sub.pub,desde:sub.desde,hasta:'',dias:sub.dias,via:sub.via,qty:sub.qty,nota:'alta desde Novedades'};
     }else if(NTIPO==='susp'){
       r={id:nid(),ts,cli,tipo:'Suspensión',pub:($('npub').value||'').trim(),desde,hasta:$('nhasta').value||'',dias:diasOpc(),nota};
@@ -181,6 +183,9 @@ async function addNov(){
       if(!confirm('¿Dar de baja a '+nomCli(cli)+' desde el '+fecha(desde)+'?'+(Math.abs(s)>0.5?'\n\nTiene saldo '+fmt(s)+(s>0?' (te debe)':' (a favor)')+'. Queda guardado en su ficha.':'')))return;
       r={id:nid(),ts,cli,tipo:'Baja',pub:'',desde,hasta:'',nota:('baja de cliente'+(nota?' · '+nota:''))};
     }else return;
+    if(!r.desde){toast('Poné la fecha "desde"');return;}
+    if(r.pub&&r.tipo!=='Alta'){ const c=C.find(x=>x.id===cli), ps=[...new Set((c?c.subs:[]).map(x=>unesc(x[0])))];
+      if(!ps.some(p=>mismaPub(p,r.pub))){ toast(ps.length?'Ese cliente no tiene "'+r.pub+'". Tiene: '+ps.slice(0,6).join(', '):'Ese cliente no tiene suscripciones: dejá la publicación vacía'); return; } }
     if(NEDIT){ r.nota=(r.nota||'')+(r.nota?' · ':'')+'editada'; }
     await guardar('novedades',[...LIVE.novedades.filter(x=>String(x.id)!==String(NEDIT)),r]);
     NEDIT=null;

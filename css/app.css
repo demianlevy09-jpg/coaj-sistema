@@ -291,3 +291,9 @@ select.apagado{opacity:.45}
   .tabla td:first-child::before{content:none}
   .filtros{flex-wrap:wrap}
 }
+/* ------- ajustes v83 ------- */
+.fila .dom .mini{white-space:nowrap;font-weight:400}
+h2 .mini,.sec .mini{font-weight:400;font-size:13px;color:var(--tinta2)}
+.grid2{align-items:end}
+.btn:disabled{opacity:.5;cursor:default}
+@media (max-width:899px){.ini-acc{flex-wrap:wrap} .ini-acc .btn{flex:1 1 auto}}

@@ -10,13 +10,13 @@ function pintarCaja(){
   <div class="card"><b>Pasar plata entre cajas</b><div class="mini" style="margin:2px 0 4px">Ej: depositaste efectivo y ahora está en la cuenta. Sale de una caja y entra en la otra; el total no cambia.</div>
     <div class="grid2"><div><label>Sale de</label><select id="tdesde">${LISTAS.medios.map(m=>`<option${m==='Efectivo'?' selected':''}>${m}</option>`).join('')}</select></div>
     <div><label>Entra a</label><select id="thacia">${LISTAS.medios.map(m=>`<option${m==='Transferencia'?' selected':''}>${m}</option>`).join('')}</select></div></div>
-    <div class="grid2"><div><label>Importe $</label><input id="timp" type="number" inputmode="decimal" placeholder="0"></div><div><label>Fecha</label><input id="tf" type="date" value="${hoyISO()}"></div></div>
+    <div class="grid2"><div><label>Importe $</label><input id="timp" type="text" inputmode="decimal" autocomplete="off" placeholder="0"></div><div><label>Fecha</label><input id="tf" type="date" value="${hoyISO()}"></div></div>
     <label>Nota</label><input id="tnota" placeholder="opcional, ej: depósito en el banco">
     <button class="btn" id="tok">Pasar</button></div>
   <div class="card"><b>Cargar movimiento de caja</b>
     <label>Concepto</label><select id="cc">${CONCEPTOS_CAJA.map(c=>`<option>${c}</option>`).join('')}</select>
-    <div class="grid2"><div><label>Ingreso $</label><input id="cing" type="number" inputmode="decimal" placeholder="0"></div>
-    <div><label>Egreso $</label><input id="cegr" type="number" inputmode="decimal" placeholder="0"></div></div>
+    <div class="grid2"><div><label>Ingreso $</label><input id="cing" type="text" inputmode="decimal" autocomplete="off" placeholder="0"></div>
+    <div><label>Egreso $</label><input id="cegr" type="text" inputmode="decimal" autocomplete="off" placeholder="0"></div></div>
     <label>Medio</label><select id="cm">${LISTAS.medios.map(m=>`<option>${m}</option>`).join('')}</select>
     <label>Detalle</label><input id="cd" placeholder="ej: pago distribuidora semana 36">
     <label>Fecha</label><input id="cf" type="date" value="${hoyISO()}">
@@ -46,12 +46,12 @@ function pintarCaja(){
       $('cmas').hidden=ms.length<=CLIM; return;
     }
     const kkey=r=>r.f+'|'+r.c+'|'+(r.d||'')+'|'+(r.ing||0)+'|'+(r.egr||0); const kc={}; rows.forEach(r=>{kc[kkey(r)]=(kc[kkey(r)]||0)+1;});
-    const nc=cli?norm(nomCli(cli)):'';
-    const rs=rows.filter(r=>(!fc||r.c===fc)&&(!fm||r.m===fm)&&enRango(r.f)&&(!cli||norm(r.d||'')===nc||norm(r.d||'').includes(nc))&&(!ft||norm((r.c||'')+' '+(r.d||'')).includes(ft))&&(!soloDup||kc[kkey(r)]>1));
+    const nc=cli?norm(nomCli(cli)):''; const cliDe=r=>{ if(r.mid){ const m=LIVE.movs.find(x=>String(x.id)===r.mid); return m?m.cli:null; } return norm(r.d||'')===nc?cli:null; };
+    const rs=rows.filter(r=>(!fc||r.c===fc)&&(!fm||r.m===fm)&&enRango(r.f)&&(!cli||cliDe(r)===cli)&&(!ft||norm((r.c||'')+' '+(r.d||'')).includes(ft))&&(!soloDup||kc[kkey(r)]>1));
     const ti=rs.reduce((n,r)=>n+(r.ing||0),0), te=rs.reduce((n,r)=>n+(r.egr||0),0);
     $('ctot').innerHTML=`${rs.length} movimientos · ingresos <b>${fmt(ti)}</b> · egresos <b>${fmt(te)}</b> · neto <b>${fmt(ti-te)}</b>`;
     $('cmas').hidden=rs.length<=CLIM;
-    $('clist').innerHTML=rs.length?rs.slice(0,CLIM).map(r=>`<div class="mov"><span class="f">${fecha(r.f)}</span><span class="t">${r.c||''}${r.d?' · '+r.d:''} <span class="mini">${r.m||''}</span>${kc[kkey(r)]>1?' <span class="pill p-warn">¿duplicado?</span>':''}</span><span class="m ${r.egr?'debe':'favor'}">${r.egr?'−':''}${fmt(r.ing||r.egr)}</span>${r.fijo?'':`<button class="del" data-cid="${r.id}">✕</button>`}</div>`).join(''):'<div class="mini">Nada con ese filtro.</div>';
+    $('clist').innerHTML=rs.length?rs.slice(0,CLIM).map(r=>`<div class="mov"><span class="f">${fecha(r.f)}</span><span class="t">${r.c||''}${r.d?' · '+r.d:''} <span class="mini">${r.m||''}</span>${kc[kkey(r)]>1?' <span class="pill p-warn">¿duplicado?</span>':''}</span><span class="m ${(r.ing||0)-(r.egr||0)<0?'debe':'favor'}">${(r.ing||0)-(r.egr||0)<0?'−':''}${fmt((r.ing||0)-(r.egr||0))}</span>${r.fijo?'':`<button class="del" data-cid="${r.id}">✕</button>`}</div>`).join(''):'<div class="mini">Nada con ese filtro.</div>';
   }
   window.pintaH=function(){
     const ft=norm($('fch2').value);
@@ -61,14 +61,14 @@ function pintarCaja(){
   pintaC();pintaH();
 }
 async function addCaja(){
-  const ing=parseFloat($('cing').value)||0, egr=parseFloat($('cegr').value)||0;
+  const ing=num($('cing').value)||0, egr=num($('cegr').value)||0;
   if(!ing&&!egr){toast('Poné un importe');return;}
   const r={id:nid(),ts:new Date().toISOString(),f:$('cf').value,c:$('cc').value,d:$('cd').value,ing,egr,m:$('cm').value};
   try{ await guardar('caja',[...LIVE.caja,r]); toast('Caja guardada ✓'); pintarCaja(); }catch(e){toast('Error: '+((e&&e.message)||e));}
 }
 let TRANSF_BUSY=false;
 async function transferirCaja(){
-  const de=$('tdesde').value, a=$('thacia').value, imp=parseFloat($('timp').value)||0, f=$('tf').value, nota=$('tnota').value.trim();
+  const de=$('tdesde').value, a=$('thacia').value, imp=num($('timp').value)||0, f=$('tf').value, nota=$('tnota').value.trim();
   if(de===a){toast('Elegí dos cajas distintas');return;} if(imp<=0){toast('Poné el importe');return;} if(TRANSF_BUSY)return;
   const d=de+' → '+a+(nota?' · '+nota:''), ts=new Date().toISOString();
   const r1={id:nid(),ts,f,c:'Transferencia entre cuentas',d,ing:0,egr:imp,m:de}, r2={id:nid(),ts,f,c:'Transferencia entre cuentas',d,ing:imp,egr:0,m:a};
@@ -79,6 +79,12 @@ async function transferirCaja(){
 function parTransf(r){ if(!r||r.c!=='Transferencia entre cuentas'||!/ → /.test(r.d||''))return null; return LIVE.caja.find(x=>x.id!==r.id&&x.c===r.c&&x.f===r.f&&x.d===r.d&&Math.abs((x.ing||0)-(r.egr||0))<0.5&&Math.abs((x.egr||0)-(r.ing||0))<0.5)||null; }
 async function borrarCaja(id){
   const r=LIVE.caja.find(x=>x.id===id), p=parTransf(r);
+  if(!r) return;
+  // lo que nació en otra pantalla se borra desde ahí, para que no quede la mitad (cobro sin caja, venta sin plata, pago a proveedor descontado)
+  const cob=r.c==='Cobro a cliente'?LIVE.movs.find(m=>m.tipo==='Cobro'&&(r.mid?String(m.id)===r.mid:cajaDeCobro(m)===r)):null;
+  if(cob){ toast('Es el cobro de '+nomCli(cob.cli)+': borralo desde su ficha y sale de los dos lados'); ficha(cob.cli); return; }
+  if(STOCK_OK&&LIVE.stock.some(m=>String(m.cajaId)===String(r.id))){ toast('Viene de una venta o compra de stock: anulala desde Ventas o Compras'); return; }
+  if(STOCK_OK&&LIVE.provmov.some(m=>String(m.cajaId)===String(r.id))){ toast('Es un pago a proveedor: anulalo desde Compras → Proveedores'); return; }
   if(!confirm(p?'¿Borrar esta transferencia entre cajas? Se borran las dos partes ('+(r.egr?r.m+' → '+p.m:p.m+' → '+r.m)+').':'¿Borrar?'))return;
   try{ await guardar('caja',LIVE.caja.filter(x=>x.id!==id&&(!p||x.id!==p.id))); toast('Borrado'); pintarCaja(); }catch(e){toast('Error: '+((e&&e.message)||e));}
 }

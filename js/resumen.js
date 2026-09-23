@@ -1,7 +1,7 @@
 // COHAJ Sistema — Resumen de cuenta imprimible
 // Parte del código de la app (antes todo estaba en index.html). Se cargan en orden, como scripts comunes: comparten las variables globales.
 /* ------- RESUMEN DE CUENTA (imprimible, 3 por A4) ------- */
-function emisor(){ return Object.assign({nombre:'',domicilio:'',condicion:'',alias:'',cvu:'',titular:'',titulo:'Resumen de cuenta — no válido como factura',leyenda:''},(CONFIG.raw&&CONFIG.raw.emisor)||{}); }
+function emisor(){ return escObj(Object.assign({nombre:'',domicilio:'',condicion:'',alias:'',cvu:'',titular:'',titulo:'Resumen de cuenta — no válido como factura',leyenda:''},(CONFIG.raw&&CONFIG.raw.emisor)||{})); } // escapado: se pinta en HTML y en value="…"
 function armarResumen(c,periodo){ // periodo = último día del mes (ISO)
   const d=new Date(periodo+'T12:00:00'); const y=d.getFullYear(), m=d.getMonth();
   const ini=`${y}-${String(m+1).padStart(2,'0')}-01`;
