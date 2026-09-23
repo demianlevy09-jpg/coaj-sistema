@@ -308,7 +308,6 @@ h2 .mini,.sec .mini{font-weight:400;font-size:13px;color:var(--tinta2)}
 
 /* ------- v84: estética Oficina ------- */
 body{font-size:14.5px}
-.p-num.ok,.kpi.ok b{color:var(--ok)}
 .sec .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--tinta3);flex:none;transform:translateY(-2px)}
 .sec.s-ok{color:var(--ok)} .sec.s-ok .dot{background:var(--ok)}
 .sec.s-rojo{color:var(--rojo)} .sec.s-rojo .dot{background:var(--rojo)}
@@ -351,3 +350,44 @@ body{font-size:14.5px}
   .p-num{font-size:26px}
 }
 header .marca{font-size:20px;font-weight:600} header .marca span{color:var(--tinta2)}
+/* ------- v85: más sobrio y compacto (pedido de Demian: tarjetas más chicas, menos cargadas, "menos arcade") ------- */
+body{font-size:14px}
+.kpis{grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
+.kpi{padding:12px 14px;min-height:0;border-radius:10px}
+.kpi i{font-size:12.5px;line-height:1.35}
+.kpi b{font-size:18px;font-weight:600;margin:4px 0 2px;letter-spacing:-.01em}
+.kpi b small{font-size:12.5px}
+.kpi b+i{color:var(--tinta3);font-size:12px}
+.kpi.click:hover{background:var(--tarjeta);border-color:var(--linea-fuerte)}
+.kpi.ancha b{font-size:18px}
+.sec:not(.btn),h2{font-size:14px;font-weight:600;margin:26px 0 10px}
+.sec.s-ok,.sec.s-rojo,.sec.s-amb{color:var(--tinta)}
+.sec .dot{width:6px;height:6px}
+.hola h1{font-size:21px!important;margin:4px 0 2px}
+.ini-head{margin-bottom:8px;align-items:center}
+.ini-sec:first-of-type h2.sec{margin-top:18px}
+/* sin fondos teñidos: la tarjeta es neutra, el color queda solo en el número cuando es deuda */
+.panel.t-ok,.panel.t-rojo,.panel.t-amb,.kpi.t-ok,.kpi.t-rojo,.kpi.t-amb{background:var(--tarjeta);border-color:var(--linea)}
+.panel.t-ok .p-num{color:var(--tinta)}
+.panel{padding:16px}
+.p-num{font-size:22px!important;font-weight:600}
+.p-fila{font-size:13px;padding:6px 0}
+.card{padding:14px;border-radius:10px}
+.card.cabecera{border-left:1px solid var(--linea)}
+.cabecera .dom{font-size:20px;font-weight:600}
+.saldonum{font-size:24px;font-weight:600;margin-top:8px}
+.stat{border-left:1px solid var(--linea);border-radius:10px;padding:12px 14px}
+.stat b{font-size:18px;font-weight:600}
+.btn{font-weight:500;font-size:14px;min-height:36px;padding:7px 14px}
+.btn.chico{font-size:13px;min-height:32px;padding:5px 11px}
+.fila{padding:10px 14px;border-radius:10px;margin-bottom:6px}
+.fila .dom{font-size:14.5px}
+.fila .nom{font-size:13px}
+.monto{font-size:14.5px}
+.mov{font-size:13.5px;padding:7px 2px}
+.lista-ult{padding:6px 14px}
+.vhead b{font-size:15px}
+.pill{font-weight:500;font-size:11px}
+label{font-size:12.5px}
+@media (max-width:899px){.kpi b,.stat b{font-size:17px} .kpis,.stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px} .kpi.ancha{grid-column:span 2}}
+@media (pointer:coarse){.btn{min-height:42px} .btn.chico{min-height:38px}}
