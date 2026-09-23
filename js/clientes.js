@@ -48,8 +48,8 @@ function buscar(mantener){
   const conDeuda=RES.filter(x=>saldoDe(x.c,cierreISO())>0.5).length;
   $('bres').innerHTML=RES.length+' clientes · saldo neto '+(tot>=0?'debe ':'a favor ')+fmt(tot)+
     `<div class="fchips" style="margin:6px 0 0">${SELMODE
-      ?`<button class="fch on" id="bimpsel" style="margin-top:0">🖨 Imprimir seleccionados (${SELCLI.size})</button><button class="fch" id="bseltodos" style="margin-top:0">Marcar todos</button><button class="fch" id="bselno" style="margin-top:0">Cancelar</button>`
-      :`<button class="fch" id="bsel" style="margin-top:0">☑ Elegir varios</button>${conDeuda?`<button class="fch" id="bimp" style="margin-top:0">🖨 Imprimir todos los listados con deuda al ${fecha(cierreISO())} (${conDeuda})</button>`:''}`}</div>`;
+      ?`<button class="fch on" id="bimpsel" style="margin-top:0">Imprimir seleccionados (${SELCLI.size})</button><button class="fch" id="bseltodos" style="margin-top:0">Marcar todos</button><button class="fch" id="bselno" style="margin-top:0">Cancelar</button>`
+      :`<button class="fch" id="bsel" style="margin-top:0">☑ Elegir varios</button>${conDeuda?`<button class="fch" id="bimp" style="margin-top:0">Imprimir todos los listados con deuda al ${fecha(cierreISO())} (${conDeuda})</button>`:''}`}</div>`;
   window.__dbg+=' → '+RES.length+' result.';
  }catch(e){
   window.__dbg='ERROR buscar: '+(e&&e.message);
@@ -144,34 +144,34 @@ function ficha(id,mas){
   let h=`<button class="volver" id="fvolver">← Volver</button>
   <div class="card cabecera">
     <div class="dom">${c.d||'(sin domicilio)'}</div>
-    <div class="mini" style="font-size:15px">${c.n||'Sin nombre'} · Nº ${c.id}</div>
+    <div class="mini">${c.n||'Sin nombre'} · Nº ${c.id}</div>
     <div class="chips">${pillCat(c)}${c.fic==='recuperado'?'<span class="pill p-warn">Ficha recuperada</span>':''}</div>
     <div class="saldonum ${s>0.5?'debe':(s<-0.5?'favor':'aldia')}">${Math.abs(s)>0.5?fmt(s):'Al día'}</div>
     <div class="mini">${s>0.5?'te debe':(s<-0.5?'tiene a favor':'sin deuda')} · ${MODO_SALDO==='cierre'?'saldo al '+fecha(cierreISO())+' (mes vencido)':'saldo a hoy'}</div>
     ${(()=>{const o=saldoDe(c,MODO_SALDO==='cierre'?hoyISO():cierreISO());return `<div class="mini" style="margin-top:2px">${MODO_SALDO==='cierre'?'Saldo a hoy':'Saldo al '+fecha(cierreISO())+' (mes vencido)'}: <b>${Math.abs(o)>0.5?fmt(o):'al día'}</b></div>`;})()}
     ${devengoDe(c,'C',hastaSaldo())>0?`<div class="mini" style="margin-top:4px">incluye ${fmt(devengoDe(c,'C',hastaSaldo()))} de consumo devengado automático desde el 01/09</div>`:''}
-    ${devengoDe(c,'S')>0?`<div class="mini" style="margin-top:4px;color:var(--ok)">Vía distribuidora: repartido ${fmt(devengoDe(c,'S'))} de tapa desde el 01/09 → te genera ${fmt(devengoDe(c,'S')*CONFIG.comision/100)} de comisión (no es deuda del cliente)</div>`:''}
+    ${devengoDe(c,'S')>0?`<div class="mini" style="margin-top:4px">Vía distribuidora: repartido ${fmt(devengoDe(c,'S'))} de tapa desde el 01/09 → te genera ${fmt(devengoDe(c,'S')*CONFIG.comision/100)} de comisión (no es deuda del cliente)</div>`:''}
     ${!c.act?`<div class="aviso" style="background:var(--rojosuave);color:var(--rojo)">Cliente dado de baja${(()=>{const n=LIVE.novedades.filter(x=>x.cli===id&&x.tipo==='Baja'&&!x.pub).sort((x,y)=>(y.desde||'').localeCompare(x.desde||''))[0];return n?' desde el '+fecha(n.desde):'';})()}: no devenga y no figura en el padrón. <button class="btn chico sec" id="freact" data-cli="${id}" style="margin:6px 0 0">Reactivar cliente</button></div>`:''}
     ${sinPrecio(c).length?`<div class="aviso">⚠ ${sinPrecio(c).map(x=>x[0]).join(', ')}: sin precio cargado, no devenga. Cargalo en Precios.</div>`:''}
-    <div class="datoscli">${c.tel?`<div>Tel: <a style="color:var(--azul)" href="tel:${c.tel.replace(/[^0-9+]/g,'')}">${c.tel}</a></div>`:''}${c.part?`<div>Entrega: <i>${c.part}</i></div>`:''}</div>
-    <div class="grid2">
-      <button class="btn chico" id="fbc" data-cli="${id}">＋ Cobro</button>
-      <button class="btn chico sec" id="fbl" data-cli="${id}">＋ Ajuste</button>
-      <button class="btn chico sec" id="fcor" data-cli="${id}">✎ Corregir saldo</button>
-      <button class="btn chico sec" id="fres" data-cli="${id}">🖨 Resumen ${MESES[new Date(cierreISO()+'T12:00:00').getMonth()]}</button>
-      <button class="btn chico sec" id="fedit" data-cli="${id}">✎ Editar datos</button>
-      <button class="btn chico sec" id="fnotabtn" data-cli="${id}">📝 Anotación</button>
+    <div class="datoscli">${c.tel?`<div><span>Tel.</span> <a style="color:var(--azul)" href="tel:${c.tel.replace(/[^0-9+]/g,'')}">${c.tel}</a></div>`:''}${c.part?`<div><span>Entrega</span> ${c.part}</div>`:''}</div>
+    <div class="acciones">
+      <button class="btn chico" id="fbc" data-cli="${id}">Cobro</button>
+      <button class="btn chico sec" id="fbl" data-cli="${id}">Ajuste</button>
+      <button class="btn chico sec" id="fcor" data-cli="${id}">Corregir saldo</button>
+      <button class="btn chico sec" id="fres" data-cli="${id}">Resumen ${MESES[new Date(cierreISO()+'T12:00:00').getMonth()]}</button>
+      <button class="btn chico sec" id="fedit" data-cli="${id}">Editar datos</button>
+      <button class="btn chico sec" id="fnotabtn" data-cli="${id}">Anotación</button>
     </div>
     <div id="fform"></div>
   </div>`;
   const notas=notasDe(c);
-  h+=`<h2>Anotaciones${notas.length?' ('+notas.length+')':''}</h2><div class="card" id="notascard">${notas.length?notas.map((n,i)=>`<div class="nota"><div class="nt">${n.f?`<span class="nf">${n.f}${n.a?' · '+n.a:''}</span>`:''}${n.t}</div><button class="mini-btn" data-nborrar="${i}" data-cli="${id}" title="Borrar anotación">✕</button></div>`).join(''):'<div class="mini">Sin anotaciones. Usá “📝 Anotación” para dejar algo registrado (ej. “paga los 10”, “avisar antes de tocar timbre”).</div>'}</div>`;
+  h+=`<h2>Anotaciones${notas.length?' ('+notas.length+')':''}</h2><div class="card" id="notascard">${notas.length?notas.map((n,i)=>`<div class="nota"><div class="nt">${n.f?`<span class="nf">${n.f}${n.a?' · '+n.a:''}</span>`:''}${n.t}</div><button class="mini-btn" data-nborrar="${i}" data-cli="${id}" title="Borrar anotación">✕</button></div>`).join(''):'<div class="mini">Sin anotaciones.</div>'}</div>`;
   if(novs.length){h+=`<h2>Novedades cargadas acá</h2><div class="card">`+novs.map(n=>`<div class="subrow"><b>${n.tipo}</b> <span class="mini">${descNov(n)}${n.nota?' · '+n.nota:''}</span></div>`).join('')+`</div>`;}
   h+=`<h2>Suscripciones vigentes (${vig.length})</h2>`;
-  if(vig.length) agruparSubs(vig).forEach((e,ix)=>{const todasDeLaPub=vig.filter(x=>x[0]===e.pub).length===e.rows.length;const dsx=e.dias?diasSuspHoy(id,e.pub,e.dias,altaDe(e.rows[0])):[];h+=`<div class="card"><b>${e.pub}</b>${e.qty>1&&!e.qtyMix?` <span class="mini">×${e.qty}</span>`:''} <span class="pill ${e.via==='S'?'p-susc':'p-cli'}">${e.via==='S'?'vía distribuidora':'le cobrás vos'}</span>${e.app?' <span class="pill p-warn">alta cargada acá</span>':''}${e.dias?diasHTMLArr(e.dias,dsx):(e.txt?`<div class="mini" style="margin-top:6px">${e.txt}</div>`:'')}${dsx.length?(()=>{const todo=dsx.length===e.dias.length, is=infoSusp(id,e.pub,dsx); return `<div class="mini" style="margin-top:4px">${todo?'<b>Suspendida: hoy no recibe ningún día</b> (no se reparte ni se cobra)':'No recibe '+dsx.map(d=>DIAS[d]).join(', ')}${is?' · desde el '+fecha(is.desde)+(is.hasta?', vuelve el '+fecha(sumarDias(is.hasta,1)):' hasta que se reanude'):''}</div>`;})():''}${e.rows.length>1?`<div class="mini" style="margin-top:4px">${e.rows.length} suscripciones agrupadas (una por día)</div>`:''}<div class="mini" style="margin-top:6px">desde ${fecha(e.desde)}</div>
+  if(vig.length) agruparSubs(vig).forEach((e,ix)=>{const todasDeLaPub=vig.filter(x=>x[0]===e.pub).length===e.rows.length;const dsx=e.dias?diasSuspHoy(id,e.pub,e.dias,altaDe(e.rows[0])):[];h+=`<div class="card subcard"><b>${e.pub}</b>${e.qty>1&&!e.qtyMix?` <span class="mini">×${e.qty}</span>`:''} <span class="pill ${e.via==='S'?'p-susc':'p-cli'}">${e.via==='S'?'vía distribuidora':'le cobrás vos'}</span>${e.app?' <span class="pill p-warn">alta cargada acá</span>':''}${e.dias?diasHTMLArr(e.dias,dsx):(e.txt?`<div class="mini" style="margin-top:6px">${e.txt}</div>`:'')}${dsx.length?(()=>{const todo=dsx.length===e.dias.length, is=infoSusp(id,e.pub,dsx); return `<div class="mini" style="margin-top:4px">${todo?'<b>Suspendida: hoy no recibe ningún día</b> (no se reparte ni se cobra)':'No recibe '+dsx.map(d=>DIAS[d]).join(', ')}${is?' · desde el '+fecha(is.desde)+(is.hasta?', vuelve el '+fecha(sumarDias(is.hasta,1)):' hasta que se reanude'):''}</div>`;})():''}${e.rows.length>1?`<div class="mini" style="margin-top:4px">${e.rows.length} suscripciones agrupadas (una por día)</div>`:''}<div class="mini" style="margin-top:6px">desde ${fecha(e.desde)}</div>
   <div id="sf-${ix}"><button class="btn chico sec" data-sform="${ix}" data-pub="${e.pub}" data-dias="${(e.dias||[]).join(',')}" ${todasDeLaPub?'data-todas="1"':''} data-cli="${id}" data-acc="Suspensión">Suspender / dar de baja</button>${e.dias&&e.dias.length?` <button class="btn chico sec" data-cvia="${ix}" data-pub="${e.pub}" data-dias="${e.dias.join(',')}" data-via="${e.via}" data-qty="${e.qty}" data-cli="${id}">${e.via==='S'?'Pasar a "le cobrás vos"':'Pasar a "vía distribuidora"'}</button>`:''}</div></div>`;});
   else h+='<div class="card mini">Sin publicaciones vigentes.</div>';
-  h+=`<div id="altabox"><button class="btn chico" id="altabtn" data-cli="${id}">＋ Alta de suscripción nueva</button></div>`;
+  h+=`<div id="altabox"><button class="btn chico sec" id="altabtn" data-cli="${id}">＋ Alta de suscripción</button></div>`;
   const altasTodas=c.subs.filter(x=>x[6]==='app'&&x[3]==='V').map(x=>({pub:x[0],desde:(x[4]||'').slice(0,10),dias:FD(x[1])||[]}));
   const reactivada=x=>x[3]!=='V'&&altasTodas.some(n=>n.pub===x[0]&&(n.desde||'')>=(x[3]||'').slice(0,10)&&(!(FD(x[1])||[]).length||n.dias.some(d=>(FD(x[1])||[]).includes(d))));
   const suspVis=susp.filter(x=>!reactivada(x));

@@ -82,21 +82,21 @@ function pintarStock(){
     <div class="kpi"><i>Productos</i><b>${prods.length}</b><i>${unid} unidades en total</i></div>
     <div class="kpi ok"><i>Stock propio a costo</i><b>${fmt(valor)}</b><i>lo que ya es tuyo</i></div>
     <div class="kpi ${cons?'amb':'gris'}"><i>En consignación</i><b>${cons} <small>unidades</small></b><i>se deben al venderse</i></div>
-    <div class="kpi"><i>Valor de venta del stock</i><b>${fmt(venta)}</b><i>todo lo que hay, a precio de venta</i></div>
+    <div class="kpi"><i>Valor de venta del stock</i><b>${fmt(venta)}</b><i>a precio de venta</i></div>
   </div>
   ${(()=>{const pd=paraDevolver(); return pd.length?`<div class="sec"><span class="dot"></span>Para devolver (ya llegó el número nuevo)</div><div class="card">${pd.map(x=>`<div class="mov"><span class="t"><b>${x.p.nombre}</b> ${edTxt(x.ed)} <span class="mini">· ya llegó el nº ${x.nuevo}</span></span><span class="m debe">${x.qty}</span></div>`).join('')}<div class="mini" style="margin-top:6px">Registralas en Compras → Devolución a proveedor, eligiendo el número.</div></div>`:'';})()}
   <div class="sec"><span class="dot"></span>Productos</div>
-  <div class="filtros"><input id="sq" type="search" placeholder="Buscar producto o categoría…" value="${qv}" style="margin-top:0" oninput="pintarStockLista()"><button class="btn chico" id="snuevo" style="margin:0;white-space:nowrap">＋ Producto</button></div>
+  <div class="filtros"><input id="sq" type="search" placeholder="Buscar producto o categoría…" value="${qv}" style="margin-top:0" oninput="pintarStockLista()"><button class="btn chico" id="snuevo" style="margin:0;white-space:nowrap">Nuevo producto</button></div>
   <div id="sform"></div>
-  <div id="slist"></div>`;
+  <div id="slist" class="lista-filas"></div>`;
   pintarStockLista();
 }
 function pintarStockLista(){
   const q=norm(($('sq')||{}).value||'');
   const prods=LIVE.prod.filter(p=>p.activo!==false&&(!q||norm(p.nombre+' '+(p.cat||'')+' '+nomProv(p.prov)).includes(q))).map(p=>({p,s:stockDe(p.id)})).sort((a,b)=>a.p.nombre.localeCompare(b.p.nombre));
   $('slist').innerHTML=prods.length?prods.map(({p,s})=>`<div class="fila" data-prod="${p.id}" style="flex-wrap:wrap"><div style="flex:1;min-width:180px"><div class="dom">${p.nombre} ${p.cat?`<span class="pill p-inact">${p.cat}</span>`:''}</div><div class="nom">${nomProv(p.prov)!=='—'?'Prov. habitual: '+nomProv(p.prov)+' · ':''}costo ${fmt(p.costo)} · ${p.modo==='margen'?'costo +'+p.margen+'%':'precio fijo'}</div></div>
-    <div class="der"><div class="monto">${fmt(precioVenta(p))}</div><div class="mini ${s.total<=0?'debe':''}">${s.total} en stock${s.propio?' · '+s.propio+' propio':''}${Object.entries(s.consig).map(([k,v])=>' · '+v+' consig. '+nomProv(parseInt(k))).join('')}</div>${(()=>{const es=edsDe(p.id).filter(e=>e.ed);const pe=pendientesDe(p.id); return (es.length?`<div class="mini">${es.map(e=>edTxt(e.ed)+': '+e.qty).join(' · ')}${pe.length?' libres':''}</div>`:'')+(pe.length?`<div class="mini" style="color:var(--azul)">+${pe.reduce((n,m)=>n-m.qty,0)} reservadas para suscriptores (reparto hasta el ${fecha(pe.map(m=>m.f).sort().pop())})</div>`:'');})()}</div>
-    <div id="pdet-${p.id}" hidden style="flex-basis:100%"></div></div>`).join(''):'<div class="mini" style="padding:20px;text-align:center">Todavía no hay productos. Cargá el primero con "＋ Producto" o desde Compras.</div>';
+    <div class="der"><div class="monto">${fmt(precioVenta(p))}</div><div class="mini ${s.total<=0?'debe':''}">${s.total} en stock${s.propio?' · '+s.propio+' propio':''}${(()=>{const e=Object.entries(s.consig);const n=e.reduce((a,[,v])=>a+v,0);return n?` · <span title="${e.map(([k,v])=>v+' de '+nomProv(parseInt(k))).join(', ')}">${n} en consignación</span>`:'';})()}</div>${(()=>{const es=edsDe(p.id).filter(e=>e.ed);const pe=pendientesDe(p.id); return (es.length?`<div class="mini">${es.map(e=>edTxt(e.ed)+': '+e.qty).join(' · ')}${pe.length?' libres':''}</div>`:'')+(pe.length?`<div class="mini">+${pe.reduce((n,m)=>n-m.qty,0)} reservadas para suscriptores, hasta el ${fecha(pe.map(m=>m.f).sort().pop())}</div>`:'');})()}</div>
+    <div id="pdet-${p.id}" hidden style="flex-basis:100%"></div></div>`).join(''):'<div class="mini" style="padding:20px;text-align:center">Todavía no hay productos. Cargá el primero con "Nuevo producto" o desde Compras.</div>';
   if(PSEL) abrirProd(PSEL,true);
 }
 function formProdHTML(p){

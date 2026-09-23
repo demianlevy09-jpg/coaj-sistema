@@ -81,14 +81,14 @@ function pintarReparto(){
   const totStr=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]).map(([p,n])=>`<b>${n}</b> ${p}`).join(' · ')||'—';
   const nParadas=Object.entries(porV).reduce((n,[vn,l])=>n+agrupar(l,vn).length,0);
   let h=titulo('Reparto',`${DIAS_L[RDIA][0].toUpperCase()+DIAS_L[RDIA].slice(1)} ${fecha(iso)} · ${nCli} clientes en ${nParadas} paradas · ${Object.values(totPub).reduce((a,b)=>a+b,0)} ejemplares`);
-  h+=`<div class="fchips" style="margin:0 0 12px">${DIAS7.map((d,i)=>`<button class="fch${i===RDIA?' on':''}" data-rdia="${i}">${DIAS_L[i]}</button>`).join('')}<button class="fch" id="rimpall" style="margin-left:auto">🖨 Imprimir todas las vueltas</button><button class="fch" id="rimpmulti">🖨 Varios días…</button></div>`;
+  h+=`<div class="fchips" style="margin:0 0 12px">${DIAS7.map((d,i)=>`<button class="fch${i===RDIA?' on':''}" data-rdia="${i}">${DIAS_L[i]}</button>`).join('')}<button class="fch" id="rimpall" style="margin-left:auto">Imprimir todas</button><button class="fch" id="rimpmulti">Imprimir varios días…</button></div>`;
   if(feriado) h+=`<div class="aviso" style="margin-bottom:12px">${fecha(iso)} está cargado como feriado ${feriadoTotal(iso)?'sin reparto: no se entrega nada ese día.':'con diario'+(((LIVE.feriados.find(r=>r.f===iso)||{}).sp||[]).length?': no sale '+(LIVE.feriados.find(r=>r.f===iso)).sp.join(', ')+'.':' (salen todos); se suman las suscripciones "Fer".')}</div>`;
   h+=`<div class="kpis">
     <div class="kpi ancha"><i>Para armar los paquetes · total del día</i><div class="tots">${Object.entries(totPub).sort((a,b)=>b[1]-a[1]).map(([p,n])=>`<span><b>${n}</b> ${p}</span>`).join('')||'<span class="mini">nada que repartir</span>'}</div></div>
     ${mv?'':`<div class="kpi ${sinV.length?'amb':'gris'}"><i>Sin vuelta asignada</i><b>${sinV.length} <small>clientes</small></b><i>${sinV.length?'asignalos abajo':'todos asignados ✓'}</i></div>
     <div class="kpi ${reservas.length?'':'gris'}"><i>Reservas en la parada</i><b>${reservas.reduce((n,r)=>n+(r.qty||1),0)} <small>ejemplares</small></b><i>los retiran en el puesto</i></div>`}
   </div>`;
-  h+=`<div class="sec"><span class="dot"></span>Vueltas del ${DIAS_L[RDIA]} <span class="mini" style="text-transform:none;letter-spacing:0">— por default van agrupadas por dirección y ordenadas por altura; arrastrá las paradas para cambiar el orden o pasarlas a otra vuelta; ⇄ mueve un cliente</span></div>`;
+  h+=`<div class="sec"><span class="dot"></span>Vueltas del ${DIAS_L[RDIA]} <span class="mini" style="text-transform:none;letter-spacing:0">· arrastrá una parada para cambiar el orden o la vuelta; ⇄ mueve un cliente</span></div>`;
   h+=`<div class="vgrid">`;
   const vacias=[];
   vueltasActivas().forEach(v=>{
@@ -97,10 +97,10 @@ function pintarReparto(){
     const tot={}; list.forEach(x=>x.ent.forEach(e=>tot[e.pub]=(tot[e.pub]||0)+e.qty));
     const nEj=Object.values(tot).reduce((a,b)=>a+b,0);
     h+=`<div class="vcol" data-vuelta="${v.nombre}">
-      <div class="vhead"><div><b>${v.nombre}</b> <span class="mini lnk" data-rrep="${v.nombre}" title="Cambiar repartidor">${v.repartidor||'sin repartidor'} ✎</span></div>
+      <div class="vhead"><div class="vtit"><b>${v.nombre}</b> <span class="mini lnk" data-rrep="${v.nombre}" title="Cambiar repartidor">${v.repartidor||'sin repartidor'} ✎</span></div>
         <div class="mini">${paradas.length} paradas · ${nEj} ejemplares</div>
         <div class="mini vtot">${totStr(tot)}</div>
-        <button class="btn chico sec" data-rimp="${v.nombre}" style="margin-top:6px">🖨 Hoja</button>${man?`<button class="btn chico sec" data-rord="${v.nombre}" style="margin-top:6px" title="Volver al orden automático: agrupado por dirección y por altura">↕ Orden por dirección</button>`:'<span class="mini" style="margin-top:6px">orden por dirección</span>'}</div>
+        <button class="btn chico sec" data-rimp="${v.nombre}" >Imprimir hoja</button>${man?`<button class="btn chico sec" data-rord="${v.nombre}" title="Volver al orden automático: agrupado por dirección y por altura">Orden por dirección</button>`:''}</div>
       <div class="vlist" data-vuelta="${v.nombre}">`;
     paradas.forEach((p,i)=>{
       h+=`<div class="parada" draggable="true" data-ed="${p.ed}" data-vuelta="${v.nombre}" data-clis="${p.cl.map(x=>x.c.id).join(',')}">
