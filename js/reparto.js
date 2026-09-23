@@ -89,7 +89,7 @@ function pintarReparto(){
     <div class="kpi ${reservas.length?'':'gris'}"><i>Reservas en la parada</i><b>${reservas.reduce((n,r)=>n+(r.qty||1),0)} <small>ejemplares</small></b><i>los retiran en el puesto</i></div>`}
   </div>`;
   h+=`<div class="sec"><span class="dot"></span>Vueltas del ${DIAS_L[RDIA]} <span class="mini" style="text-transform:none;letter-spacing:0">· arrastrá una parada para cambiar el orden o la vuelta; ⇄ mueve un cliente</span></div>`;
-  h+=`<div class="vgrid">`;
+  h+=`<div class="vgrid vlista">`;
   const vacias=[];
   vueltasActivas().forEach(v=>{
     const list=porV[v.nombre]; const man=ordenManual(RDIA,v.nombre); const paradas=agruparParadas(list,man);
@@ -97,16 +97,17 @@ function pintarReparto(){
     const tot={}; list.forEach(x=>x.ent.forEach(e=>tot[e.pub]=(tot[e.pub]||0)+e.qty));
     const nEj=Object.values(tot).reduce((a,b)=>a+b,0);
     h+=`<div class="vcol" data-vuelta="${v.nombre}">
-      <div class="vhead"><div class="vtit"><b>${v.nombre}</b> <span class="mini lnk" data-rrep="${v.nombre}" title="Cambiar repartidor">${v.repartidor||'sin repartidor'} ✎</span></div>
-        <div class="mini">${paradas.length} paradas · ${nEj} ejemplares</div>
-        <div class="mini vtot">${totStr(tot)}</div>
-        <button class="btn chico sec" data-rimp="${v.nombre}" >Imprimir hoja</button>${man?`<button class="btn chico sec" data-rord="${v.nombre}" title="Volver al orden automático: agrupado por dirección y por altura">Orden por dirección</button>`:''}</div>
+      <div class="vhead"><div class="vh1"><b>${v.nombre}</b> <span class="mini lnk" data-rrep="${v.nombre}" title="Cambiar repartidor">${v.repartidor||'sin repartidor'} ✎</span>
+        <span class="mini">· ${paradas.length} paradas · ${nEj} ejemplares</span>
+        <span class="vh-acc"><button class="btn chico sec" data-rimp="${v.nombre}">Imprimir hoja</button>${man?`<button class="btn chico sec" data-rord="${v.nombre}" title="Volver al orden automático: agrupado por dirección y por altura">Orden por dirección</button>`:''}</span></div>
+        <div class="mini vtot">${totStr(tot)}</div></div>
+      <div class="rt-h"><span>#</span><span>Dirección</span><span>Depto</span><span>Lleva</span><span>Indicaciones</span><span></span></div>
       <div class="vlist" data-vuelta="${v.nombre}">`;
     paradas.forEach((p,i)=>{
       h+=`<div class="parada" draggable="true" data-ed="${p.ed}" data-vuelta="${v.nombre}" data-clis="${p.cl.map(x=>x.c.id).join(',')}">
-        <div class="phead"><span class="grip">☰</span><b>${p.ed}</b><span class="mini">${i+1}</span>
-          <span class="pmove"><button class="mini-btn" data-pmv="up" title="Subir">↑</button><button class="mini-btn" data-pmv="down" title="Bajar">↓</button></span></div>
-        ${p.cl.map(x=>`<div class="pcli"><span class="un">${edificioDe(x.c.d).un||''}</span><span class="pe">${x.ent.map(e=>(e.qty>1?e.qty+'× ':'')+e.pub).join(' + ')}</span>${x.c.part?`<span class="pp">${x.c.part}</span>`:''}<button class="mini-btn" data-mv="${x.c.id}" title="Mover a otra vuelta">⇄</button></div>`).join('')}
+        <span class="pn"><span class="grip">☰</span>${i+1}</span><b class="pdir">${p.ed}</b>
+        <span class="pmove"><button class="mini-btn" data-pmv="up" title="Subir">↑</button><button class="mini-btn" data-pmv="down" title="Bajar">↓</button></span>
+        <div class="pclis">${p.cl.map(x=>`<div class="pcli"><span class="un">${edificioDe(x.c.d).un||''}</span><span class="pe">${x.ent.map(e=>(e.qty>1?e.qty+'× ':'')+e.pub).join(' + ')}</span><span class="pp">${x.c.part||''}</span><button class="mini-btn" data-mv="${x.c.id}" title="Mover a otra vuelta">⇄</button></div>`).join('')}</div>
       </div>`;
     });
     h+=`</div></div>`;

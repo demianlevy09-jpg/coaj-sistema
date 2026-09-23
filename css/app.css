@@ -434,3 +434,36 @@ label{font-size:12.5px}
 .fila .der .mini{font-size:12px}
 .p-inact{background:var(--hundido)}
 .kpi.amb b{color:var(--tinta)}
+/* ------- v87: reparto en lista (una fila por cliente, vueltas una debajo de la otra) ------- */
+.vgrid.vlista{display:block}
+.vlista .vcol{margin-bottom:14px}
+.vlista .vhead{padding:10px 14px;border-bottom:1px solid var(--linea)}
+.vh1{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 8px}
+.vh1 b{font-size:14.5px;font-weight:600}
+.vh-acc{margin-left:auto;display:flex;gap:6px} .vh-acc .btn.chico{margin:0}
+.vlista .vtot{margin-top:4px}
+.rt-h,.vlista .parada,.vlista .pcli{column-gap:12px}
+.rt-h{display:grid;grid-template-columns:44px 210px 64px 250px 1fr 28px;padding:6px 14px;font-size:11.5px;font-weight:500;color:var(--tinta3);border-bottom:1px solid var(--linea);text-transform:uppercase;letter-spacing:.03em}
+.vlista .parada{display:grid;grid-template-columns:44px 210px 1fr;align-items:baseline;padding:4px 14px}
+.vlista .pn{font-size:12px;color:var(--tinta3);font-variant-numeric:tabular-nums;white-space:nowrap}
+.vlista .pn .grip{margin-right:6px}
+.vlista .pdir{font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vlista .pmove{display:none}
+.vlista .pclis{grid-column:3}
+.vlista .pcli{display:grid;grid-template-columns:64px 250px 1fr 28px;padding:1px 0;align-items:baseline;border:0}
+.vlista .pcli .un{min-width:0;margin:0}
+.vlista .pcli .pe{white-space:normal}
+.vlista .pcli .mini-btn{grid-column:4;justify-self:end}
+.vlista .parada:hover{background:var(--hundido)}
+@media (max-width:899px){
+  .rt-h{display:none}
+  .vh-acc{margin-left:0;width:100%}
+  .vlista .parada{grid-template-columns:28px 1fr auto;padding:6px 12px}
+  .vlista .pmove{display:flex;grid-column:3;grid-row:1}
+  .vlista .pdir{white-space:normal}
+  .vlista .pclis{grid-column:2/4}
+  .vlista .pcli{grid-template-columns:auto 1fr auto;column-gap:8px}
+  .vlista .pcli .pp{grid-column:1/3;grid-row:2}
+  .vlista .pcli .pp:empty{display:none}
+  .vlista .pcli .mini-btn{grid-column:3;grid-row:1}
+}
