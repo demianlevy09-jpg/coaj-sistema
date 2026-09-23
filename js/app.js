@@ -248,6 +248,7 @@ async function iniciarApp(){
     const hdrEl=document.getElementById('hbtns');
     if(hdrEl&&!document.getElementById('lsalir')){
       if(esAdmin()){const x=document.createElement('button');x.id='qexport';x.className='btn chico sec';x.textContent='Backup';x.title='Descargar una copia de todos los datos';x.onclick=exportarTodo;hdrEl.appendChild(x);const u=document.createElement('button');u.id='qusuarios';u.className='btn chico sec';u.textContent='Usuarios';hdrEl.appendChild(u);}
+      const t=document.createElement('button');t.id='qtema';t.className='btn chico sec';t.onclick=cambiarTema;hdrEl.appendChild(t);pintarBotonTema();
       const b=document.createElement('button');b.id='lsalir';b.className='btn chico sec';b.textContent='Salir';hdrEl.appendChild(b);
       if(PERFIL&&PERFIL.rol){const e=$('estado-db');e.textContent='☁ guardado · '+nombreRol(PERFIL).toLowerCase();e.title=USUARIO.email||'';}
       const su=$('sb-user');if(su){su.textContent=nombreUsuario()+' · '+nombreRol(PERFIL).toLowerCase()+' · '+$('lat').textContent;su.title=USUARIO.email||'';}
@@ -255,6 +256,15 @@ async function iniciarApp(){
     ubicarBotones();
   }catch(e){$('cargando').innerHTML='Error: '+(e.message||e);}
 }
+/* ------- Modo día / noche (v84, como Oficina) ------- */
+function temaActual(){ return document.documentElement.dataset.theme==='light'?'light':'dark'; }
+function pintarBotonTema(){ const b=$('qtema'); if(!b)return; const cl=temaActual()==='light';
+  b.innerHTML=`<span class="ic-t">${cl?'☾':'☀'}</span>${cl?'Modo noche':'Modo día'}`; b.title=cl?'Pasar a colores oscuros':'Pasar a colores claros'; }
+function cambiarTema(){ const cl=temaActual()!=='light';
+  if(cl) document.documentElement.dataset.theme='light'; else delete document.documentElement.dataset.theme;
+  try{ localStorage.setItem('cohaj-tema',cl?'light':'dark'); }catch(_){}
+  const m=document.querySelector('meta[name=theme-color]'); if(m) m.content=cl?'#F7F8FA':'#0E1014';
+  pintarBotonTema(); }
 function ubicarBotones(){
   const esc=window.matchMedia('(min-width:900px)').matches;
   const h=$('hbtns'), dest=esc?$('sb-foot'):$('massheet');

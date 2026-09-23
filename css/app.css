@@ -1,17 +1,25 @@
 :root{
-  /* Tokens del design system (chasis compartido) con acento azul. Los nombres viejos se mantienen para no tocar todo el código. */
+  /* v84: estética "Oficina" (oficina-lime.vercel.app): oscuro por defecto, "Modo día" claro con data-theme="light".
+     Los nombres viejos (--papel, --tinta, …) se mantienen para no tocar todo el código. */
+  color-scheme:dark;
   --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI Variable","Segoe UI",Inter,system-ui,sans-serif;
-  --papel:#F7F8FA; --tarjeta:#FFFFFF; --hundido:#F1F3F6; --tinta:#12141A; --tinta2:#5B6270; --tinta3:#858C99;
-  --linea:#E4E6EB; --linea2:#EEF0F3; --linea-fuerte:#CDD1D8;
-  --azul:#3B6FF6; --azulhover:#2E5FE0; --azulsuave:#3B6FF614;
-  --ok:#0E8A5F; --oksuave:#0E8A5F14; --okborde:#0E8A5F40;
-  --rojo:#D0382E; --rojosuave:#D0382E14; --rojoborde:#D0382E40;
-  --ambar:#B57314; --ambarsuave:#B5731414; --ambarborde:#B5731440;
+  --papel:#0E1014; --tarjeta:#16181D; --hundido:#1C1F25; --tinta:#F2F3F5; --tinta2:#B4B9C3; --tinta3:#7D8491;
+  --linea:#2C303A; --linea2:#22252D; --linea-fuerte:#3F4450;
+  --azul:#5B87F8; --azulhover:#7099F9; --azulsuave:#5B87F824;
+  --ok:#34C98A; --oksuave:#34C98A10; --okborde:#34C98A4D;
+  --rojo:#F0635A; --rojosuave:#F0635A12; --rojoborde:#F0635A4D;
+  --ambar:#E0A33C; --ambarsuave:#E0A33C12; --ambarborde:#E0A33C4D;
+  --sombra:0 1px 2px rgba(0,0,0,.2),0 4px 12px rgba(0,0,0,.3);
 }
-:root[data-theme="dark"]{
-  --papel:#0E1014; --tarjeta:#16181D; --hundido:#0A0C0F; --tinta:#ECEDEF; --tinta2:#9AA0AB; --tinta3:#6B7280;
-  --linea:#262A32; --linea2:#1D2027; --linea-fuerte:#3A3F49; --azul:#5B87F8; --azulhover:#7099F9; --azulsuave:#5B87F824;
-  --ok:#34C98A; --oksuave:#34C98A24; --rojo:#F0635A; --rojosuave:#F0635A24; --ambar:#E0A33C; --ambarsuave:#E0A33C24;
+:root[data-theme="light"]{
+  color-scheme:light;
+  --papel:#F7F8FA; --tarjeta:#FFFFFF; --hundido:#F1F3F6; --tinta:#12141A; --tinta2:#4A4F5A; --tinta3:#7A808C;
+  --linea:#E4E6EB; --linea2:#EEF0F3; --linea-fuerte:#CDD1D8;
+  --azul:#2E5FE0; --azulhover:#264FBF; --azulsuave:#2E5FE014;
+  --ok:#0E8A5F; --oksuave:#0E8A5F0D; --okborde:#0E8A5F4D;
+  --rojo:#D0382E; --rojosuave:#D0382E0D; --rojoborde:#D0382E4D;
+  --ambar:#9A6210; --ambarsuave:#B573140F; --ambarborde:#B5731459;
+  --sombra:0 1px 2px rgba(16,18,24,.04),0 4px 12px rgba(16,18,24,.08);
 }
 *{box-sizing:border-box}
 body{background:var(--papel);color:var(--tinta);font-family:var(--font);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;margin:0;padding:0 0 86px}
@@ -52,7 +60,7 @@ header .hb .btn.chico{margin-top:0;padding:8px 12px;font-size:13px}
 .kpi.ancha{grid-column:span 2}
 .kpi .dos{display:grid;grid-template-columns:1fr 1fr;gap:16px} .kpi .dos>div+div{border-left:1px solid var(--linea);padding-left:16px}
 .acwrap{position:relative}
-.ac{position:absolute;left:0;right:0;top:100%;z-index:30;background:var(--tarjeta);border:1px solid var(--linea);border-radius:8px;box-shadow:0 1px 2px rgba(16,18,24,.04),0 4px 12px rgba(16,18,24,.08);max-height:280px;overflow:auto;margin-top:4px}
+.ac{position:absolute;left:0;right:0;top:100%;z-index:30;background:var(--tarjeta);border:1px solid var(--linea);border-radius:8px;box-shadow:var(--sombra);max-height:280px;overflow:auto;margin-top:4px}
 .aci{padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--linea);font-size:15px} .aci:last-child{border-bottom:none} .aci:hover{background:var(--azulsuave)}
 @media (min-width:900px){
   body{padding:0}
@@ -297,3 +305,49 @@ h2 .mini,.sec .mini{font-weight:400;font-size:13px;color:var(--tinta2)}
 .grid2{align-items:end}
 .btn:disabled{opacity:.5;cursor:default}
 @media (max-width:899px){.ini-acc{flex-wrap:wrap} .ini-acc .btn{flex:1 1 auto}}
+
+/* ------- v84: estética Oficina ------- */
+body{font-size:14.5px}
+.p-num.ok,.kpi.ok b{color:var(--ok)}
+.sec .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--tinta3);flex:none;transform:translateY(-2px)}
+.sec.s-ok{color:var(--ok)} .sec.s-ok .dot{background:var(--ok)}
+.sec.s-rojo{color:var(--rojo)} .sec.s-rojo .dot{background:var(--rojo)}
+.sec.s-amb{color:var(--ambar)} .sec.s-amb .dot{background:var(--ambar)}
+.sec.s-neu .dot{background:var(--tinta3)}
+.ini-sec:first-of-type h2.sec{margin-top:8px}
+/* tarjetas teñidas por tono, como Tengo / Debo / Para hacer de Oficina */
+.panel.t-ok,.kpi.t-ok{background:var(--oksuave);border-color:var(--okborde)}
+.panel.t-rojo,.kpi.t-rojo{background:var(--rojosuave);border-color:var(--rojoborde)}
+.panel.t-amb,.kpi.t-amb{background:var(--ambarsuave);border-color:var(--ambarborde)}
+.panel.t-ok .p-num{color:var(--ok)} .panel.t-rojo .p-num{color:var(--rojo)} .panel.t-amb .p-num{color:var(--ambar)}
+.panel.t-ok .p-filas,.panel.t-ok .p-fila,.panel.t-rojo .p-filas,.panel.t-rojo .p-fila{border-color:color-mix(in srgb,var(--linea) 70%,transparent)}
+.panel.click.t-ok:hover{border-color:var(--ok)} .panel.click.t-rojo:hover{border-color:var(--rojo)} .panel.click.t-amb:hover{border-color:var(--ambar)}
+.panel .p-link::after{content:' →'}
+.aviso{border:1px solid var(--ambarborde)}
+.ok-msg{border:1px solid var(--okborde)}
+.hola h1{font-weight:600;letter-spacing:-.02em}
+.vhead{background:var(--hundido)}
+.modal{border:1px solid var(--linea);box-shadow:var(--sombra)}
+.ovl{background:rgba(0,0,0,.5)}
+:root[data-theme="light"] .ovl{background:rgba(16,18,24,.4)}
+.massheet{box-shadow:var(--sombra)!important}
+#qtema .ic-t{font-size:15px;width:18px;display:inline-block;text-align:center}
+@media (min-width:900px){
+  .wrap{padding:30px 40px 60px 264px}
+  .tabs{width:224px;padding:18px 0 12px;background:var(--papel)}
+  .sb-top{padding:0 18px 14px;margin-bottom:10px}
+  .sb-top .marca{font-size:17px;font-weight:600;letter-spacing:-.01em}
+  .sb-top .marca span{color:var(--tinta2)}
+  .sb-top .mini{font-size:12.5px;margin-top:1px}
+  .sb-nav{padding:0 10px}
+  .tab{font-size:13.5px;font-weight:450;padding:7px 9px;color:var(--tinta)}
+  .tab .ic{display:none}
+  .tab.on{background:var(--tarjeta);color:var(--azul);font-weight:500}
+  .tab.on::before{content:none}
+  .sb-foot{padding:10px 8px 0}
+  .sb-foot .hb{display:flex}
+  .sb-foot .btn.chico{font-size:13.5px;color:var(--tinta);min-height:30px;padding:6px 10px}
+  .hola h1{font-size:24px}
+  .p-num{font-size:26px}
+}
+header .marca{font-size:20px;font-weight:600} header .marca span{color:var(--tinta2)}

@@ -19,9 +19,9 @@ function pintarInicio(){
   const dists=(DISTS.length?DISTS:[{id:1,nombre:'Distribuidora'}]);
   const panelDist=d=>{ const k=cuentaDist(d.id,hoy); const s=k.saldo;
     const est=s<-0.5?'Te debe':(s>0.5?'Le debés':'Están a mano');
-    return `<section class="panel click" onclick="DSEL=${d.id};irTab('dist')">
+    return `<section class="panel click ${s>0.5?'t-rojo':(s<-0.5?'t-ok':'')}" onclick="DSEL=${d.id};irTab('dist')">
       <div class="p-tit">${d.nombre}</div>
-      <div class="p-num${s>0.5?' debe':''}"><small>${est}</small> ${fmt(s)}</div>
+      <div class="p-num"><small>${est}</small> ${fmt(s)}</div>
       <div class="p-sub">Cuenta desde el ${fecha(DEV0)}</div>
       <div class="p-filas">
         ${filaIni('Comisión por repartir a sus suscriptores','+'+fmt(k.comision),'favor')}
@@ -31,11 +31,11 @@ function pintarInicio(){
       </div>
       <span class="p-link">Ver mes por mes</span>
     </section>`; };
-  const extras=[];
+  const extras=[]; let provDebo='';
   if(fav.length&&puede('clientes')) extras.push(`<button class="x-fila" onclick="irClientes('favor')"><span>Saldos a favor de clientes<small>${fav.length} ${fav.length===1?'cliente te pagó':'clientes te pagaron'} de más o por adelantado</small></span><b>${fmt(sum(fav,'h'))}</b></button>`);
   if(STOCK_OK){
     const dp=LIVE.prov.map(p=>saldoProv(p.id)).filter(x=>x>0.5);
-    if(dp.length&&puede('compras')) extras.push(`<button class="x-fila" onclick="CTIPO='proveedores';irTab('compras')"><span>Debés a proveedores<small>${dp.length} con saldo</small></span><b class="debe">${fmt(dp.reduce((a,b)=>a+b,0))}</b></button>`);
+    if(dp.length&&puede('compras')) provDebo=`<section class="panel click t-rojo" onclick="CTIPO='proveedores';irTab('compras')"><div class="p-tit">Proveedores</div><div class="p-num"><small>Les debés</small> ${fmt(dp.reduce((a,b)=>a+b,0))}</div><div class="p-sub">${dp.length} con saldo</div><span class="p-link">Ver proveedores</span></section>`;
     const vh=LIVE.stock.filter(m=>m.tipo==='venta'&&m.f===hoy);
     if(vh.length&&puede('ventas')) extras.push(`<button class="x-fila" onclick="irTab('ventas')"><span>Ventas de hoy<small>${vh.reduce((n,m)=>n-m.qty,0)} unidades</small></span><b>${fmt(vh.reduce((n,m)=>n-m.qty*(m.precio||0),0))}</b></button>`);
     const val=LIVE.prod.filter(p=>p.activo!==false).reduce((n,p)=>n+stockDe(p.id).propio*(p.costo||0),0);
@@ -46,9 +46,16 @@ function pintarInicio(){
     <div class="hola"><h1>Hola${nombreUsuario()?', '+nombreUsuario():''}</h1><div class="mini">${fechaLarga(hoy)}</div></div>
     <div class="ini-acc">${puede('clientes')?'<button class="btn" id="qcobrar">Cobrar a un cliente</button>':''}${puede('caja')?'<button class="btn sec" id="qcaja">Movimiento de caja</button>':''}</div>
   </div>
-  ${sp.size&&puede('precios')?`<div class="aviso click" onclick="irTab('precios')"><b>${sp.size} ${sp.size===1?'publicación no tiene':'publicaciones no tienen'} precio cargado</b> y no se están cobrando: ${[...sp].slice(0,4).join(', ')}${sp.size>4?'…':''}. Cargalas en Precios.</div>`:''}
-  <div class="paneles">
-    ${puede('clientes')?`<section class="panel click" onclick="irClientes('deudores')">
+  ${sp.size&&puede('precios')?`<div class="ini-sec"><h2 class="sec s-amb"><span class="dot"></span>Para hacer</h2>
+  <div class="paneles"><section class="panel click t-amb" onclick="irTab('precios')">
+    <div class="p-tit">Publicaciones sin precio</div>
+    <div class="p-num">${sp.size} <small style="display:inline">${sp.size===1?'no se está cobrando':'no se están cobrando'}</small></div>
+    <div class="p-sub">${[...sp].slice(0,4).join(', ')}${sp.size>4?'…':''}</div>
+    <span class="p-link">Cargar en Precios</span>
+  </section></div></div>`:''}
+  ${(()=>{ const ds=puede('dist')?dists.map(d=>({d,s:cuentaDist(d.id,hoy).saldo})):[];
+    const tengo=[
+      puede('clientes')?`<section class="panel click t-ok" onclick="irClientes('deudores')">
       <div class="p-tit">Te deben tus clientes</div>
       <div class="p-num">${fmt(sum(deudH,'h'))}</div>
       <div class="p-sub">${deudH.length} ${deudH.length===1?'cliente':'clientes'} con deuda, a hoy</div>
@@ -57,18 +64,20 @@ function pintarInicio(){
         ${filaIni('Sumado en '+etiquetaMes(hoy).split(' ')[0]+' (sin cobrar)',fmt(sum(deudH,'h')-sum(deudM,'m')))}
       </div>
       <span class="p-link">Ver deudores</span>
-    </section>`:''}
-    ${puede('caja')?`<section class="panel click" onclick="irTab('caja')">
+    </section>`:'',
+      puede('caja')?`<section class="panel click ${totCaja<-0.5?'t-rojo':'t-ok'}" onclick="irTab('caja')">
       <div class="p-tit">Plata en caja</div>
-      <div class="p-num${totCaja<-0.5?' debe':''}">${signo(totCaja)}</div>
+      <div class="p-num">${signo(totCaja)}</div>
       <div class="p-sub">${cajaHoy.length?('Hoy '+(netoHoy<0?'salieron ':'entraron ')+fmt(netoHoy)+' en '+cajaHoy.length+' '+(cajaHoy.length===1?'movimiento':'movimientos')):'Hoy no hubo movimientos'}</div>
       <div class="p-filas">${cajas.filter(([,v])=>Math.abs(v)>0.5).map(([m,v])=>filaIni(m,signo(v),v<-0.5?'debe':'')).join('')||'<div class="p-sub">Todas las cajas en $0</div>'}</div>
       <span class="p-link">Ir a Caja</span>
-    </section>`:''}
-    ${puede('dist')?dists.map(panelDist).join(''):''}
-  </div>
-  ${extras.length?`<h2 class="sec">También</h2><div class="x-lista">${extras.join('')}</div>`:''}
-  ${puede('caja')||puede('clientes')?`<h2 class="sec">Últimas cargas</h2>
+    </section>`:'',
+      ...ds.filter(x=>x.s<=0.5).map(x=>panelDist(x.d))].filter(Boolean);
+    const debo=[...ds.filter(x=>x.s>0.5).map(x=>panelDist(x.d)),provDebo].filter(Boolean);
+    return (tengo.length?`<div class="ini-sec"><h2 class="sec s-ok"><span class="dot"></span>Tengo</h2><div class="paneles">${tengo.join('')}</div></div>`:'')
+      +(debo.length?`<div class="ini-sec"><h2 class="sec s-rojo"><span class="dot"></span>Debo</h2><div class="paneles">${debo.join('')}</div></div>`:''); })()}
+  ${extras.length?`<h2 class="sec s-neu"><span class="dot"></span>También</h2><div class="x-lista">${extras.join('')}</div>`:''}
+  ${puede('caja')||puede('clientes')?`<h2 class="sec s-neu"><span class="dot"></span>Últimas cargas</h2>
   <div class="card">${ult.length?ult.map(r=>`<div class="mov"><span class="f">${fecha(r.f)}</span><span class="t">${r._t==='mov'?(r.tipo+' · '+nomCli(r.cli)):((r.c||'')+(r.d?' · '+r.d:''))}</span>${(()=>{const v=r.imp!=null?r.imp:((r.ing||0)-(r.egr||0));return `<span class="m">${v<0?'−':''}${fmt(v)}</span>`;})()}</div>`).join(''):'<div class="mini" style="padding:6px 0">Todavía no cargaste nada. Los cobros y movimientos de caja van a aparecer acá.</div>'}</div>`:''}`;
 }
 function nombreUsuario(){
