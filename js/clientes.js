@@ -1,7 +1,7 @@
 // COHAJ Sistema — Clientes, ficha y cuenta corriente
 // Parte del código de la app (antes todo estaba en index.html). Se cargan en orden, como scripts comunes: comparten las variables globales.
 /* ------- CLIENTES ------- */
-let RES=[],MOSTR=30,FSEL=new Set(); // filtros seleccionados (varios a la vez)
+let RES=[],MOSTR=60,FSEL=new Set(); // filtros seleccionados (varios a la vez)
 let SELMODE=false, SELCLI=new Set(); // selección de clientes para imprimir resúmenes
 // Grupos de filtros: dentro de un grupo se suman (O); entre grupos se cruzan (Y).
 // Tipo: puesto = SOLO le cobrás vos · distrib = SOLO vía distribuidora · mixto = las dos cosas.
@@ -23,7 +23,7 @@ function pintarClientes(){
   ${toggleSaldoHTML()}
   <div class="fchips">${FDEFS.map(f=>`<button class="fch${(f[0]==='todos'?FSEL.size===0:FSEL.has(f[0]))?' on':''}" data-f="${f[0]}">${f[1]}</button>`).join('')}</div></div>
   <div class="mini" id="bres" style="margin-bottom:6px"></div>
-  <div id="blist"></div><button class="btn sec" id="bmas" hidden style="width:100%">Mostrar más</button>`;
+  <div class="lista-filas clista"><div class="rt-h ct-h"><span>Nº</span><span>Dirección</span><span>Nombre</span><span>Tipo</span><span>Susc.</span><span>Saldo</span></div><div id="blist"></div></div><button class="btn sec" id="bmas" hidden style="width:100%">Mostrar más</button>`;
   buscar();
 }
 function pasaFiltro(c,s){
@@ -43,7 +43,7 @@ function buscar(mantener){
   else if(!FSEL.has('inactivos')) base=base.filter(x=>x.c.act);
   base=base.filter(x=>pasaFiltro(x.c,x.s));
   RES=base.sort((a,b)=>(b.c.act-a.c.act)||Math.abs(b.s)-Math.abs(a.s));
-  if(!mantener) MOSTR=30; pintarLista();
+  if(!mantener) MOSTR=60; pintarLista();
   const tot=RES.reduce((n,x)=>n+x.s,0);
   const conDeuda=RES.filter(x=>saldoDe(x.c,cierreISO())>0.5).length;
   $('bres').innerHTML=RES.length+' clientes · saldo neto '+(tot>=0?'debe ':'a favor ')+fmt(tot)+
@@ -62,9 +62,9 @@ function pintarLista(){
   RES.slice(0,MOSTR).forEach(x=>{
     const c=x.c,s=x.s;
     const vig=c.subs.filter(y=>y[3]==='V').length;
-    const div=document.createElement('div');div.className='fila'+(SELMODE&&SELCLI.has(c.id)?' sel':'');div.dataset.cli=c.id;
-    div.innerHTML=`${SELMODE?`<div class="chk${SELCLI.has(c.id)?' on':''}"></div>`:''}<div><div class="dom">${c.d||'(sin domicilio)'} <span class="mini">Nº ${c.id}</span></div><div class="nom">${c.n||''}</div></div>
-    <div class="der">${saldoHTML(s)}<div class="mini">${!c.act?'dado de baja':(vig?vig+' susc.':'sin reparto')}</div></div>`;
+    const div=document.createElement('div');div.className='fila cfila'+(SELMODE&&SELCLI.has(c.id)?' sel':'');div.dataset.cli=c.id;
+    const tipo={Mixto:'Mixto',Suscriptor:'Distribuidora',Cliente:'Del puesto'}[catDe(c)]||'';
+    div.innerHTML=`<span class="cn">${SELMODE?`<span class="chk${SELCLI.has(c.id)?' on':''}"></span>`:''}${c.id}</span><span class="dom">${c.d||'(sin domicilio)'}</span><span class="nom">${c.n||''}</span><span class="ct">${!c.act?'Dado de baja':tipo}</span><span class="cs">${!c.act?'—':(vig?vig:'sin reparto')}</span><span class="der">${saldoHTML(s)}</span>`;
     l.appendChild(div);
   });
   if(!RES.length) l.innerHTML='<div class="mini" style="text-align:center;padding:24px">Sin resultados. Probá con menos letras, o solo el número de puerta.</div>';

@@ -467,3 +467,30 @@ label{font-size:12.5px}
   .vlista .pcli .pp:empty{display:none}
   .vlista .pcli .mini-btn{grid-column:3;grid-row:1}
 }
+/* ------- v88: clientes en lista (una fila por cliente) ------- */
+.clista .rt-h,.clista .cfila{display:grid;grid-template-columns:64px minmax(180px,1.3fr) minmax(160px,1.4fr) 110px 80px 120px;column-gap:12px;align-items:baseline}
+.clista .rt-h{padding:7px 14px}
+.clista .rt-h span:nth-child(5),.clista .rt-h span:last-child{text-align:right}
+.lista-filas .cfila{padding:7px 14px;min-height:0}
+.cfila .cn{font-size:12px;color:var(--tinta3);font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:8px}
+.cfila .dom{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cfila .nom{font-size:13px;color:var(--tinta2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cfila .ct{font-size:12.5px;color:var(--tinta2)}
+.cfila .cs{font-size:12.5px;color:var(--tinta2);text-align:right;font-variant-numeric:tabular-nums}
+.cfila .der{margin:0;text-align:right} .cfila .monto{font-size:13.5px}
+.cfila .chk{width:16px;height:16px;border-width:1.5px;border-radius:4px}
+.cfila .chk.on::after{font-size:11px;left:2px;top:-2px}
+.lista-filas .fila.sel{background:var(--azulsuave)}
+#blist:empty{display:none}
+/* toggle de saldo y chips más sobrios */
+.segm{border-color:var(--linea);border-radius:8px}
+.segm button{color:var(--tinta2);font-weight:500;padding:6px 12px}
+.segm button.on{background:var(--hundido);color:var(--tinta)}
+.fch{font-size:12.5px;padding:4px 11px;min-height:28px}
+.fch.on{background:var(--azulsuave);color:var(--azul);border-color:transparent}
+@media (max-width:899px){
+  .clista .rt-h{display:none}
+  .clista .cfila{grid-template-columns:40px 1fr auto;grid-template-areas:"n d s" "n m s";row-gap:1px}
+  .cfila .cn{grid-area:n;align-self:center} .cfila .dom{grid-area:d;white-space:normal} .cfila .nom{grid-area:m}
+  .cfila .ct,.cfila .cs{display:none} .cfila .der{grid-area:s;align-self:center}
+}

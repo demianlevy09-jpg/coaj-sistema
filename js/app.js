@@ -162,7 +162,7 @@ document.addEventListener('click',function(e){
   const id=e.target.closest('button')&&e.target.closest('button').id;
   const b=e.target.closest('button');
   switch(id){
-    case 'bmas': MOSTR+=30;pintarLista();break;
+    case 'bmas': MOSTR+=60;pintarLista();break;
     case 'qcobrar': ver('clientes');PINTAR.clientes();setTimeout(()=>$('bq')&&$('bq').focus(),50);break;
     case 'qcaja': ver('caja');pintarCaja();break;
     case 'qusuarios': ver('usuarios');pintarUsuarios();break;
