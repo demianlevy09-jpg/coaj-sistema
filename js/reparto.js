@@ -275,7 +275,9 @@ function paradaHojaHTML(p,n){
 // Reparte las paradas en las páginas físicas que realmente entran en una hoja A4 (mide en el DOM real, igual fuente/ancho que la impresión)
 function paginarParadasHoja(paradas,v,iso,wdh,tot,clientesN){
   if(!paradas.length) return [];
-  const mmpx=96/25.4, anchoMM=210-16, altoUtilPx=(297-10)*mmpx;
+  // RESERVA_MM (v89): margen de seguridad. Safari con "Imprimir encabezados y pies de página", la escala o algunas impresoras achican el área útil;
+  // sin reserva las hojas quedaban llenas al 96-99% y lo que no entraba salía en una página sin encabezado. Probado con tests/impresion.mjs.
+  const mmpx=96/25.4, anchoMM=210-16, RESERVA_MM=22, altoUtilPx=(297-10-RESERVA_MM)*mmpx;
   const cont=document.createElement('div');
   cont.className='hoja';
   cont.style.cssText=`position:fixed;left:-9999px;top:0;width:${anchoMM}mm`;
