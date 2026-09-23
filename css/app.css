@@ -229,6 +229,8 @@ input[type=date]{min-width:0;max-width:100%}
   body.print-hojas #print-area .hoja{display:block}
   @page{size:A4 portrait;margin:5mm 8mm}
   html,body{height:auto!important;overflow:visible!important}
+  body{padding:0!important} /* v90: el padding de abajo (barra del teléfono) agregaba una hoja en blanco al final */
+  .hoja .hh{break-after:avoid;page-break-after:avoid}
 }
 .pagina{page-break-after:always;break-after:page}
 .pagina:last-child{page-break-after:auto;break-after:auto}
