@@ -66,7 +66,7 @@ function sugCliG(inp){
   const rs=buscarCli(inp.value); if(!rs.length){box.hidden=true;return;}
   box.innerHTML=rs.map(c=>`<div class="aci" onmousedown="elegirCliG('${inp.id}',${c.id})"><b>${c.d}</b> <span class="mini">${c.n?c.n+' · ':''}Nº ${c.id}</span></div>`).join(''); box.hidden=false;
 }
-function elegirCliG(inpId,id){ const c=C.find(x=>x.id===id); const inp=$(inpId); if(!c||!inp)return; inp.value=c.d+' · Nº '+c.id; inp.dataset.cli=String(id); $(inpId+'-ac').hidden=true; if(inpId==='fcli'&&window.pintaC){CLIM=50;pintaC();} }
+function elegirCliG(inpId,id){ const c=C.find(x=>x.id===id); const inp=$(inpId); if(!c||!inp)return; inp.value=c.d+' · Nº '+c.id; inp.dataset.cli=String(id); $(inpId+'-ac').hidden=true; if(inpId==='fcli'&&window.pintaC){CLIM=50;pintaC();} if(inpId==='ccli'&&window.cajaCliInfo)cajaCliInfo(); }
 function acHTML(id,ph){ return `<div class="acwrap"><input id="${id}" placeholder="${ph||'Nº, dirección o nombre'}" autocomplete="off" oninput="sugCliG(this)" onfocus="sugCliG(this)"><div class="ac" id="${id}-ac" hidden></div></div>`; }
 function faltaSQL(v){ return titulo(v,'')+'<div class="aviso">Falta crear las tablas en la base (archivo <b>supabase/2026-09-10_stock.sql</b>). Corrélo en el SQL Editor de Supabase y recargá.</div>'; }
 

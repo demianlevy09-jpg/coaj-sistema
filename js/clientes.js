@@ -246,6 +246,7 @@ function formCobro(id){
   $('fform').innerHTML=`<label>Importe cobrado</label><input id="fimp" type="text" inputmode="decimal" autocomplete="off" placeholder="0">
   <label>Medio de pago</label><select id="fmed">${LISTAS.medios.map(m=>`<option>${m}</option>`).join('')}</select>
   <label>Fecha</label><input id="ffec" type="date" value="${hoyISO()}">
+  <label>Nota</label><input id="fnota" placeholder="opcional, ej: pagó agosto y la mitad de septiembre">
   <button class="btn" id="fok" data-cli="${id}" data-tipo="Cobro">Guardar cobro</button>`;
   $('fimp').focus();
 }
@@ -280,23 +281,28 @@ async function corregirSaldo(id){
   try{ await guardar('movs',[...LIVE.movs,r]); toast('Saldo corregido ✓'); ficha(id); }
   catch(e){toast('No se pudo guardar: '+((e&&e.message)||e));}
 }
+// Cobro a un cliente (desde la ficha o desde Caja): movimiento en su cuenta + ingreso en caja enlazados por movimiento_id
+// (borrar uno saca el otro). Si ya hay un cobro igual el mismo día pide confirmación; devuelve false si no se guardó.
+async function cobrarCliente(id,imp,medio,f,nota){
+  nota=(nota||'').trim();
+  const dup=LIVE.movs.filter(m=>m.cli===id&&m.tipo==='Cobro'&&Math.abs(m.imp-imp)<0.5&&(m.f||'').slice(0,10)===f);
+  if(dup.length&&!confirm(`Ya hay ${dup.length===1?'un cobro':dup.length+' cobros'} de ${fmt(imp)} para ${nomCli(id)} con fecha ${fecha(f)} (${dup.map(m=>(m.medio||'')+' '+(m.ts||'').slice(11,16)).join(', ')}).\n\n¿Es un cobro NUEVO y lo querés cargar igual?`))return false;
+  const r={id:nid(),ts:new Date().toISOString(),cli:id,tipo:'Cobro',imp,f,medio:medio||'Efectivo',nota};
+  const mid=await ins('movimientos',A_DB.movs(r));
+  try{ await ins('caja',{...A_DB.caja({f,c:'Cobro a cliente',d:nomCli(id)+(nota?' · '+nota:''),ing:imp,egr:0,m:r.medio}),movimiento_id:mid}); }
+  catch(e){ await anularFila('movimientos',mid).catch(()=>{}); throw e; }
+  await Promise.all(['movs','caja'].map(cargarTabla));
+  return true;
+}
 async function addMov(id,tipo){
   const imp=num($('fimp').value);
   if(!imp||(imp<=0&&tipo!=='Ajuste')){toast('Poné un importe');return;}
   const nota=$('fnota')?$('fnota').value:'';
-  const r={id:nid(),ts:new Date().toISOString(),cli:id,tipo,imp,f:$('ffec').value,medio:tipo==='Cobro'?$('fmed').value:'',nota};
-  if(tipo==='Cobro'){ const dup=LIVE.movs.filter(m=>m.cli===id&&m.tipo==='Cobro'&&Math.abs(m.imp-imp)<0.5&&(m.f||'').slice(0,10)===r.f);
-    if(dup.length&&!confirm(`Ya hay ${dup.length===1?'un cobro':dup.length+' cobros'} de ${fmt(imp)} para este cliente con fecha ${fecha(r.f)} (${dup.map(m=>(m.medio||'')+' '+(m.ts||'').slice(11,16)).join(', ')}).\n\n¿Es un cobro NUEVO y lo querés cargar igual?`))return; }
-  if(!r.f){toast('Poné la fecha');return;}
+  const f=$('ffec').value; if(!f){toast('Poné la fecha');return;}
   if(ADDMOV_BUSY){toast('Guardando…');return;} ADDMOV_BUSY=true;
   try{
-    if(tipo==='Cobro'){
-      // el cobro y su ingreso en caja quedan enlazados por movimiento_id: borrar uno saca el otro (antes se buscaba por texto)
-      const mid=await ins('movimientos',A_DB.movs(r));
-      try{ await ins('caja',{...A_DB.caja({f:r.f,c:'Cobro a cliente',d:nomCli(id),ing:imp,egr:0,m:r.medio||'Efectivo'}),movimiento_id:mid}); }
-      catch(e){ await anularFila('movimientos',mid).catch(()=>{}); throw e; }
-      await Promise.all(['movs','caja'].map(cargarTabla));
-    } else await guardar('movs',[...LIVE.movs,r]);
+    if(tipo==='Cobro'){ if(!(await cobrarCliente(id,imp,$('fmed').value,f,nota)))return; }
+    else await guardar('movs',[...LIVE.movs,{id:nid(),ts:new Date().toISOString(),cli:id,tipo,imp,f,medio:'',nota}]);
     toast(tipo+' guardado ✓'); ficha(id);
   }catch(e){toast('No se pudo guardar: '+((e&&e.message)||e));}
   finally{ ADDMOV_BUSY=false; }

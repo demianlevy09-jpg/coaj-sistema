@@ -218,6 +218,7 @@ document.addEventListener('input',function(e){
   switch(e.target.id){
     case 'bq': buscar();break;
     case 'fct': case 'fcli': if(window.pintaC){CLIM=50;pintaC();}break;
+    case 'ccli': if(window.cajaCliInfo)cajaCliInfo();break;
     case 'fch2': if(window.pintaH)pintaH();break;
     case 'pfil': {const q=norm(e.target.value);document.querySelectorAll('#plist .card').forEach(c=>{c.hidden=q&&!norm(c.textContent).includes(q);});break;}
     case 'nft': if(window.pintaN)pintaN();break;
@@ -227,6 +228,7 @@ document.addEventListener('input',function(e){
 document.addEventListener('change',function(e){
   if(['fcc','fcm','fcv','fcd','fch','fcdup'].includes(e.target.id)){if(window.pintaC){CLIM=50;pintaC();}}
   if(e.target.id==='nfil'){if(window.pintaN)pintaN();}
+  if(e.target.id==='cc'){if(window.cajaModo)cajaModo();}
   if(e.target.dataset&&e.target.dataset.pubdist){asignarPubDist(e.target.dataset.pubdist,parseInt(e.target.value));}
 
 });

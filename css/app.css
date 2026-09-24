@@ -162,7 +162,7 @@ textarea{resize:vertical;min-height:70px;line-height:1.4}
 .hoja .hpp{font-size:9pt;color:#333}
 .filtros{align-items:center}
 @media (max-width:899px){.kpis,.stats{grid-template-columns:repeat(2,1fr)} .kpi b,.stat b{font-size:20px} .kpi.ancha{grid-column:span 2}}
-@media (min-width:900px){.card>label+input:not([type=search]),.card>label+select,.card>.grid2,.card>label+.acwrap,.card>.dias{max-width:600px}}
+@media (min-width:900px){.card>label+input:not([type=search]),.card>label+select,.card>.grid2,.card>label+.acwrap,.card>.dias,.card>.campo{max-width:600px}}
 .fila.sel{border-color:var(--azul);background:var(--azulsuave)}
 .chk{width:22px;height:22px;border:2px solid var(--azul);border-radius:6px;flex:none;position:relative}
 .chk.on{background:var(--azul)}
@@ -304,7 +304,10 @@ select.apagado{opacity:.45}
 /* ------- ajustes v83 ------- */
 .fila .dom .mini{white-space:nowrap;font-weight:400}
 h2 .mini,.sec .mini{font-weight:400;font-size:13px;color:var(--tinta2)}
-.grid2{align-items:end}
+.grid2{align-items:end} .grid2.uno{grid-template-columns:minmax(0,1fr)}
+.plegable summary .mini{font-weight:400;flex:1} .plegable summary::marker,.plegable summary::-webkit-details-marker{display:none}
+.plegable summary::after{content:'+';color:var(--tinta2);font-weight:400;font-size:18px;line-height:1} .plegable[open]>summary::after{content:'−'}
+@media (max-width:899px){.plegable summary{flex-wrap:wrap} .plegable summary .mini{flex-basis:100%;order:3}}
 .btn:disabled{opacity:.5;cursor:default}
 @media (max-width:899px){.ini-acc{flex-wrap:wrap} .ini-acc .btn{flex:1 1 auto}}
 

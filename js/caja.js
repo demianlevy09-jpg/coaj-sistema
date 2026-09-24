@@ -7,20 +7,21 @@ function pintarCaja(){
   const hoyC=hoyISO(), deHoy=LIVE.caja.filter(r=>(r.f||'').startsWith(hoyC)), netoHoy=deHoy.reduce((n,r)=>n+(r.ing||0)-(r.egr||0),0);
   $('v-caja').innerHTML=`${titulo('Caja','Saldo por medio de pago y movimientos cargados acá')}
   <div class="kpis">${Object.keys(porMedio).length?Object.entries(porMedio).map(([m,v])=>`<div class="kpi ${v<-0.5?'rojo':'ok'}"><i>${m||'Sin medio'}</i><b>${fmt(v)}</b><i>saldo actual</i></div>`).join(''):'<div class="kpi gris"><i>Caja</i><b>—</b><i>sin movimientos aún</i></div>'}<div class="kpi ${deHoy.length?(netoHoy<0?'rojo':''):'gris'}"><i>Hoy</i><b>${deHoy.length?fmt(netoHoy):'—'}</b><i>${deHoy.length?deHoy.length+' movimientos':'sin movimientos hoy'}</i></div></div>
-  <div class="card"><b>Pasar plata entre cajas</b><div class="mini" style="margin:2px 0 4px">Ej: depositaste efectivo y ahora está en la cuenta. Sale de una caja y entra en la otra; el total no cambia.</div>
+  <div class="card"><b>Cargar movimiento</b>
+    <label>Concepto</label><select id="cc">${CONCEPTOS_CAJA.map(c=>`<option>${c}</option>`).join('')}</select>
+    <div id="ccli-w" class="campo"><label>Quién pagó</label>${acHTML('ccli','Nº, dirección o nombre del cliente')}<div class="mini" id="ccli-i" style="margin-top:6px"></div></div>
+    <div class="grid2" id="cimp-g"><div><label id="cing-l">Ingreso $</label><input id="cing" type="text" inputmode="decimal" autocomplete="off" placeholder="0"></div>
+    <div id="cegr-w"><label>Egreso $</label><input id="cegr" type="text" inputmode="decimal" autocomplete="off" placeholder="0"></div></div>
+    <div class="grid2"><div><label>Medio</label><select id="cm">${LISTAS.medios.map(m=>`<option>${m}</option>`).join('')}</select></div><div><label>Fecha</label><input id="cf" type="date" value="${hoyISO()}"></div></div>
+    <label>Nota</label><input id="cd" placeholder="opcional, ej: pagó agosto y la mitad de septiembre">
+    <div><button class="btn" id="cok">Guardar</button></div></div>
+  <details class="card plegable"><summary>Pasar plata entre cajas <span class="mini">ej: depositaste efectivo y ahora está en la cuenta</span></summary>
+    <div class="mini" style="margin:12px 0 0">Sale de una caja y entra en la otra; el total no cambia.</div>
     <div class="grid2"><div><label>Sale de</label><select id="tdesde">${LISTAS.medios.map(m=>`<option${m==='Efectivo'?' selected':''}>${m}</option>`).join('')}</select></div>
     <div><label>Entra a</label><select id="thacia">${LISTAS.medios.map(m=>`<option${m==='Transferencia'?' selected':''}>${m}</option>`).join('')}</select></div></div>
     <div class="grid2"><div><label>Importe $</label><input id="timp" type="text" inputmode="decimal" autocomplete="off" placeholder="0"></div><div><label>Fecha</label><input id="tf" type="date" value="${hoyISO()}"></div></div>
     <label>Nota</label><input id="tnota" placeholder="opcional, ej: depósito en el banco">
-    <button class="btn" id="tok">Pasar</button></div>
-  <div class="card"><b>Cargar movimiento de caja</b>
-    <label>Concepto</label><select id="cc">${CONCEPTOS_CAJA.map(c=>`<option>${c}</option>`).join('')}</select>
-    <div class="grid2"><div><label>Ingreso $</label><input id="cing" type="text" inputmode="decimal" autocomplete="off" placeholder="0"></div>
-    <div><label>Egreso $</label><input id="cegr" type="text" inputmode="decimal" autocomplete="off" placeholder="0"></div></div>
-    <label>Medio</label><select id="cm">${LISTAS.medios.map(m=>`<option>${m}</option>`).join('')}</select>
-    <label>Detalle</label><input id="cd" placeholder="ej: pago distribuidora semana 36">
-    <label>Fecha</label><input id="cf" type="date" value="${hoyISO()}">
-    <button class="btn" id="cok">Guardar</button></div>
+    <div><button class="btn sec" id="tok">Pasar</button></div></details>
   <h2>Movimientos cargados</h2>
   <div class="filtros"><select id="fcc"><option value="">Concepto: todos</option>${[...new Set([...CONCEPTOS_CAJA,...rows.map(r=>r.c).filter(Boolean)])].map(c=>`<option>${c}</option>`).join('')}</select>
   <select id="fcm"><option value="">Medio: todos</option>${LISTAS.medios.map(m=>`<option>${m}</option>`).join('')}</select>
@@ -32,6 +33,11 @@ function pintarCaja(){
   <h2>Histórico NewsPaper 2026 <span class="mini" style="text-transform:none">(solo consulta)</span></h2>
   <input id="fch2" type="search" placeholder="Buscar en el histórico…" style="margin-bottom:8px">
   <div class="card" id="chlist"></div>`;
+  // Cobro a cliente: se elige quién pagó y el cobro entra a su cuenta y a la caja (mismo camino que la ficha)
+  window.cajaModo=function(){ const cob=$('cc').value==='Cobro a cliente'; $('ccli-w').hidden=!cob; $('cegr-w').hidden=cob; $('cimp-g').classList.toggle('uno',cob); $('cing-l').textContent=cob?'Importe cobrado $':'Ingreso $'; if(cob)$('cegr').value=''; };
+  window.cajaCliInfo=function(){ const el=$('ccli-i'); if(!el)return; const id=parseInt($('ccli').dataset.cli)||null; const c=id?C.find(x=>x.id===id):null; if(!c){el.textContent='';return;}
+    const s=saldoDe(c,hoyISO()); el.innerHTML=(c.n?c.n+' · ':'')+(Math.abs(s)<0.5?'al día':(s>0?'te debe <b>'+fmt(s)+'</b>':'a favor <b>'+fmt(-s)+'</b>'))+' <span class="lnk" onclick="ficha('+id+')">ver ficha</span>'; };
+  cajaModo();
   window.CLIM=50;
   window.pintaC=function(){
     const fc=$('fcc').value,fm=$('fcm').value,ft=norm($('fct').value),fv=$('fcv').value,cli=parseInt($('fcli').dataset.cli)||null,fd=$('fcd').value,fh=$('fch').value,soloDup=$('fcdup').checked;
@@ -61,9 +67,17 @@ function pintarCaja(){
   pintaC();pintaH();
 }
 async function addCaja(){
+  const c=$('cc').value, f=$('cf').value, m=$('cm').value, nota=$('cd').value.trim();
+  if(!f){toast('Poné la fecha');return;}
+  if(c==='Cobro a cliente'){
+    const id=parseInt($('ccli').dataset.cli)||null; if(!id){toast('Elegí qué cliente pagó');$('ccli').focus();return;}
+    const imp=num($('cing').value)||0; if(imp<=0){toast('Poné el importe cobrado');return;}
+    try{ if(await cobrarCliente(id,imp,m,f,nota)){ toast('Cobro de '+nomCli(id)+' guardado ✓'); pintarCaja(); } }catch(e){toast('No se pudo guardar: '+((e&&e.message)||e));}
+    return;
+  }
   const ing=num($('cing').value)||0, egr=num($('cegr').value)||0;
   if(!ing&&!egr){toast('Poné un importe');return;}
-  const r={id:nid(),ts:new Date().toISOString(),f:$('cf').value,c:$('cc').value,d:$('cd').value,ing,egr,m:$('cm').value};
+  const r={id:nid(),ts:new Date().toISOString(),f,c,d:nota,ing,egr,m};
   try{ await guardar('caja',[...LIVE.caja,r]); toast('Caja guardada ✓'); pintarCaja(); }catch(e){toast('Error: '+((e&&e.message)||e));}
 }
 let TRANSF_BUSY=false;
