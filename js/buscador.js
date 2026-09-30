@@ -4,6 +4,7 @@
 // Con MIN_BUSCAR opciones o más aparece el campo "Buscar…" (sin tildes, varias palabras en cualquier orden).
 // Para que un <select> siga siendo el nativo: class="nobusc".
 (function(){
+  if(typeof document==='undefined'||!document.documentElement||!document.documentElement.classList||!window.Event)return; // tests en Node
   const MIN_BUSCAR=7;
   const sinTilde=s=>(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
   const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));

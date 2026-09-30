@@ -31,6 +31,7 @@ document.addEventListener('click',function(e){
   const ctgo=e.target.closest('[data-ctgo]'); if(ctgo){CTIPO=ctgo.dataset.ctgo;irTab('compras');setTimeout(()=>{CTIPO=ctgo.dataset.ctgo;pintarCompras();},30);return;}
   const dren=e.target.closest('[data-dren]'); if(dren){renombrarDist(parseInt(dren.dataset.dren));return;}
   const pren=e.target.closest('[data-pren]'); if(pren){renombrarProv(parseInt(pren.dataset.pren));return;}
+  const ppct=e.target.closest('[data-ppct]'); if(ppct){pctProv(parseInt(ppct.dataset.ppct));return;}
   const pajok=e.target.closest('[data-pajok]'); if(pajok){ajustarStock(parseInt(pajok.dataset.pajok));return;}
   const prep=e.target.closest('[data-prepartir]'); if(prep){repartirUltimo(parseInt(prep.dataset.prepartir));return;}
   const edel=e.target.closest('[data-edel]'); if(edel){anularEntrega(edel.dataset.edel);return;}

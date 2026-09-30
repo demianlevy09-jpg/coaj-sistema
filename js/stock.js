@@ -6,6 +6,9 @@ const r0=n=>Math.round(n||0);
 function precioVenta(p){ return p.modo==='margen'?r0(p.costo*(1+(p.margen||0)/100)):(p.precio||0); }
 function prodDe(id){ return LIVE.prod.find(p=>p.id===id); }
 function provDe(id){ return LIVE.prov.find(p=>p.id===id); }
+// v93: lo que se le debe al proveedor por unidad en consignación. Si el proveedor tiene "% de la tapa" (ej. 68%),
+// es ese % del precio de tapa del producto (no del precio al que se vendió); si no, el costo pactado del producto.
+function costoConsig(p,prov){ const pv=provDe(prov), tapa=p?precioVenta(p):0; return pv&&pv.pct>0&&tapa>0?r0(tapa*pv.pct/100):((p&&p.costo)||0); }
 function nomProv(id){ const p=provDe(id); return p?p.nombre:(id?'Prov. '+id:'—'); }
 function stockDe(pid){
   const s={total:0,propio:0,consig:{}};
@@ -37,10 +40,10 @@ async function generarEntregas(pid,ed,F,prop,prov){
     const q=Math.abs(x[5]||1); const det=q+'× '+p.nombre+' '+edTxt(ed);
     let movId=null, provMovId=null, nota='suscripción '+x[0];
     if(x[2]!=='S'){ // le cobrás vos: se anota en su cuenta y, si es consignación, se le debe al proveedor
-      if(pr>0){ movId=await ins('movimientos',{cliente_id:c.id,fecha:D,tipo:'Ajuste',importe:q*pr,medio:'',nota:'Revista: '+det}); if(prop==='consignacion'&&prov) provMovId=await ins('prov_movimientos',{proveedor_id:prov,fecha:D,tipo:'consignacion',importe:q*(p.costo||0),detalle:'Entregado a suscriptor: '+det}); }
+      if(pr>0){ movId=await ins('movimientos',{cliente_id:c.id,fecha:D,tipo:'Ajuste',importe:q*pr,medio:'',nota:'Revista: '+det}); if(prop==='consignacion'&&prov) provMovId=await ins('prov_movimientos',{proveedor_id:prov,fecha:D,tipo:'consignacion',importe:q*costoConsig(p,prov),detalle:'Entregado a suscriptor: '+det}); }
       else { sinPrecio++; nota+=' · SIN COBRAR (faltaba el precio)'; }
     }
-    await ins('stock_mov',{producto_id:pid,fecha:D,tipo:'entrega',cantidad:-q,propiedad:prop||'propio',proveedor_id:prov||null,costo_unit:p.costo||0,precio_unit:x[2]!=='S'?pr:0,cliente_id:c.id,mov_id:movId,prov_mov_id:provMovId,edicion:ed,nota});
+    await ins('stock_mov',{producto_id:pid,fecha:D,tipo:'entrega',cantidad:-q,propiedad:prop||'propio',proveedor_id:prov||null,costo_unit:prop==='consignacion'?costoConsig(p,prov):(p.costo||0),precio_unit:x[2]!=='S'?pr:0,cliente_id:c.id,mov_id:movId,prov_mov_id:provMovId,edicion:ed,nota});
     n++;
   }
   return {n,sinPrecio,faltan};
@@ -192,8 +195,8 @@ async function vender(){
     let cajaId=null, movId=null, provMovId=null;
     if(cli){ movId=await ins('movimientos',{cliente_id:cli,fecha:f,tipo:'Ajuste',importe:q*pr,medio:'',nota:'Venta: '+det+(nota?' · '+nota:'')}); }
     else { cajaId=await ins('caja',{fecha:f,concepto:'Venta de stock',detalle:det+(nota?' · '+nota:''),ingreso:q*pr,egreso:0,medio}); }
-    if(prop==='consignacion'&&prov){ provMovId=await ins('prov_movimientos',{proveedor_id:prov,fecha:f,tipo:'consignacion',importe:q*(p.costo||0),detalle:'Vendido en consignación: '+det}); }
-    await ins('stock_mov',{producto_id:pid,fecha:f,tipo:'venta',cantidad:-q,propiedad:prop,proveedor_id:prov,costo_unit:p.costo||0,precio_unit:pr,medio:cli?'':medio,cliente_id:cli,caja_id:cajaId,mov_id:movId,prov_mov_id:provMovId,edicion:ed,nota});
+    if(prop==='consignacion'&&prov){ provMovId=await ins('prov_movimientos',{proveedor_id:prov,fecha:f,tipo:'consignacion',importe:q*costoConsig(p,prov),detalle:'Vendido en consignación: '+det}); }
+    await ins('stock_mov',{producto_id:pid,fecha:f,tipo:'venta',cantidad:-q,propiedad:prop,proveedor_id:prov,costo_unit:prop==='consignacion'?costoConsig(p,prov):(p.costo||0),precio_unit:pr,medio:cli?'':medio,cliente_id:cli,caja_id:cajaId,mov_id:movId,prov_mov_id:provMovId,edicion:ed,nota});
     await Promise.all(['stock','caja','movs','provmov'].map(cargarTabla)); SCACHE={};
     toast('Venta guardada ✓ '+fmt(q*pr)); pintarVentas(); pintarInicio();
   }catch(e){toast('Error: '+((e&&e.message)||e));}
@@ -246,19 +249,20 @@ function pintarCForm(){
     <div id="c-edbox"><label>Número / edición <span class="mini">(revistas y coleccionables; vacío si no aplica)</span></label><input id="c-ed" placeholder="ej: 389"></div><div class="mini" id="c-total" style="margin-top:6px"></div>
     <label>Pago</label><select id="c-pago"><option value="cuenta">A cuenta (queda en la CC del proveedor)</option>${LISTAS.medios.map(m=>`<option value="${m}">Pagado ahora · ${m}</option>`).join('')}</select>${fFecha}<button class="btn" id="c-ok">Registrar compra</button>`;
   else if(CTIPO==='recepcion') h=`<div class="mini" style="margin:6px 0 2px">Entra al stock como del proveedor. No mueve caja ni cuenta: se le debe solo lo que se venda.</div>${provSelHTML('c-prov')}${prodSelHTML('c-prod')}
-    <div class="grid2"><div><label>Cantidad</label><input id="c-qty" type="number" inputmode="numeric" min="1" value="1" oninput="compraTotal()"></div><div><label>Costo pactado por unidad $</label><input id="c-costo" type="text" inputmode="decimal" autocomplete="off" placeholder="lo que le vas a deber por cada uno vendido" oninput="compraTotal()"></div></div>
+    <div class="grid2"><div><label>Cantidad</label><input id="c-qty" type="number" inputmode="numeric" min="1" value="1" oninput="compraTotal()"></div><div><label>Costo pactado por unidad $</label><input id="c-costo" type="text" inputmode="decimal" autocomplete="off" placeholder="lo que le vas a deber por cada uno vendido" oninput="compraTotal()"></div></div><div class="mini" id="c-pcthint"></div>
     <div id="c-edbox"><label>Número / edición <span class="mini">(revistas y coleccionables; vacío si no aplica)</span></label><input id="c-ed" placeholder="ej: 389"></div><div class="mini" id="c-total" style="margin-top:6px"></div>${fFecha}<button class="btn" id="c-ok">Registrar recepción</button>`;
   else if(CTIPO==='devolucion') h=`<div class="mini" style="margin:6px 0 2px">Mercadería que vuelve al proveedor. Si era consignación no pasa nada más; si era tuya y a cuenta, podés acreditarla en su CC.</div>${provSelHTML('c-prov')}${prodSelHTML('c-prod',true)}<div id="c-edsel"></div>
     <div class="grid2"><div><label>Cantidad</label><input id="c-qty" type="number" inputmode="numeric" min="1" value="1"></div><div><label>Sale de</label><select id="c-prop"><option value="consignacion">Stock en consignación</option><option value="propio">Stock propio</option></select></div></div>
     <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="c-credito" style="width:auto;margin:0">Acreditar en la CC del proveedor (nota de crédito)</label>
     <label>Costo unitario a acreditar $</label><input id="c-costo" type="text" inputmode="decimal" autocomplete="off">${fFecha}<button class="btn" id="c-ok">Registrar devolución</button>`;
   else if(CTIPO==='pago') h=`${provSelHTML('c-prov')}<div class="grid2"><div><label>Importe $</label><input id="c-imp" type="text" inputmode="decimal" autocomplete="off"></div><div><label>Medio</label><select id="c-medio">${optsMedios()}</select></div></div>${fFecha}<button class="btn" id="c-ok">Registrar pago</button>`;
-  else if(CTIPO==='proveedores') h=`<div class="grid2"><div><label>Nuevo proveedor</label><input id="np-nombre" placeholder="nombre"></div><div><label>Teléfono</label><input id="np-tel"></div></div><button class="btn chico" id="np-ok">Agregar proveedor</button>`;
+  else if(CTIPO==='proveedores') h=`<div class="grid2"><div><label>Nuevo proveedor</label><input id="np-nombre" placeholder="nombre"></div><div><label>Teléfono</label><input id="np-tel"></div></div><label>% de la tapa que le debés por cada unidad vendida <span class="mini">(consignación; ej. 68. Vacío = costo pactado a mano)</span></label><input id="np-pct" type="text" inputmode="decimal" autocomplete="off" placeholder="ej: 68"><button class="btn chico" id="np-ok">Agregar proveedor</button>`;
   $('cform').innerHTML=h;
+  if(CTIPO==='recepcion') [['c-prov','change'],['c-prod','change'],['c-prod-modo','change'],['c-prod-pv','input']].forEach(([i,ev])=>{ const e=$(i); if(e) e.addEventListener(ev,recepCosto); });
   const L=$('clista');
   if(CTIPO==='proveedores'){
     L.innerHTML=`<div class="sec"><span class="dot"></span>Proveedores y cuentas corrientes</div>`+(LIVE.prov.length?LIVE.prov.map(p=>{const s=saldoProv(p.id); const movs=LIVE.provmov.filter(m=>m.prov===p.id).sort((a,b)=>(b.f||'').localeCompare(a.f||'')||(b.ts||'').localeCompare(a.ts||'')).slice(0,10);
-      return `<div class="card"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><div style="flex:1"><b style="font-size:16px">${p.nombre}</b>${p.tel?' <span class="mini">· '+p.tel+'</span>':''} <span class="mini lnk" data-pren="${p.id}">✎</span></div><div class="der">${s>0.5?`<span class="monto debe">${fmt(s)}</span><div class="mini">le debés</div>`:(s<-0.5?`<span class="monto favor">${fmt(s)}</span><div class="mini">a tu favor</div>`:'<span class="monto aldia">al día</span>')}</div></div>
+      return `<div class="card"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><div style="flex:1"><b style="font-size:16px">${p.nombre}</b>${p.tel?' <span class="mini">· '+p.tel+'</span>':''} <span class="mini lnk" data-pren="${p.id}">✎</span><div class="mini">${p.pct>0?`Le debés el <b>${p.pct}%</b> de la tapa por cada unidad vendida`:'Consignación: costo pactado a mano'} · <span class="lnk" data-ppct="${p.id}">cambiar %</span></div></div><div class="der">${s>0.5?`<span class="monto debe">${fmt(s)}</span><div class="mini">le debés</div>`:(s<-0.5?`<span class="monto favor">${fmt(s)}</span><div class="mini">a tu favor</div>`:'<span class="monto aldia">al día</span>')}</div></div>
       ${movs.map(m=>`<div class="mov"><span class="f">${fecha(m.f)}</span><span class="t">${m.tipo}${m.d?' · '+m.d:''}</span><span class="m ${m.imp>0?'debe':'favor'}">${m.imp<0?'−':''}${fmt(m.imp)}</span></div>`).join('')||'<div class="mini" style="margin-top:6px">Sin movimientos.</div>'}</div>`;}).join(''):'<div class="card mini">Ningún proveedor todavía.</div>');
   } else if(CTIPO==='pago'){
     const ps=LIVE.provmov.filter(m=>m.tipo==='pago').sort((a,b)=>(b.f||'').localeCompare(a.f||'')).slice(0,30);
@@ -267,6 +271,16 @@ function pintarCForm(){
     const ms=LIVE.stock.filter(m=>m.tipo===CTIPO).sort((a,b)=>(b.f||'').localeCompare(a.f||'')||(b.ts||'').localeCompare(a.ts||'')).slice(0,30);
     L.innerHTML=`<div class="sec"><span class="dot"></span>Últimos movimientos</div><div class="card">${ms.map(m=>`<div class="mov"><span class="f">${fecha(m.f)}</span><span class="t"><b>${Math.abs(m.qty)}×</b> ${(prodDe(m.prod)||{}).nombre||'?'}${m.ed?' '+edTxt(m.ed):''} <span class="mini">· ${nomProv(m.prov)}${m.medio?' · '+m.medio:''}${m.nota?' · '+m.nota:''}</span></span><span class="m">${fmt(Math.abs(m.qty)*(m.costo||0))}</span><button class="del" data-cdel="${m.id}">✕</button></div>`).join('')||'<div class="mini">Ninguno.</div>'}</div>`;
   }
+}
+// v93: en la recepción en consignación, si el proveedor tiene "% de la tapa", el costo pactado se calcula solo
+function recepCosto(){
+  const h=$('c-pcthint'), c=$('c-costo'); if(!h||!c||CTIPO!=='recepcion')return;
+  const pv=provDe(parseInt($('c-prov').value)); if(!pv||!(pv.pct>0)){ h.innerHTML=''; return; }
+  const v=$('c-prod').value; let tapa=0;
+  if(v==='nuevo') tapa=($('c-prod-modo')||{}).value==='fijo'?(num(($('c-prod-pv')||{}).value)||0):0; else { const p=prodDe(parseInt(v)); tapa=p?precioVenta(p):0; }
+  if(tapa>0){ c.value=r0(tapa*pv.pct/100); h.innerHTML=`${pv.pct}% de la tapa ${fmt(tapa)} = <b>${fmt(r0(tapa*pv.pct/100))}</b> por cada una que vendas (${pv.nombre}), la vendas al precio que la vendas.`; }
+  else h.innerHTML=`${pv.nombre}: le debés el ${pv.pct}% de la tapa. `+(v==='nuevo'?'Poné el precio fijo de tapa y se calcula solo.':(v?'Este producto no tiene precio de venta cargado.':''));
+  compraTotal();
 }
 function compraTotal(){ const q=parseInt(($('c-qty')||{}).value)||0, c=num(($('c-costo')||{}).value)||0; const t=$('c-total'); if(t) t.innerHTML=q&&c?`Total: <b>${fmt(q*c)}</b>`:''; }
 async function registrarCompra(){
@@ -322,5 +336,9 @@ async function anularPagoProv(id){
   const m=LIVE.provmov.find(x=>x.id===id); if(!m)return; if(!confirm('¿Anular este pago? Vuelve a la caja y a la CC del proveedor.'))return;
   try{ await anularFila('prov_movimientos',id); await anularFila('caja',m.cajaId); await Promise.all(['caja','provmov'].map(cargarTabla)); toast('Anulado'); pintarCompras(); pintarInicio(); }catch(e){toast('Error: '+((e&&e.message)||e));}
 }
-async function nuevoProveedor(){ const n=$('np-nombre').value.trim(); if(!n){toast('Poné el nombre');return;} try{ await ins('proveedores',{nombre:n,telefono:$('np-tel').value.trim()}); await cargarTabla('prov'); toast('Proveedor creado ✓'); pintarCompras(); }catch(e){toast('Error: '+((e&&e.message)||e));} }
+async function nuevoProveedor(){ const n=$('np-nombre').value.trim(); if(!n){toast('Poné el nombre');return;} const pct=num(($('np-pct')||{}).value)||0; if(pct<0||pct>100){toast('El % va de 0 a 100');return;} try{ const row={nombre:n,telefono:$('np-tel').value.trim()}; if(pct) row.pct_tapa=pct; await ins('proveedores',row); await cargarTabla('prov'); toast('Proveedor creado ✓'); pintarCompras(); }catch(e){toast('Error: '+((e&&e.message)||e));} }
 async function renombrarProv(id){ const p=provDe(id); const n=prompt('Nombre del proveedor:',p?unesc(p.nombre):''); if(n===null||!n.trim())return; const t=prompt('Teléfono:',p?unesc(p.tel||''):''); try{ const{error}=await sb.from('proveedores').update({nombre:n.trim(),telefono:(t||'').trim()}).eq('id',id); if(error)throw new Error(error.message); await cargarTabla('prov'); pintarCompras(); }catch(e){toast('Error: '+((e&&e.message)||e));} }
+async function pctProv(id){ const p=provDe(id); if(!p)return;
+  const t=prompt('% del precio de tapa que le debés a '+unesc(p.nombre)+' por cada unidad vendida en consignación (ej. 68). 0 = costo pactado a mano:',String(p.pct||'')); if(t===null)return;
+  const pct=num(t)||0; if(pct<0||pct>100){toast('El % va de 0 a 100');return;}
+  try{ const{error}=await sb.from('proveedores').update({pct_tapa:pct}).eq('id',id); if(error)throw new Error(/pct_tapa/.test(error.message)?'falta correr supabase/2026-09-30_proveedor_pct_tapa.sql en Supabase':error.message); await cargarTabla('prov'); toast('Guardado ✓ '+(pct?pct+'% de la tapa':'costo a mano')); pintarCompras(); }catch(e){toast('Error: '+((e&&e.message)||e));} }

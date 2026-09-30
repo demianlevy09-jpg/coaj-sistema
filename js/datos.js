@@ -24,7 +24,7 @@ const DE_DB={
   devol:x=>({id:String(x.id),ts:x.creado_en,f:x.fecha,pub:x.publicacion,qty:x.cantidad,nota:x.nota||'',dist:x.distribuidor_id,vu:x.valor_unit==null?null:Number(x.valor_unit),imp:x.importe==null?null:Number(x.importe)}),
   reparto:x=>({id:String(x.id),cli:x.cliente_id,dia:x.dia,vuelta:x.vuelta,orden:x.orden||0,org:x.origen||''}),
   vueltas:x=>({id:x.nombre,nombre:x.nombre,repartidor:x.repartidor||'',orden:x.orden||0,activo:x.activo!==false}),
-  prov:x=>({id:x.id,nombre:x.nombre,tel:x.telefono||'',nota:x.nota||'',activo:x.activo!==false}),
+  prov:x=>({id:x.id,nombre:x.nombre,tel:x.telefono||'',nota:x.nota||'',activo:x.activo!==false,pct:Number(x.pct_tapa)||0}),
   prod:x=>({id:x.id,nombre:x.nombre,cat:x.categoria||'',prov:x.proveedor_id,modo:x.modo_precio||'fijo',precio:Number(x.precio_venta)||0,margen:Number(x.margen)||0,costo:Number(x.costo)||0,activo:x.activo!==false,pubs:x.publicaciones||[]}),
   stock:x=>({id:String(x.id),ts:x.creado_en,prod:x.producto_id,f:x.fecha,tipo:x.tipo,qty:x.cantidad,prop:x.propiedad,prov:x.proveedor_id,costo:Number(x.costo_unit)||0,precio:Number(x.precio_unit)||0,medio:x.medio||'',cli:x.cliente_id,cajaId:x.caja_id,provMovId:x.prov_mov_id,movId:x.mov_id,nota:x.nota||'',ed:x.edicion||''}),
   provmov:x=>({id:String(x.id),ts:x.creado_en,prov:x.proveedor_id,f:x.fecha,tipo:x.tipo,imp:Number(x.importe),d:x.detalle||'',cajaId:x.caja_id}),
