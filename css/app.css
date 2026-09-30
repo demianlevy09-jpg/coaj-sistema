@@ -499,3 +499,19 @@ label{font-size:12.5px}
   .cfila .cn{grid-area:n;align-self:center} .cfila .dom{grid-area:d;white-space:normal} .cfila .nom{grid-area:m}
   .cfila .ct,.cfila .cs{display:none} .cfila .der{grid-area:s;align-self:center}
 }
+
+/* v92: menús desplegables con buscador (js/buscador.js). El <select> se ve igual pero el toque lo toma el script. */
+html.busc-on select:not([multiple]):not(.nobusc){pointer-events:none}
+.bpop{position:fixed;z-index:1000;display:flex;flex-direction:column;background:var(--tarjeta);border:1px solid var(--linea-fuerte);border-radius:10px;box-shadow:var(--sombra),0 12px 32px rgba(0,0,0,.18);overflow:hidden;outline:none}
+.bpop .bq{margin:8px 8px 4px;width:calc(100% - 16px);min-height:38px;padding:8px 10px;font-size:16px;flex:none}
+.bpop .blista{overflow:auto;flex:1 1 auto;min-height:0;padding:4px 0;overscroll-behavior:contain}
+.bopt{padding:8px 12px;cursor:pointer;font-size:15px;line-height:1.35;color:var(--tinta)}
+.bopt.on{background:var(--azulsuave)}
+.bopt.elegida{font-weight:600;color:var(--azul)}
+.bopt.off{opacity:.45;cursor:default}
+.bvacio{padding:12px;color:var(--tinta3);font-size:14px}
+.bfondo{position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.4)}
+.bpop.hoja{left:12px;right:12px;width:auto}
+.bpop.hoja .bopt{padding:12px 14px;font-size:16px;border-bottom:1px solid var(--linea2)}
+.bpop.hoja .bopt:last-child{border-bottom:none}
+.btit{padding:12px 14px 2px;font-weight:600;font-size:15px;color:var(--tinta2)}
