@@ -57,6 +57,7 @@ document.addEventListener('click',function(e){
     else if(del.dataset.vdel) anularVenta(del.dataset.vdel);
     else if(del.dataset.cdel) anularIngreso(del.dataset.cdel);
     else if(del.dataset.pdel) anularPagoProv(del.dataset.pdel);
+    else if(del.dataset.prid) borrarPrecio(del.dataset.prid);
     return;
   }
   const sf=e.target.closest('[data-sform]');
@@ -279,6 +280,6 @@ try{window.matchMedia('(min-width:900px)').addEventListener('change',ubicarBoton
    (pasaba con Caja, Corregir saldo, Vender, Compras, Repartir revista, Distribuidores, Precios, Resumen...). */
 let ULT_BTN=null; document.addEventListener('click',e=>{ULT_BTN=e.target.closest&&e.target.closest('button');},true);
 function bloq(fn){ let ocupado=false; return async function(...a){ if(ocupado){ toast('Guardando…'); return; } ocupado=true; const b=ULT_BTN; if(b) b.disabled=true; try{ return await fn.apply(this,a); } finally{ ocupado=false; if(b) b.disabled=false; } }; }
-['addCaja','transferirCaja','borrarCaja','editarClienteOK','notaOK','borrarNota','corregirSaldo','borrarMov','nuevoDist','addFeriado','borrarFeriado','addDevol','borrarDevol','guardarComision','addDist','borrarDist','addNov','reactivarCliente','borrarNov','addPrecio','asignarVuelta','quitarDeVuelta','nuevaVuelta','imprimirResumenes','guardarEmisor','repartirUltimo','anularEntrega','guardarProd','bajaProd','ajustarStock','vender','anularVenta','registrarCompra','anularIngreso','anularPagoProv','nuevoProveedor','guardarPermisos','crearUsuario','cambiarClave','bloquearUsuario','borrarUsuario']
+['addCaja','transferirCaja','borrarCaja','editarClienteOK','notaOK','borrarNota','corregirSaldo','borrarMov','nuevoDist','addFeriado','borrarFeriado','addDevol','borrarDevol','guardarComision','addDist','borrarDist','addNov','reactivarCliente','borrarNov','addPrecio','borrarPrecio','asignarVuelta','quitarDeVuelta','nuevaVuelta','imprimirResumenes','guardarEmisor','repartirUltimo','anularEntrega','guardarProd','bajaProd','ajustarStock','vender','anularVenta','registrarCompra','anularIngreso','anularPagoProv','nuevoProveedor','guardarPermisos','crearUsuario','cambiarClave','bloquearUsuario','borrarUsuario']
   .forEach(n=>{ if(typeof window[n]==='function') window[n]=bloq(window[n]); });
 gate();
