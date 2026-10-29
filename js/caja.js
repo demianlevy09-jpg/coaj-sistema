@@ -15,10 +15,10 @@ function pintarCaja(){
     <div class="grid2"><div><label>Medio</label><select id="cm">${LISTAS.medios.map(m=>`<option>${m}</option>`).join('')}</select></div><div><label>Fecha</label><input id="cf" type="date" value="${hoyISO()}"></div></div>
     <label>Nota</label><input id="cd" placeholder="opcional, ej: pagó agosto y la mitad de septiembre">
     <div><button class="btn" id="cok">Guardar</button></div></div>
-  <details class="card plegable"><summary>Pasar plata entre cajas <span class="mini">ej: depositaste efectivo y ahora está en la cuenta</span></summary>
+  <details class="card plegable"><summary>Pasar plata entre cajas <span class="mini">ej: llevaste plata del kiosko a Arribeños</span></summary>
     <div class="mini" style="margin:12px 0 0">Sale de una caja y entra en la otra; el total no cambia.</div>
-    <div class="grid2"><div><label>Sale de</label><select id="tdesde">${LISTAS.medios.map(m=>`<option${m==='Efectivo'?' selected':''}>${m}</option>`).join('')}</select></div>
-    <div><label>Entra a</label><select id="thacia">${LISTAS.medios.map(m=>`<option${m==='Transferencia'?' selected':''}>${m}</option>`).join('')}</select></div></div>
+    <div class="grid2"><div><label>Sale de</label><select id="tdesde">${LISTAS.medios.map(m=>`<option${m===CAJA_DEF?' selected':''}>${m}</option>`).join('')}</select></div>
+    <div><label>Entra a</label><select id="thacia">${LISTAS.medios.map(m=>`<option${m==='Mercadopago More'?' selected':''}>${m}</option>`).join('')}</select></div></div>
     <div class="grid2"><div><label>Importe $</label><input id="timp" type="text" inputmode="decimal" autocomplete="off" placeholder="0"></div><div><label>Fecha</label><input id="tf" type="date" value="${hoyISO()}"></div></div>
     <label>Nota</label><input id="tnota" placeholder="opcional, ej: depósito en el banco">
     <div><button class="btn sec" id="tok">Pasar</button></div></details>

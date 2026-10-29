@@ -62,19 +62,19 @@
     fil({ fecha: '2026-09-21', motivo: 'Feriado con diario', sin_pubs: [] })
   ];
   let mid = 1;
-  const mov = (cliente_id, fecha, tipo, importe, o) => fil(Object.assign({ id: mid++, cliente_id, fecha, tipo, importe, medio: tipo === 'Cobro' ? 'Efectivo' : '', nota: '', fijo: false }, o || {}));
+  const mov = (cliente_id, fecha, tipo, importe, o) => fil(Object.assign({ id: mid++, cliente_id, fecha, tipo, importe, medio: tipo === 'Cobro' ? 'Caja Kiosko' : '', nota: '', fijo: false }, o || {}));
   const movimientos = [
     mov(1, '2026-09-05', 'Cobro', 10000),
-    mov(3, '2026-09-10', 'Cobro', 3000, { medio: 'Transferencia' }),
+    mov(3, '2026-09-10', 'Cobro', 3000, { medio: 'Mercadopago More' }),
     mov(3, '2026-09-12', 'Ajuste', -1000, { nota: 'redondeo' }),
     mov(1, '2026-08-20', 'Cobro', 999999, { origen: 'newspaper' }) // de NewsPaper: ya está dentro del saldo inicial, no suma
   ];
   let cid = 1;
   const caja = [
-    fil({ id: cid++, fecha: '2026-09-08', concepto: 'Cambio inicial', detalle: 'Saldo inicial', ingreso: 130000, egreso: 0, medio: 'Efectivo', fijo: true, origen: 'inicial' }),
-    fil({ id: cid++, fecha: '2026-09-05', concepto: 'Cobro a cliente', detalle: 'Calle Uno 100 1 A', ingreso: 10000, egreso: 0, medio: 'Efectivo', movimiento_id: 1 }),
-    fil({ id: cid++, fecha: '2026-09-10', concepto: 'Cobro a cliente', detalle: 'Calle Dos 200', ingreso: 3000, egreso: 0, medio: 'Transferencia', movimiento_id: 2 }),
-    fil({ id: cid++, fecha: '2026-09-15', concepto: 'Gasto', detalle: 'Bolsas', ingreso: 0, egreso: 4500, medio: 'Efectivo' })
+    fil({ id: cid++, fecha: '2026-09-08', concepto: 'Cambio inicial', detalle: 'Saldo inicial', ingreso: 130000, egreso: 0, medio: 'Caja Kiosko', fijo: true, origen: 'inicial' }),
+    fil({ id: cid++, fecha: '2026-09-05', concepto: 'Cobro a cliente', detalle: 'Calle Uno 100 1 A', ingreso: 10000, egreso: 0, medio: 'Caja Kiosko', movimiento_id: 1 }),
+    fil({ id: cid++, fecha: '2026-09-10', concepto: 'Cobro a cliente', detalle: 'Calle Dos 200', ingreso: 3000, egreso: 0, medio: 'Mercadopago More', movimiento_id: 2 }),
+    fil({ id: cid++, fecha: '2026-09-15', concepto: 'Gasto', detalle: 'Bolsas', ingreso: 0, egreso: 4500, medio: 'Caja Kiosko' })
   ];
   const dist_movimientos = [
     fil({ id: 1, fecha: '2025-12-31', detalle: 'Liquidación NewsPaper', importe: 41500000, distribuidor_id: 1, historico: true, origen: 'newspaper' }),
@@ -87,7 +87,7 @@
   const reparto = [];
   let rid = 1;
   clientes.filter(c => c.activo).forEach((c, i) => { for (let d = 0; d < 7; d++) reparto.push(fil({ id: rid++, cliente_id: c.id, dia: d, vuelta: i % 2 ? 'Pino' : 'Bici 1', orden: i * 10, origen: 'hojas' })); });
-  const config = [{ clave: 'comision', valor: 32 }, { clave: 'medios', valor: ['Efectivo', 'Caja Grande', 'Mercadopago More', 'Transferencia'] }];
+  const config = [{ clave: 'comision', valor: 32 }, { clave: 'medios', valor: ['Caja Kiosko', 'Caja Arribeños', 'Mercadopago More', 'Modo'] }];
   const distribuidores = [fil({ id: 1, nombre: 'Distribuidora principal', activo: true, comision: 32 })];
   const perfiles = [{ id: 'u-test', rol: 'admin', activo: true, nombre: 'Demian' }];
 

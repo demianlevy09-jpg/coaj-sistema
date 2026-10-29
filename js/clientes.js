@@ -287,7 +287,7 @@ async function cobrarCliente(id,imp,medio,f,nota){
   nota=(nota||'').trim();
   const dup=LIVE.movs.filter(m=>m.cli===id&&m.tipo==='Cobro'&&Math.abs(m.imp-imp)<0.5&&(m.f||'').slice(0,10)===f);
   if(dup.length&&!confirm(`Ya hay ${dup.length===1?'un cobro':dup.length+' cobros'} de ${fmt(imp)} para ${nomCli(id)} con fecha ${fecha(f)} (${dup.map(m=>(m.medio||'')+' '+(m.ts||'').slice(11,16)).join(', ')}).\n\n¿Es un cobro NUEVO y lo querés cargar igual?`))return false;
-  const r={id:nid(),ts:new Date().toISOString(),cli:id,tipo:'Cobro',imp,f,medio:medio||'Efectivo',nota};
+  const r={id:nid(),ts:new Date().toISOString(),cli:id,tipo:'Cobro',imp,f,medio:medio||CAJA_DEF,nota};
   const mid=await ins('movimientos',A_DB.movs(r));
   try{ await ins('caja',{...A_DB.caja({f,c:'Cobro a cliente',d:nomCli(id)+(nota?' · '+nota:''),ing:imp,egr:0,m:r.medio}),movimiento_id:mid}); }
   catch(e){ await anularFila('movimientos',mid).catch(()=>{}); throw e; }

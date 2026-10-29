@@ -3,8 +3,9 @@
 window.addEventListener('error',e=>{const l=$('lat');if(l)l.textContent='⚠ '+(e.message||'error');});
 
 let db=null, C=[], PRECIOS=[], CAJAH=[], LISTAS={medios:[],conceptos:[],tipos:[]};
-const CAJAS_FIJAS=['Efectivo','Caja Grande','Transferencia','Mercadopago More']; // se muestran siempre en Inicio y Caja, aunque estén en $0
-function saldosCaja(){ const pm={}; CAJAS_FIJAS.filter(m=>LISTAS.medios.includes(m)||m==='Efectivo').forEach(m=>pm[m]=0); LIVE.caja.forEach(r=>{pm[r.m||'Sin medio']=(pm[r.m||'Sin medio']||0)+(r.ing||0)-(r.egr||0);}); return Object.entries(pm).filter(([m,v])=>Math.abs(v)>0.5||CAJAS_FIJAS.includes(m)); }
+const CAJAS_FIJAS=['Caja Kiosko','Caja Arribeños','Mercadopago More']; // se muestran siempre en Inicio y Caja, aunque estén en $0 (v95: Efectivo → Caja Kiosko, Caja Grande → Caja Arribeños, Transferencia pasada a Mercadopago More)
+const CAJA_DEF='Caja Kiosko'; // caja por defecto (antes 'Efectivo')
+function saldosCaja(){ const pm={}; CAJAS_FIJAS.filter(m=>LISTAS.medios.includes(m)||m===CAJA_DEF).forEach(m=>pm[m]=0); LIVE.caja.forEach(r=>{pm[r.m||'Sin medio']=(pm[r.m||'Sin medio']||0)+(r.ing||0)-(r.egr||0);}); return Object.entries(pm).filter(([m,v])=>Math.abs(v)>0.5||CAJAS_FIJAS.includes(m)); }
 const CONCEPTOS_CAJA=['Cobro a cliente','Venta mostrador','Venta de stock','Compra de mercadería','Pago a proveedor','Cobro distribuidora','Pago a distribuidora','Pago a empleado','Gasto','Retiro','Cambio inicial','Transferencia entre cuentas','Otro'];
 let LIVE={movs:[],caja:[],precios:[],novedades:[],dist:[],feriados:[],devol:[],reparto:[],vueltas:[],prov:[],prod:[],stock:[],provmov:[],pubdist:[],dists:[]};
 let FER=new Set(); // fechas ISO cargadas como feriado
