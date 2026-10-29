@@ -91,7 +91,7 @@
   const distribuidores = [fil({ id: 1, nombre: 'Distribuidora principal', activo: true, comision: 32 })];
   const perfiles = [{ id: 'u-test', rol: 'admin', activo: true, nombre: 'Demian' }];
 
-  const tablas = { clientes, suscripciones, precios, novedades, feriados, movimientos, caja, dist_movimientos, devoluciones, vueltas, reparto, config, distribuidores, perfiles, publicaciones_dist: [], proveedores: [], productos: [], stock_mov: [], prov_movimientos: [] };
+  const tablas = { clientes, suscripciones, precios, novedades, feriados, movimientos, caja, dist_movimientos, devoluciones, vueltas, reparto, config, distribuidores, perfiles, publicaciones_dist: [], proveedores: [], productos: [], stock_mov: [], prov_movimientos: [], resumenes: [] };
   const exp = { tablas };
   if (typeof module !== 'undefined' && module.exports) module.exports = exp;
   root.FIXTURE = exp;

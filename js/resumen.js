@@ -19,7 +19,7 @@ function htmlResumen(c,r){
   const e=emisor(); const d=new Date(r.periodo+'T12:00:00');
   const mes0=MESES[d.getMonth()]; const per=mes0.charAt(0).toUpperCase()+mes0.slice(1)+' '+d.getFullYear();
   const f=n=>(n<0?'−':'')+'$'+Math.abs(n).toLocaleString('es-AR',{maximumFractionDigits:0});
-  const det=(r.detalle||[]).map(x=>`<tr><td>&nbsp;&nbsp;${x.pub} · ${x.n} ejemplares</td><td>${f(x.tot)}</td></tr>`).join('');
+  const det=(r.detalle||[]).length?`<tr class="det"><td colspan="2"><div class="detc${r.detalle.length>=3?' n3':''}">${r.detalle.map(x=>`<div><span>${x.pub} · ${x.n} ejempl.</span><span>${f(x.tot)}</span></div>`).join('')}</div></td></tr>`:'';
   return `<div class="res">
     <div class="rh"><div class="em"><b>${e.nombre}</b><div>${e.domicilio}</div><div>${e.condicion}</div></div>
       <div class="nr"><div>Resumen Nº <b>${String(r.numero||'').padStart(6,'0')}</b></div><div>Emitido: ${fecha(hoyISO())}</div><div>Período: <b>${per}</b></div></div></div>
@@ -44,6 +44,16 @@ function ultimosCobros(c,nn){
   LIVE.movs.forEach(m=>{ if(m.cli===c.id&&m.tipo==='Cobro') l.push({f:(m.f||'').slice(0,10),imp:Math.abs(m.imp),medio:m.medio||''}); });
   return l.sort((a,b)=>b.f.localeCompare(a.f)).slice(0,nn||3);
 }
+function resumenCambio(g,fr){ const k=['saldo_anterior','consumo','cobros','ajustes','saldo'];
+  if(k.some(x=>Math.abs((+g[x]||0)-(fr[x]||0))>0.5)) return true;
+  const a=JSON.stringify((g.detalle||[]).map(x=>[x.pub,x.n,Math.round(x.tot)])), b=JSON.stringify((fr.detalle||[]).map(x=>[x.pub,x.n,Math.round(x.tot)])); return a!==b; }
+// v97: cada resumen mide 86 mm (3 por hoja). Si el contenido no entra, se achica en pasos; como último recurso crece (antes se cortaba abajo).
+function ajustarResumenes(){
+  const pa=$('print-area'); const st=pa.getAttribute('style')||'';
+  pa.setAttribute('style','display:block;position:absolute;left:-10000px;top:0;width:194mm');
+  pa.querySelectorAll('.res').forEach(r=>{ for(const k of ['c1','c2','c3']){ if(r.scrollHeight<=r.clientHeight+1)break; r.classList.add(k); } });
+  pa.setAttribute('style',st);
+}
 async function imprimirResumenes(ids){
   const periodo=cierreISO();
   toast('Armando '+ids.length+' resumen'+(ids.length>1?'es':'')+'…');
@@ -51,8 +61,11 @@ async function imprimirResumenes(ids){
     const {data:prev,error}=await sb.from('resumenes').select('*').in('cliente_id',ids).eq('periodo',periodo).eq('anulado',false).order('numero',{ascending:false});
     if(error)throw error;
     const ya={}; (prev||[]).forEach(r=>{ if(!ya[r.cliente_id]) ya[r.cliente_id]=r; });
-    const nuevos=[];
-    for(const id of ids){ const c=C.find(x=>x.id===id); if(!c||ya[id])continue; nuevos.push(armarResumen(c,periodo)); }
+    const nuevos=[], viejos=[];
+    for(const id of ids){ const c=C.find(x=>x.id===id); if(!c)continue; const fr=armarResumen(c,periodo);
+      // v97: si después de imprimirlo se cargó algo de ese mes (un cobro, un ajuste), el guardado quedó viejo → se anula y se emite uno nuevo
+      if(ya[id]&&!resumenCambio(ya[id],fr))continue; if(ya[id]) viejos.push(ya[id].id); nuevos.push(fr); }
+    if(viejos.length){ const{error:e3}=await sb.from('resumenes').update({anulado:true}).in('id',viejos); if(e3)console.warn('no se pudo anular el resumen viejo',e3); } // el nuevo tiene número más alto: es el que se usa igual
     if(nuevos.length){
       const {data:ins,error:e2}=await sb.from('resumenes').insert(nuevos).select('*'); if(e2)throw e2;
       ins.forEach(r=>{ya[r.cliente_id]=r;});
@@ -60,8 +73,10 @@ async function imprimirResumenes(ids){
     const bloques=ids.map(id=>{const c=C.find(x=>x.id===id); const r=ya[id]; return (c&&r)?htmlResumen(c,{...r,saldo_anterior:+r.saldo_anterior,consumo:+r.consumo,cobros:+r.cobros,ajustes:+r.ajustes,saldo:+r.saldo}):'';}).filter(Boolean);
     let html=''; for(let i=0;i<bloques.length;i+=3) html+='<div class="pagina">'+bloques.slice(i,i+3).join('')+'</div>';
     $('print-area').innerHTML=html;
+    ajustarResumenes();
     setTimeout(()=>{window.print();},150);
-    if(nuevos.length) toast(nuevos.length+' resumen'+(nuevos.length>1?'es nuevos':' nuevo')+' guardado'+(nuevos.length>1?'s':''));
+    const nn=nuevos.length-viejos.length;
+    if(nuevos.length) toast((nn?nn+' resumen'+(nn>1?'es nuevos':' nuevo'):'')+(nn&&viejos.length?' · ':'')+(viejos.length?viejos.length+' rehecho'+(viejos.length>1?'s':'')+' (habían cambiado los números)':''));
   }catch(e){toast('Error: '+((e&&e.message)||e));}
 }
 async function guardarEmisor(){

@@ -100,6 +100,8 @@ function pintarStockLista(){
   $('slist').innerHTML=prods.length?prods.map(({p,s})=>`<div class="fila" data-prod="${p.id}" style="flex-wrap:wrap"><div style="flex:1;min-width:180px"><div class="dom">${p.nombre} ${p.cat?`<span class="pill p-inact">${p.cat}</span>`:''}</div><div class="nom">${nomProv(p.prov)!=='—'?'Prov. habitual: '+nomProv(p.prov)+' · ':''}costo ${fmt(p.costo)} · ${p.modo==='margen'?'costo +'+p.margen+'%':'precio fijo'}</div></div>
     <div class="der"><div class="monto">${fmt(precioVenta(p))}</div><div class="mini ${s.total<=0?'debe':''}">${s.total} en stock${s.propio?' · '+s.propio+' propio':''}${(()=>{const e=Object.entries(s.consig);const n=e.reduce((a,[,v])=>a+v,0);return n?` · <span title="${e.map(([k,v])=>v+' de '+nomProv(parseInt(k))).join(', ')}">${n} en consignación</span>`:'';})()}</div>${(()=>{const es=edsDe(p.id).filter(e=>e.ed);const pe=pendientesDe(p.id); return (es.length?`<div class="mini">${es.map(e=>edTxt(e.ed)+': '+e.qty).join(' · ')}${pe.length?' libres':''}</div>`:'')+(pe.length?`<div class="mini">+${pe.reduce((n,m)=>n-m.qty,0)} reservadas para suscriptores, hasta el ${fecha(pe.map(m=>m.f).sort().pop())}</div>`:'');})()}</div>
     <div id="pdet-${p.id}" hidden style="flex-basis:100%"></div></div>`).join(''):'<div class="mini" style="padding:20px;text-align:center">Todavía no hay productos. Cargá el primero con "Nuevo producto" o desde Compras.</div>';
+  const bajas=LIVE.prod.filter(p=>p.activo===false&&(!q||norm(p.nombre).includes(q)));
+  if(bajas.length) $('slist').innerHTML+=`<details class="card plegable" style="margin-top:10px"><summary>Dados de baja <span class="mini">${bajas.length}</span></summary>${bajas.sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(p=>`<div class="mov"><span class="t">${p.nombre}</span><button class="btn chico sec" style="margin:0" onclick="reactivarProd(${p.id})">Reactivar</button></div>`).join('')}</details>`;
   if(PSEL) abrirProd(PSEL,true);
 }
 function formProdHTML(p){
@@ -353,3 +355,5 @@ async function corregirSaldoProv(id){ const p=provDe(id); if(!p)return; const s=
   try{ await ins('prov_movimientos',{proveedor_id:id,fecha:hoyISO(),tipo:'ajuste',importe:dif,detalle:'Corrección de saldo (fijado en '+fmt(v)+')'}); await cargarTabla('provmov'); toast('Saldo corregido ✓'); pintarCompras(); pintarInicio(); }catch(e){toast('Error: '+((e&&e.message)||e));} }
 async function anularAjusteProv(id){ if(!confirm('¿Anular esta corrección de saldo?'))return;
   try{ await anularFila('prov_movimientos',id); await cargarTabla('provmov'); toast('Anulada'); pintarCompras(); pintarInicio(); }catch(e){toast('Error: '+((e&&e.message)||e));} }
+
+async function reactivarProd(pid){ try{ const{error}=await sb.from('productos').update({activo:true}).eq('id',pid); if(error)throw new Error(error.message); await cargarTabla('prod'); toast('Producto reactivado ✓'); pintarStock(); }catch(e){toast('Error: '+((e&&e.message)||e));} }

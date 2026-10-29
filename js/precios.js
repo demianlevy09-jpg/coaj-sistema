@@ -16,9 +16,15 @@ function pintarPrecios(){
     <div class="mini" style="margin-top:8px">Nunca se pisa un precio viejo: se agrega la vigencia nueva y la historia queda (sirve para recalcular meses).</div></div>
   <h2>Precios por publicación</h2>
   <input id="pfil" type="search" placeholder="Filtrar publicación…" style="margin-bottom:8px">
-  <div id="plist" class="gridcards">${pubs.map(p=>{const v=porPub[p].sort((a,b)=>(a.desde||'').localeCompare(b.desde||''));const u=v[v.length-1];
+  <div id="plist" class="gridcards">${pubs.map(p=>{const v=porPub[p].sort((a,b)=>(a.desde||'').localeCompare(b.desde||''));
+   // v97: arriba va el precio vigente HOY (una vigencia futura se muestra aparte como programada) y todas las cargadas acá se pueden borrar
+   const hoy=hoyISO(), ya=v.filter(x=>(x.desde||'')<=hoy), u=ya.length?ya[ya.length-1]:v[0], fut=v.filter(x=>x!==u&&(x.desde||'')>hoy), ant=ya.slice(-3,-1);
+   const del=x=>x.nuevo?` <button class="del" data-prid="${x.id}" title="Borrar esta vigencia (rige la anterior)">✕</button>`:'';
    return`<div class="card"><b>${p}</b> <span class="monto" style="float:right">${fmt(u.precio)}</span>
-   <div class="mini" style="margin-top:4px">desde ${fecha(u.desde)}${v.length>1?' · antes: '+v.slice(-3,-1).map(x=>fmt(x.precio)+' ('+fecha(x.desde)+')').join(', '):''}${u.nuevo?' · <b>cargado acá</b> <button class="del" data-prid="'+u.id+'" title="Borrar esta vigencia (queda la anterior)">✕</button>':''}</div></div>`;}).join('')}</div>`;
+   <div class="mini" style="margin-top:4px">${(u.desde||'')>hoy?'programado ':''}desde ${fecha(u.desde)}${u.nuevo?' · cargado acá':''}${del(u)}</div>
+   ${fut.map(x=>`<div class="mini" style="margin-top:2px;color:var(--ambar,#E0A33C)">Programado: ${fmt(x.precio)} desde ${fecha(x.desde)}${del(x)}</div>`).join('')}
+   ${ant.length?`<div class="mini" style="margin-top:2px">Antes: ${ant.reverse().map(x=>fmt(x.precio)+' ('+fecha(x.desde)+')'+del(x)).join(' · ')}</div>`:''}
+   ${(()=>{const otras=ya.slice(0,-3).filter(x=>x.nuevo); return otras.length?`<div class="mini" style="margin-top:2px">Otras cargadas acá: ${otras.map(x=>fmt(x.precio)+' ('+fecha(x.desde)+')'+del(x)).join(' · ')}</div>`:'';})()}</div>`;}).join('')}</div>`;
 }
 async function addPrecio(){
   let pub=$('ppub').value.trim().toUpperCase(); const desde=$('pdesde').value, precio=num($('pprecio').value);

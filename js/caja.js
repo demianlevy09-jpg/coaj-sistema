@@ -14,10 +14,11 @@ function pintarCaja(){
     <div id="cdist-w" class="campo" hidden><label>Distribuidor</label><select id="cdist">${DISTS.map(x=>`<option value="${x.id}">${x.nombre}</option>`).join('')||'<option value="1">Distribuidora</option>'}</select><div class="mini" style="margin-top:6px">También queda en la cuenta del distribuidor (pestaña Distribuidores).</div></div>
     <div id="cimp-w"><div class="grid2" id="cimp-g"><div><label id="cing-l">Ingreso $</label><input id="cing" type="text" inputmode="decimal" autocomplete="off" placeholder="0"></div>
     <div id="cegr-w"><label>Egreso $</label><input id="cegr" type="text" inputmode="decimal" autocomplete="off" placeholder="0"></div></div>
-    <div class="grid2"><div id="cm-w"><label id="cm-l">Caja</label><select id="cm">${LISTAS.medios.map(m=>`<option${m===CAJA_DEF?' selected':''}>${m}</option>`).join('')}</select></div><div id="cm2-w" hidden><label>Entra a</label><select id="cm2">${LISTAS.medios.map(m=>`<option${m==='Mercadopago More'?' selected':''}>${m}</option>`).join('')}</select></div></div>
+    <div class="grid2"><div id="cm-w"><label id="cm-l">Caja</label><select id="cm">${LISTAS.medios.map(m=>`<option${m===cajaDef()?' selected':''}>${m}</option>`).join('')}</select></div><div id="cm2-w" hidden><label>Entra a</label><select id="cm2">${(()=>{const d=LISTAS.medios.find(m=>m!==cajaDef());return LISTAS.medios.map(m=>`<option${m===d?' selected':''}>${m}</option>`).join('');})()}</select></div></div>
     <div class="grid2"><div><label>Fecha</label><input id="cf" type="date" value="${hoyISO()}"></div><div></div></div>
     <label>Nota</label><input id="cd" placeholder="opcional, ej: pagó agosto y la mitad de septiembre">
     <div><button class="btn" id="cok">Guardar</button></div></div></div>
+  ${esAdmin()?panelCajasHTML(porMedio):''}
   <h2>Movimientos cargados</h2>
   <div class="filtros"><select id="fcc"><option value="">Concepto: todos</option>${[...new Set([...CONCEPTOS_CAJA,...rows.map(r=>r.c).filter(Boolean)])].map(c=>`<option>${c}</option>`).join('')}</select>
   <select id="fcm"><option value="">Medio: todos</option>${LISTAS.medios.map(m=>`<option>${m}</option>`).join('')}</select>
@@ -130,3 +131,40 @@ async function borrarCaja(id){
   if(!confirm(p?'¿Borrar esta transferencia entre cajas? Se borran las dos partes ('+(r.egr?r.m+' → '+p.m:p.m+' → '+r.m)+').':(pd?'¿Borrar? También se saca de la cuenta de '+unesc(nomDist(pd.dist||1))+'.':'¿Borrar?')))return;
   try{ await guardar('caja',LIVE.caja.filter(x=>x.id!==id&&(!p||x.id!==p.id))); if(pd) await guardar('dist',LIVE.dist.filter(x=>x.id!==pd.id)); toast('Borrado'); pintarCaja(); }catch(e){toast('Error: '+((e&&e.message)||e));}
 }
+
+/* ---- v97: CAJAS Y MEDIOS DE PAGO (solo admin): agregar, renombrar, ordenar, fijar y sacar ---- */
+function panelCajasHTML(porMedio){
+  const fijas=cajasFijas(), sal=m=>{ let v=0; LIVE.caja.forEach(r=>{ if(r.m===m) v+=(r.ing||0)-(r.egr||0); }); return v; };
+  return `<details class="card plegable" id="pcajas"><summary>Cajas y medios de pago <span class="mini">agregar, renombrar, ordenar o sacar</span></summary>
+    <div class="mini" style="margin:12px 0 6px">La primera es la que viene elegida por defecto. "Siempre visible" = se ve en Inicio y Caja aunque esté en $0. Renombrar cambia el nombre en todos los movimientos cargados acá (el histórico de NewsPaper no se toca).</div>
+    ${LISTAS.medios.map((m,i)=>{ const v=sal(m); const mm=esc(m); return `<div class="mov" style="align-items:center"><span class="t"><b>${mm}</b>${i===0?' <span class="pill p-cli">por defecto</span>':''} <span class="mini">${fmt(v)}</span></span>
+      <span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end"><label class="chkl" style="font-size:13px;margin:0;padding:0"><input type="checkbox" ${fijas.includes(m)?'checked':''} onchange="cajaFija(${i},this.checked)"> siempre visible</label>
+      <button class="mini-btn" title="Subir" onclick="cajaSubir(${i})" ${i>0?'':'style="visibility:hidden"'}>↑</button><button class="mini-btn" title="Renombrar" onclick="cajaRenombrar(${i})">✎</button><button class="mini-btn" title="Sacar de la lista" onclick="cajaSacar(${i})">✕</button></span></div>`; }).join('')}
+    <div style="display:flex;gap:8px;align-items:center;margin-top:10px"><input id="cnueva" placeholder="Nueva caja o medio (ej: Banco Galicia)" style="margin:0;max-width:280px"><button class="btn chico" style="margin:0" onclick="cajaAgregar()">Agregar</button></div></details>`;
+}
+async function guardarCajas(medios,fijas,msg){
+  const{error}=await sb.from('config').upsert({clave:'medios',valor:medios}); if(error)throw new Error(error.message);
+  const{error:e2}=await sb.from('config').upsert({clave:'cajas_fijas',valor:fijas}); if(e2)throw new Error(e2.message);
+  LISTAS.medios=medios; CONFIG.raw=CONFIG.raw||{}; CONFIG.raw.medios=medios; CONFIG.raw.cajas_fijas=fijas;
+  toast(msg); pintarCaja(); const d=$('pcajas'); if(d) d.open=true; pintarInicio();
+}
+async function cajaAgregar(){ const n=($('cnueva').value||'').trim(); if(!n){toast('Poné el nombre');return;}
+  if(LISTAS.medios.some(m=>norm(m)===norm(n))){toast('Ya existe');return;}
+  try{ await guardarCajas([...LISTAS.medios,n],[...cajasFijas(),n],'Agregada: '+n+' ✓'); }catch(e){toast('Error: '+((e&&e.message)||e));} }
+async function cajaFija(i,on){ const m=LISTAS.medios[i]; const f=cajasFijas().filter(x=>x!==m); if(on) f.push(m);
+  try{ await guardarCajas(LISTAS.medios,f,on?m+': siempre visible':m+': solo cuando tiene saldo'); }catch(e){toast('Error: '+((e&&e.message)||e));} }
+async function cajaSubir(i){ const l=[...LISTAS.medios]; [l[i-1],l[i]]=[l[i],l[i-1]];
+  try{ await guardarCajas(l,cajasFijas(),i===1?l[0]+' es ahora la caja por defecto':'Orden guardado'); }catch(e){toast('Error: '+((e&&e.message)||e));} }
+async function cajaSacar(i){ const m=LISTAS.medios[i]; let v=0; LIVE.caja.forEach(r=>{ if(r.m===m) v+=(r.ing||0)-(r.egr||0); });
+  if(Math.abs(v)>0.5){ toast(m+' tiene '+fmt(v)+': primero pasá la plata a otra caja (Pase entre cajas)'); return; }
+  if(LISTAS.medios.length<2){toast('Tiene que quedar al menos una');return;}
+  if(!confirm('¿Sacar "'+m+'" de la lista? Los movimientos viejos conservan el nombre; no se puede elegir más para cargar.'))return;
+  try{ await guardarCajas(LISTAS.medios.filter(x=>x!==m),cajasFijas().filter(x=>x!==m),'Sacada: '+m); }catch(e){toast('Error: '+((e&&e.message)||e));} }
+async function cajaRenombrar(i){ const m=LISTAS.medios[i]; const t=prompt('Nuevo nombre para "'+m+'":',m); if(t===null)return; const n=t.trim(); if(!n||n===m)return;
+  if(LISTAS.medios.some(x=>x!==m&&norm(x)===norm(n))){toast('Ya hay una con ese nombre');return;}
+  if(!confirm('Se cambia "'+m+'" por "'+n+'" en la lista y en todos los movimientos cargados acá (caja, cobros y ventas). ¿Seguir?'))return;
+  try{
+    for(const t of ['caja','movimientos','stock_mov']){ const{error}=await sb.from(t).update({medio:n}).eq('medio',m).or('origen.is.null,origen.neq.newspaper'); if(error&&!(t==='stock_mov'&&!STOCK_OK))throw new Error(t+': '+error.message); }
+    await Promise.all(['caja','movs'].concat(STOCK_OK?['stock']:[]).map(cargarTabla));
+    await guardarCajas(LISTAS.medios.map(x=>x===m?n:x),cajasFijas().map(x=>x===m?n:x),'"'+m+'" ahora se llama "'+n+'" ✓');
+  }catch(e){toast('Error: '+((e&&e.message)||e));} }

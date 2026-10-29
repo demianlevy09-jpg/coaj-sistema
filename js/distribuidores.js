@@ -19,9 +19,10 @@ function pintarDist(){
   const mas=v=>(v>0.5?'+':'')+fmt(v), menos=v=>(v>0.5?'−':'')+fmt(v);
   $('v-dist').innerHTML=`${titulo('Distribuidores','Cuánto te debe (o le debés a) cada distribuidor de diarios y revistas')}
   ${DISTS.length>1||true?`<div class="fchips" style="margin:0 0 16px">${DISTS.map(x=>`<button class="fch${x.id===DSEL?' on':''}" data-dsel="${x.id}">${x.nombre}</button>`).join('')}<button class="fch" id="dnuevobtn">＋ Distribuidor</button></div>`:''}
+  ${(()=>{const b=LIVE.dists.filter(x=>!x.activo); return b.length?`<div class="mini" style="margin:-8px 0 14px">Dados de baja: ${b.map(x=>`${x.nombre} <span class="lnk" onclick="reactivarDist(${x.id})">reactivar</span>`).join(' · ')}</div>`:'';})()}
   <div id="dnuevobox" hidden class="card" style="margin-bottom:12px"><label>Nombre del nuevo distribuidor</label><div style="display:flex;gap:8px"><input id="dnuevo" placeholder="ej: Distribuidora Norte" style="margin:0"><button class="btn chico" id="dnuevook" style="margin:0">Crear</button></div></div>
   <section class="panel dist-hero">
-    <div class="p-tit">${d.nombre} <span class="lnk" data-dren="${d.id}" title="Cambiar nombre">✎</span></div>
+    <div class="p-tit">${d.nombre} <span class="lnk" data-dren="${d.id}" title="Cambiar nombre">✎</span>${d.id!==1?` <span class="lnk mini" onclick="bajaDist(${d.id})" style="margin-left:8px">dar de baja</span>`:''}</div>
     <div class="p-num${s>0.5?' debe':''}"><small>${est}</small> ${fmt(s)}</div>
     <div class="p-sub">Al ${fecha(hoyISO())}. Cuenta desde el ${fecha(DEV0)}, se calcula sola con lo que se repartió.</div>
     <div class="p-filas">
@@ -43,7 +44,7 @@ function pintarDist(){
     <div class="mini">La comisión, los diarios de tus clientes y las devoluciones se calculan solos: no los cargues acá. La mercadería para vender (revistas, juguetes) se carga en Compras, así entra al stock.</div>
     <label>Qué pasó</label><select id="dtipo" onchange="$('dcaja-w').hidden=!(this.value==='2'||this.value==='-1')"><option value="2">${d.nombre} te pagó</option><option value="-1">Le pagaste a ${d.nombre}</option><option value="1">Te facturó algo más, nota de débito (le debés más)</option><option value="-2">Te hizo un crédito o nota de crédito (le debés menos)</option></select>
     <div class="grid2"><div><label>Importe $</label><input id="dimp" type="text" inputmode="decimal" autocomplete="off"></div><div><label>Fecha</label><input id="dfec" type="date" value="${hoyISO()}"></div></div>
-    <div id="dcaja-w"><label>Caja</label><select id="dcaja">${LISTAS.medios.map(m=>`<option${m===CAJA_DEF?' selected':''}>${m}</option>`).join('')}<option value="">No pasó por caja</option></select></div>
+    <div id="dcaja-w"><label>Caja</label><select id="dcaja">${LISTAS.medios.map(m=>`<option${m===cajaDef()?' selected':''}>${m}</option>`).join('')}<option value="">No pasó por caja</option></select></div>
     <label>Detalle (opcional)</label><input id="ddet" placeholder="ej: liquidación de septiembre">
     <button class="btn" id="dok">Guardar movimiento</button></div>
   <details class="card plegable"><summary>Qué publicaciones son de ${d.nombre} <span class="mini">${misPubs.length} publicaciones</span></summary><div class="mini" style="margin:12px 0 6px">Cada publicación pertenece a un distribuidor: su comisión y su CC se calculan con eso. Las que no asignes quedan en ${nomDist(1)}.</div>
@@ -123,3 +124,13 @@ async function borrarDist(id){
   if(!confirm(k?'¿Borrar? También se saca de la caja ('+fmt(k.ing||k.egr)+' '+(k.m||'')+').':'¿Borrar?'))return;
   try{ await guardar('dist',LIVE.dist.filter(r=>r.id!==id)); if(k) await guardar('caja',LIVE.caja.filter(x=>x.id!==k.id)); toast('Borrado'); pintarDist(); pintarInicio(); }catch(e){toast('Error: '+((e&&e.message)||e));}
 }
+
+// v97: dar de baja / reactivar un distribuidor (no se borra: su historia queda)
+async function bajaDist(id){
+  const pubs=todasLasPubs().filter(p=>pubDist(p)===id);
+  if(pubs.length){ toast('Primero pasá sus '+pubs.length+' publicaciones a otro distribuidor (abajo, "Qué publicaciones son de…")'); return; }
+  const s=cuentaDist(id).saldo;
+  if(!confirm('¿Dar de baja a '+unesc(nomDist(id))+'?'+(Math.abs(s)>0.5?' Ojo: la cuenta no está en cero ('+(s>0?'le debés ':'te debe ')+fmt(Math.abs(s))+').':'')+' Deja de aparecer; su historia queda y se puede reactivar.'))return;
+  try{ const{error}=await sb.from('distribuidores').update({activo:false}).eq('id',id); if(error)throw new Error(error.message); await cargarTabla('dists'); DSEL=1; toast('Distribuidor dado de baja'); pintarDist(); pintarInicio(); }catch(e){toast('Error: '+((e&&e.message)||e));}
+}
+async function reactivarDist(id){ try{ const{error}=await sb.from('distribuidores').update({activo:true}).eq('id',id); if(error)throw new Error(error.message); await cargarTabla('dists'); DSEL=id; toast('Distribuidor reactivado ✓'); pintarDist(); pintarInicio(); }catch(e){toast('Error: '+((e&&e.message)||e));} }

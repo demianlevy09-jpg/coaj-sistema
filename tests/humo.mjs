@@ -68,6 +68,14 @@ for (const [nombre, vp] of [['escritorio', { width: 1280, height: 900 }], ['tele
       const antes = Object.fromEntries(saldosCaja()); await addCaja(); const desp = Object.fromEntries(saldosCaja());
       return [vis, antes['Caja Kiosko'] - desp['Caja Kiosko'], desp['Mercadopago More'] - antes['Mercadopago More']]; });
     if (!r[0] || r[1] !== 1000 || r[2] !== 1000) errores.push(`[${nombre}] caja: el pase entre cajas no funcionó (${r})`); }
+  // v97: el resumen impreso no se corta (se achica para entrar en 86 mm) y se rehace si cambió algo del mes
+  { const r = await page.evaluate(async () => { const pr = window.print; window.print = () => {}; const c = C.find(x => x.id === 3);
+      ['OLE', 'PERFIL', 'AMBITO', 'CRONISTA', 'BAE', 'TIEMPO'].forEach((pb, i) => { LIVE.precios.push({ id: 'h' + i, pub: pb, dia: null, desde: '2026-01-01', precio: 1000 }); c.subs.push([pb, 'Todos los días', 'C', 'V', '2024-01-01', 1, 'newspaper', null]); }); armarPIDX(); SCACHE = {};
+      await imprimirResumenes([1, 3]); const ok1 = [...document.querySelectorAll('#print-area .res')].every(e => { const pa = document.getElementById('print-area'); pa.style.cssText = 'display:block;position:absolute;left:-10000px;width:194mm'; const v = e.scrollHeight <= e.clientHeight + 1; pa.style.cssText = ''; return v; });
+      LIVE.movs.push({ id: 'h1', cli: 1, tipo: 'Cobro', imp: 777, f: cierreISO(), medio: 'Caja Kiosko' }); await imprimirResumenes([1]);
+      const rs = (await sb.from('resumenes').select('*')).data.filter(x => x.cliente_id === 1); window.print = pr; LIVE.movs.pop();
+      return [ok1, rs.length, rs.filter(x => !x.anulado).length, rs.find(x => !x.anulado).cobros]; });
+    if (!r[0] || r[1] !== 2 || r[2] !== 1 || Math.round(r[3]) !== 10777) errores.push(`[${nombre}] resumen: no entra o no se rehízo (${r})`); }
   await page.close();
 }
 await browser.close();

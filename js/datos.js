@@ -5,7 +5,7 @@ const TABLAS={movs:'movimientos',caja:'caja',precios:'precios',novedades:'noveda
 const ORDEN_COL={feriados:'fecha',vueltas:'orden',pubdist:'publicacion'};
 const A_DB={
   movs:r=>({cliente_id:r.cli,fecha:r.f,tipo:r.tipo,importe:r.imp,medio:r.medio||'',nota:r.nota||''}),
-  caja:r=>({fecha:r.f,concepto:r.c,detalle:r.d||'',ingreso:r.ing||0,egreso:r.egr||0,medio:r.m||CAJA_DEF,movimiento_id:r.mid||null}),
+  caja:r=>({fecha:r.f,concepto:r.c,detalle:r.d||'',ingreso:r.ing||0,egreso:r.egr||0,medio:r.m||cajaDef(),movimiento_id:r.mid||null}),
   precios:r=>({publicacion:r.pub,dia:r.dia==null?null:r.dia,desde:r.desde,precio:r.precio}),
   novedades:r=>({cliente_id:r.cli,tipo:r.tipo,publicacion:r.pub||'',desde:r.desde||null,hasta:r.hasta||null,dias:r.dias||null,via:r.via||null,cantidad:r.qty||null,nota:r.nota||''}),
   dist:r=>({distribuidor_id:r.dist||1,fecha:r.f,detalle:r.d||'',importe:r.imp}),

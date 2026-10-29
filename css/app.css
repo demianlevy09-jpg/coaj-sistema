@@ -252,6 +252,24 @@ input[type=date]{min-width:0;max-width:100%}
 .res .ley{font-size:8pt;color:#333;margin-top:1mm}
 .res .ult{font-size:8.5pt;color:#222;margin-top:1.5mm}
 .res .ult b{font-weight:600}
+/* v97: detalle por publicación y versiones compactas (c1, c2) para que no se corte; c3 = crece */
+.res tr.det td{padding:0}
+.res .detc div{display:flex;justify-content:space-between;gap:4mm;padding:.3mm 0 .3mm 3mm}
+.res .detc div span:last-child{white-space:nowrap}
+.res.c1{font-size:9.5pt;padding-top:2mm;padding-bottom:2mm}
+.res.c1 .rh{padding-bottom:1mm;margin-bottom:1mm}
+.res.c1 table{font-size:8.8pt}
+.res.c1 td{padding:.3mm 0}
+.res.c1 .detc.n3{columns:2;column-gap:8mm}
+.res.c1 .detc div{break-inside:avoid;padding:.1mm 0 .1mm 2mm}
+.res.c1 tr.tot td{font-size:11.5pt;padding-top:1mm}
+.res.c1 .pago{margin-top:1mm;padding-top:1mm;font-size:8.8pt}
+.res.c2 .detc{font-size:8pt}
+.res.c2 .detc.n3{columns:3}
+.res.c2 .rt{font-size:10pt;margin:0 0 .5mm}
+.res.c2 .cl{margin-bottom:1mm}
+.res.c2 .ult,.res.c2 .ley{font-size:7.5pt;margin-top:.5mm}
+.res.c3{height:auto;min-height:86mm;overflow:visible}
 select.apagado{opacity:.45}
 
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important}}

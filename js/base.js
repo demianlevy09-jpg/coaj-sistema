@@ -3,9 +3,12 @@
 window.addEventListener('error',e=>{const l=$('lat');if(l)l.textContent='⚠ '+(e.message||'error');});
 
 let db=null, C=[], PRECIOS=[], CAJAH=[], LISTAS={medios:[],conceptos:[],tipos:[]};
-const CAJAS_FIJAS=['Caja Kiosko','Caja Arribeños','Mercadopago More']; // se muestran siempre en Inicio y Caja, aunque estén en $0 (v95: Efectivo → Caja Kiosko, Caja Grande → Caja Arribeños, Transferencia pasada a Mercadopago More)
-const CAJA_DEF='Caja Kiosko'; // caja por defecto (antes 'Efectivo')
-function saldosCaja(){ const pm={}; CAJAS_FIJAS.filter(m=>LISTAS.medios.includes(m)||m===CAJA_DEF).forEach(m=>pm[m]=0); LIVE.caja.forEach(r=>{pm[r.m||'Sin medio']=(pm[r.m||'Sin medio']||0)+(r.ing||0)-(r.egr||0);}); return Object.entries(pm).filter(([m,v])=>Math.abs(v)>0.5||CAJAS_FIJAS.includes(m)); }
+// Cajas: la lista y el orden salen de config.medios (la primera es la de por defecto). Las "fijas" se ven siempre en Inicio y Caja
+// aunque estén en $0 (config.cajas_fijas; si no está, esta lista). v97: se administran desde Caja → "Cajas y medios de pago" (admin).
+const CAJAS_FIJAS_DEF=['Caja Kiosko','Caja Arribeños','Mercadopago More'];
+function cajasFijas(){ const f=CONFIG.raw&&CONFIG.raw.cajas_fijas; return Array.isArray(f)?f:CAJAS_FIJAS_DEF.filter(m=>LISTAS.medios.includes(m)); }
+function cajaDef(){ return LISTAS.medios[0]||'Caja Kiosko'; } // caja por defecto (antes 'Efectivo')
+function saldosCaja(){ const pm={}, fijas=cajasFijas(); fijas.forEach(m=>pm[m]=0); LIVE.caja.forEach(r=>{pm[r.m||'Sin medio']=(pm[r.m||'Sin medio']||0)+(r.ing||0)-(r.egr||0);}); return Object.entries(pm).filter(([m,v])=>Math.abs(v)>0.5||fijas.includes(m)); }
 const CONCEPTOS_CAJA=['Cobro a cliente','Venta mostrador','Venta de stock','Compra de mercadería','Pago a proveedor','Cobro distribuidora','Pago a distribuidora','Pago a empleado','Gasto','Retiro','Cambio inicial','Transferencia entre cuentas','Otro'];
 // v96: lo que se puede cargar desde Caja. El valor es el concepto que se guarda; el texto es lo que se ve.
 const CONCEPTOS_FORM=[['Cobro a cliente','Cobro a cliente'],['Venta mostrador','Venta mostrador'],['Transferencia entre cuentas','Pase entre cajas'],['Gasto','Gasto'],['Retiro','Retiro'],['Pago a empleado','Pago a empleado'],['Cobro distribuidora','Cobro a un distribuidor (te pagó)'],['Pago a distribuidora','Pago a un distribuidor (le pagaste)'],['Cambio inicial','Cambio inicial'],['Otro','Otro'],['Venta de stock','Venta de stock →'],['Compra de mercadería','Compra de mercadería →'],['Pago a proveedor','Pago a proveedor →']];

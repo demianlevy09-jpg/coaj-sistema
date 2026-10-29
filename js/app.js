@@ -83,7 +83,7 @@ document.addEventListener('click',function(e){
     const pubsCon=[...new Set([...PRECIOS,...LIVE.precios].map(p=>p.pub))].sort();
     $('altabox').innerHTML=`<div class="card"><b>Alta de suscripción</b>
     <label>Publicación</label><input id="apub" list="dl-apubs" placeholder="ej: CLARIN"><datalist id="dl-apubs">${pubsCon.map(p=>`<option>${p}</option>`).join('')}</datalist>
-    <label>Días que la recibe</label><div class="dias diasel" id="adias">${DIAS.map((d,i)=>`<div class="dia" data-di="${i}">${d}</div>`).join('')}</div>
+    <label>Días que la recibe</label><div class="dias diasel" id="adias">${DIAS.map((d,i)=>`<div class="dia" data-di="${i}">${d}</div>`).join('')}</div><label class="chkl" style="margin-top:6px"><input type="checkbox" id="asindia" style="width:auto;margin:0" onchange="if(this.checked)this.closest('.card,#nform,div').querySelectorAll('.diasel .dia.on').forEach(d=>d.classList.remove('on'))"> Sin día fijo (revista: se le entrega y cobra cada número que sale, desde Stock)</label>
     <label>¿Quién cobra?</label><select id="avia"><option value="C">Le cobrás vos (cuenta corriente)</option><option value="S">Vía distribuidora (suscripción)</option></select>
     <div class="grid2"><div><label>Ejemplares por día (casi siempre 1)</label><input id="aqty" type="number" value="1" min="1"></div>
     <div><label>Desde</label><input id="adesde" type="date" value="${hoyISO()}"></div></div>
@@ -108,11 +108,10 @@ document.addEventListener('click',function(e){
   if(cvo){
     const cli=parseInt(cvo.dataset.cli), desde=cvo.parentElement.querySelector('.cvfec').value; if(!desde){toast('Poné la fecha');return;}
     const dias=(cvo.dataset.dias||'').split(',').filter(x=>x!=='').map(Number);
-    if(!dias.length){toast('Esta suscripción no tiene días fijos: dala de baja y cargá un alta nueva');return;}
     const r={id:nid(),ts:new Date().toISOString(),cli,tipo:'Alta',pub:cvo.dataset.pub,desde,hasta:'',dias,via:cvo.dataset.via,qty:parseInt(cvo.dataset.qty)||1,nota:'cambio de modalidad: '+(cvo.dataset.via==='S'?'le cobrás vos → vía distribuidora':'vía distribuidora → le cobrás vos')};
     // las suspensiones que siguen vigentes pasan a la suscripción nueva (si no, el cambio reactivaba días suspendidos)
     const sigue=suspensionesQueSiguen(cli,cvo.dataset.pub,dias,desde).map(n=>({id:nid(),ts:r.ts,cli,tipo:n.tipo,pub:unesc(n.pub||''),desde,hasta:n.hasta||'',dias:n.dias,nota:'sigue desde el '+fecha(n.desde)+' (cambio de modalidad)'}));
-    guardar('novedades',[...LIVE.novedades,r,...sigue]).then(()=>{toast('Modalidad cambiada ✓ (la anterior quedó cerrada)');ficha(cli);}).catch(err=>toast('Error: '+(err&&err.message)));
+    guardar('novedades',[...LIVE.novedades,r,...sigue]).then(async()=>{ if(!dias.length&&!(await verificarAltaSinDia(cli,unesc(r.pub)))){ficha(cli);return;} toast('Modalidad cambiada ✓ (la anterior quedó cerrada)');ficha(cli);}).catch(err=>toast('Error: '+(err&&err.message)));
     return;
   }
   const ao=e.target.closest('[data-altaok]');
@@ -120,7 +119,9 @@ document.addEventListener('click',function(e){
     const pub=($('apub').value||'').trim().toUpperCase();
     const dias=[...document.querySelectorAll('#adias .dia.on')].map(x=>parseInt(x.dataset.di));
     if(!pub){toast('Poné la publicación');return;}
-    if(!dias.length){toast('Marcá al menos un día');return;}
+    const sinDia=!!($('asindia')&&$('asindia').checked);
+    if(!dias.length&&!sinDia){toast('Marcá al menos un día (o "Sin día fijo" si es una revista)');return;}
+    if(dias.length&&sinDia){toast('Elegí días o "Sin día fijo", no las dos cosas');return;}
     const cli=parseInt(ao.dataset.cli);
     const desde=$('adesde').value; if(!desde){toast('Poné desde cuándo recibe');return;}
     const c=C.find(x=>x.id===cli);
@@ -133,7 +134,7 @@ document.addEventListener('click',function(e){
       return;
     }
     const r={id:nid(),ts:new Date().toISOString(),cli,tipo:'Alta',pub,desde,hasta:'',dias,via:$('avia').value,qty:parseInt($('aqty').value)||1,nota:'alta desde la ficha'};
-    guardar('novedades',[...LIVE.novedades,r]).then(()=>{toast('Alta guardada ✓');ficha(cli);}).catch(err=>toast('Error: '+(err&&err.message)));
+    guardar('novedades',[...LIVE.novedades,r]).then(async()=>{ if(!dias.length&&!(await verificarAltaSinDia(cli,pub))){ficha(cli);return;} toast('Alta guardada ✓');ficha(cli);}).catch(err=>toast('Error: '+(err&&err.message)));
     return;
   }
   const sok=e.target.closest('[data-sok]');
@@ -280,6 +281,6 @@ try{window.matchMedia('(min-width:900px)').addEventListener('change',ubicarBoton
    (pasaba con Caja, Corregir saldo, Vender, Compras, Repartir revista, Distribuidores, Precios, Resumen...). */
 let ULT_BTN=null; document.addEventListener('click',e=>{ULT_BTN=e.target.closest&&e.target.closest('button');},true);
 function bloq(fn){ let ocupado=false; return async function(...a){ if(ocupado){ toast('Guardando…'); return; } ocupado=true; const b=ULT_BTN; if(b) b.disabled=true; try{ return await fn.apply(this,a); } finally{ ocupado=false; if(b) b.disabled=false; } }; }
-['addCaja','transferirCaja','pagoDistCaja','anularAjuste','corregirSaldoProv','anularAjusteProv','borrarCaja','editarClienteOK','notaOK','borrarNota','corregirSaldo','borrarMov','nuevoDist','addFeriado','borrarFeriado','addDevol','borrarDevol','guardarComision','addDist','borrarDist','addNov','reactivarCliente','borrarNov','addPrecio','borrarPrecio','asignarVuelta','quitarDeVuelta','nuevaVuelta','imprimirResumenes','guardarEmisor','repartirUltimo','anularEntrega','guardarProd','bajaProd','ajustarStock','vender','anularVenta','registrarCompra','anularIngreso','anularPagoProv','nuevoProveedor','guardarPermisos','crearUsuario','cambiarClave','bloquearUsuario','borrarUsuario']
+['addCaja','transferirCaja','pagoDistCaja','cajaAgregar','cajaFija','cajaSubir','cajaSacar','cajaRenombrar','bajaDist','reactivarDist','renombrarVuelta','reactivarProd','anularAjuste','corregirSaldoProv','anularAjusteProv','borrarCaja','editarClienteOK','notaOK','borrarNota','corregirSaldo','borrarMov','nuevoDist','addFeriado','borrarFeriado','addDevol','borrarDevol','guardarComision','addDist','borrarDist','addNov','reactivarCliente','borrarNov','addPrecio','borrarPrecio','asignarVuelta','quitarDeVuelta','nuevaVuelta','imprimirResumenes','guardarEmisor','repartirUltimo','anularEntrega','guardarProd','bajaProd','ajustarStock','vender','anularVenta','registrarCompra','anularIngreso','anularPagoProv','nuevoProveedor','guardarPermisos','crearUsuario','cambiarClave','bloquearUsuario','borrarUsuario']
   .forEach(n=>{ if(typeof window[n]==='function') window[n]=bloq(window[n]); });
 gate();

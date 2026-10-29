@@ -121,7 +121,7 @@ function pintarReparto(){
     h+=`<div class="sec"><span class="dot"></span>Reservas en la parada (${reservas.length})</div><div class="card"><div class="mini" style="margin-bottom:6px">Se los guardan en el puesto, no van en ninguna vuelta.</div>${reservas.map(r=>`<div class="pcli"><span class="un" style="min-width:0"><b>${r.c.d}</b>${r.c.n?' · '+r.c.n:''}</span><span class="pe">${r.qty>1?r.qty+'× ':''}${r.pub}</span></div>`).join('')}</div>`;
   }
   if(!mv&&!esRep) h+=`<div class="card" style="margin-top:14px"><b>Vueltas y repartidores</b><div class="mini" style="margin:4px 0 8px">Tocá el nombre del repartidor para cambiarlo. Las vueltas vienen de NewsPaper; se pueden agregar más.</div>
-    ${VUELTAS.sort((a,b)=>(a.orden||0)-(b.orden||0)).map(v=>`<div class="mov"><span class="t"><b>${v.nombre}</b> · <span class="lnk" data-rrep="${v.nombre}">${v.repartidor||'sin repartidor'} ✎</span></span><span class="mini">${LIVE.reparto.filter(r=>r.vuelta===v.nombre).length} asignaciones</span><button class="mini-btn" data-rvact="${v.nombre}" title="${v.activo===false?'Activar':'Desactivar'}">${v.activo===false?'○':'●'}</button></div>`).join('')}
+    ${VUELTAS.sort((a,b)=>(a.orden||0)-(b.orden||0)).map(v=>`<div class="mov"><span class="t"><b>${v.nombre}</b> <span class="lnk mini" onclick="renombrarVuelta(this.dataset.v)" data-v="${v.nombre}" title="Cambiar nombre">✎</span> · <span class="lnk" data-rrep="${v.nombre}">${v.repartidor||'sin repartidor'} ✎</span></span><span class="mini">${LIVE.reparto.filter(r=>r.vuelta===v.nombre).length} asignaciones</span><button class="mini-btn" data-rvact="${v.nombre}" title="${v.activo===false?'Activar':'Desactivar'}">${v.activo===false?'○':'●'}</button></div>`).join('')}
     <div style="display:flex;gap:8px;align-items:center;margin-top:8px"><input id="rnv" placeholder="Nueva vuelta (ej: Moto 1)" style="margin:0;max-width:220px"><input id="rnr" placeholder="Repartidor" style="margin:0;max-width:180px"><button class="btn chico" id="rnvok" style="margin:0">Agregar</button></div></div>`;
   el.innerHTML=h;
   // drag & drop (escritorio)
@@ -178,7 +178,7 @@ function descNov(n){
   if(n.tipo==='Suspensión'){ let t='no recibe '+pub+' desde el '+fecha(n.desde); if(n.hasta){ const d=new Date(n.hasta+'T12:00:00'); d.setDate(d.getDate()+1); t+=' hasta el '+fecha(n.hasta)+' inclusive · vuelve el '+fecha(d.toISOString().slice(0,10)); } else t+=' (hasta que se reanude)'; return t; }
   if(n.tipo==='Reanudación') return (n.pub?'vuelve a recibir '+pub:'cliente reactivado')+' desde el '+fecha(n.desde)+' (ese día ya recibe)';
   if(n.tipo==='Baja') return (n.pub?'deja de recibir '+pub:'cliente dado de baja')+' desde el '+fecha(n.desde)+' (ese día ya no recibe)';
-  if(n.tipo==='Alta') return 'recibe '+(n.pub||'')+(n.dias?' ('+n.dias.map(d=>DIAS[d]).join(' ')+')':'')+' desde el '+fecha(n.desde)+' (ese día ya recibe)';
+  if(n.tipo==='Alta') return 'recibe '+(n.pub||'')+(n.dias?(n.dias.length?' ('+n.dias.map(d=>DIAS[d]).join(' ')+')':' (sin día fijo)'):'')+' desde el '+fecha(n.desde)+' (ese día ya recibe)';
   return (n.pub||'')+' desde el '+fecha(n.desde);
 }
 function cerrarModal(){ const m=$('ovl'); if(m) m.remove(); }
@@ -311,4 +311,12 @@ function imprimirHojas(nombres,fechas){
   $('print-area').innerHTML=hojas.join('');
   document.body.classList.add('print-hojas');
   setTimeout(()=>{window.print();setTimeout(()=>document.body.classList.remove('print-hojas'),500);},50);
+}
+
+// v97: renombrar una vuelta (función renombrar_vuelta en la base: arrastra las asignaciones del reparto y las vueltas de los repartidores)
+async function renombrarVuelta(nombre){
+  nombre=unesc(nombre); const n=prompt('Nuevo nombre de la vuelta "'+nombre+'":',nombre); if(n===null)return; const nn=n.trim();
+  if(!nn||nn===nombre)return; if(VUELTAS.some(v=>unesc(v.nombre).toLowerCase()===nn.toLowerCase())){toast('Ya hay una vuelta con ese nombre');return;}
+  try{ const{error}=await sb.rpc('renombrar_vuelta',{p_viejo:nombre,p_nuevo:nn}); if(error)throw new Error(/renombrar_vuelta/.test(error.message)?'falta correr supabase/2026-10-29_v97.sql en Supabase':error.message);
+    await Promise.all(['vueltas','reparto'].map(cargarTabla)); toast('Vuelta renombrada ✓'); pintarReparto(); }catch(e){toast('Error: '+((e&&e.message)||e));}
 }

@@ -54,7 +54,7 @@ function pintarNForm(){
   const fCli=`<label>Cliente (Nº, dirección o nombre)</label><div class="acwrap"><input id="ncli" placeholder="ej: 230 o Dragones 2280 9 B" autocomplete="off" oninput="sugCli(this)" onfocus="sugCli(this)"><div class="ac" id="ncli-ac" hidden></div></div><div class="mini" id="ncli-info" style="margin-top:4px"></div><datalist id="npubs"></datalist>`;
   const fPubCli=(req)=>`<label>Publicación${req?'':' <span class="mini">(vacío = todas las del cliente)</span>'}</label><input id="npub" list="npubs" placeholder="${req?'ej: CLARIN':'todas'}" autocomplete="off">`;
   const fPubAll=`<label>Publicación</label><input id="npub" list="dl-allpubs" placeholder="ej: CLARIN" autocomplete="off"><datalist id="dl-allpubs">${allPubs.map(p=>`<option value="${p}">`).join('')}</datalist>`;
-  const fSub=`<label>Días que la recibe</label><div class="dias diasel" id="ndias">${DIAS.map((d,i)=>`<div class="dia" data-di="${i}">${d}</div>`).join('')}</div>
+  const fSub=`<label>Días que la recibe</label><div class="dias diasel" id="ndias">${DIAS.map((d,i)=>`<div class="dia" data-di="${i}">${d}</div>`).join('')}</div><label class="chkl" style="margin-top:6px"><input type="checkbox" id="nsindia" style="width:auto;margin:0" onchange="if(this.checked)this.closest('.card,#nform,div').querySelectorAll('.diasel .dia.on').forEach(d=>d.classList.remove('on'))"> Sin día fijo (revista: se le entrega y cobra cada número que sale, desde Stock)</label>
     <div class="grid2"><div><label>¿Quién cobra?</label><select id="nvia"><option value="C">Le cobrás vos (cuenta corriente)</option><option value="S">Vía distribuidora (suscripción)</option></select></div>
     <div><label>Ejemplares por día</label><input id="nqty" type="number" value="1" min="1"></div></div>`;
   const fDesde=(l)=>`<label>${l||'Desde'}</label><input id="ndesde" type="date" value="${hoy}">`;
@@ -95,6 +95,7 @@ function editarNovedad(id){
   if($('nnota')) $('nnota').value=(ne.nota||'').replace(/^desde la ficha$/,'');
   if($('nvia')&&ne.via) $('nvia').value=ne.via;
   if($('nqty')&&ne.qty) $('nqty').value=ne.qty;
+  if(ne.tipo==='Alta'&&$('nsindia')&&Array.isArray(ne.dias)&&!ne.dias.length) $('nsindia').checked=true;
   const box=$('ndias')||$('nsdias'); if(box&&ne.dias) box.querySelectorAll('.dia').forEach(d=>d.classList.toggle('on',ne.dias.includes(parseInt(d.dataset.di))));
   const f=$('nform'); if(f) f.scrollIntoView({behavior:'smooth',block:'start'});
 }
@@ -145,7 +146,7 @@ function diasOpc(){ const dd=[...document.querySelectorAll('#nsdias .dia.on')].m
 function leerSub(){
   const pub=($('npub').value||'').trim().toUpperCase();
   const dias=[...document.querySelectorAll('#ndias .dia.on')].map(x=>parseInt(x.dataset.di));
-  return {pub,dias,via:$('nvia').value,qty:parseInt($('nqty').value)||1,desde:$('ndesde').value};
+  return {pub,dias,sinDia:!!($('nsindia')&&$('nsindia').checked),via:$('nvia').value,qty:parseInt($('nqty').value)||1,desde:$('ndesde').value};
 }
 async function addNov(){
   const ts=new Date().toISOString(), desde=$('ndesde')?$('ndesde').value:hoyISO(), nota=$('nnota')?$('nnota').value:'';
@@ -153,9 +154,10 @@ async function addNov(){
     if(NTIPO==='altacli'){
       const dom=$('ncdom').value.trim(); if(!dom){toast('Poné el domicilio');return;}
       const sub=leerSub();
-      if(sub.pub&&!sub.dias.length){toast('Marcá los días de la suscripción (o dejá la publicación vacía)');return;}
+      if(sub.pub&&!sub.dias.length&&!sub.sinDia){toast('Marcá los días de la suscripción, o "Sin día fijo" (o dejá la publicación vacía)');return;}
+      if(sub.dias.length&&sub.sinDia){toast('Elegí días o "Sin día fijo", no las dos cosas');return;}
       if(sub.pub&&!sub.desde){toast('Poné desde cuándo recibe');return;}
-      if(!sub.pub&&sub.dias.length){toast('Poné la publicación');return;}
+      if(!sub.pub&&(sub.dias.length||sub.sinDia)){toast('Poné la publicación');return;}
       const fila={domicilio:dom,nombre:$('ncnom').value.trim(),telefono:$('nctel').value.trim(),particularidad:$('ncpart').value.trim(),observaciones:$('ncobs').value.trim(),activo:true,ficha:'actual',saldo_inicial:0,saldo_inicial_fecha:'2026-08-31'} /* como los demás: la base devenga desde el día siguiente (01/09) y la app también */;
       const{data,error}=await sb.from('clientes').insert(fila).select('id').single(); if(error)throw new Error(error.message);
       const id=data.id;
@@ -167,7 +169,7 @@ async function addNov(){
     const cli=cliElegido(); if(!cli)return;
     let r=null;
     if(NTIPO==='altasub'){
-      const sub=leerSub(); if(!sub.pub){toast('Poné la publicación');return;} if(!sub.dias.length){toast('Marcá al menos un día');return;}
+      const sub=leerSub(); if(!sub.pub){toast('Poné la publicación');return;} if(!sub.dias.length&&!sub.sinDia){toast('Marcá al menos un día (o "Sin día fijo" si es una revista)');return;} if(sub.dias.length&&sub.sinDia){toast('Elegí días o "Sin día fijo", no las dos cosas');return;}
       if(!sub.desde){toast('Poné desde cuándo recibe');return;}
       const choque=choqueAlta(cli,sub.pub,sub.dias,sub.desde,NEDIT);
       const av=$('novaviso'); if(av) av.remove();
@@ -192,6 +194,7 @@ async function addNov(){
     if(NEDIT){ r.nota=(r.nota||'')+(r.nota?' · ':'')+'editada'; }
     await guardar('novedades',[...LIVE.novedades.filter(x=>String(x.id)!==String(NEDIT)),r]);
     NEDIT=null;
+    if(r.tipo==='Alta'&&!r.dias.length&&!(await verificarAltaSinDia(cli,r.pub))){ pintarNovedades(); return; }
     recalcActivos(); SCACHE={};
     toast('Novedad guardada ✓ '+nomCli(cli)); pintarInicio(); pintarClientes(); pintarNovedades();
   }catch(e){toast('Error: '+((e&&e.message)||e));}
