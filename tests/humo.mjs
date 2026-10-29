@@ -62,6 +62,12 @@ for (const [nombre, vp] of [['escritorio', { width: 1280, height: 900 }], ['tele
   await page.evaluate(() => ficha(3));
   await page.waitForTimeout(150);
   if (capturas) await page.screenshot({ path: `${capturas}/${nombre}-ficha.png`, fullPage: true });
+  // v96: el pase entre cajas se carga desde "Qué pasó" → Pase entre cajas (antes no había lugar para la segunda caja)
+  { const r = await page.evaluate(async () => { ver('caja'); PINTAR.caja(); const s = document.getElementById('cc'); s.value = 'Transferencia entre cuentas'; cajaModo();
+      const vis = !document.getElementById('cm2-w').hidden; document.getElementById('cm').value = 'Caja Kiosko'; document.getElementById('cm2').value = 'Mercadopago More'; document.getElementById('cing').value = '1000';
+      const antes = Object.fromEntries(saldosCaja()); await addCaja(); const desp = Object.fromEntries(saldosCaja());
+      return [vis, antes['Caja Kiosko'] - desp['Caja Kiosko'], desp['Mercadopago More'] - antes['Mercadopago More']]; });
+    if (!r[0] || r[1] !== 1000 || r[2] !== 1000) errores.push(`[${nombre}] caja: el pase entre cajas no funcionó (${r})`); }
   await page.close();
 }
 await browser.close();

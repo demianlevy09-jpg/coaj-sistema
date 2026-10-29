@@ -22,7 +22,7 @@ function pintarPrecios(){
 }
 async function addPrecio(){
   let pub=$('ppub').value.trim().toUpperCase(); const desde=$('pdesde').value, precio=num($('pprecio').value);
-  if(!pub||!precio){toast('Completá publicación y precio');return;}
+  if(!pub||!precio){toast('Completá publicación y precio');return;} if(!desde){toast('Poné desde cuándo rige');return;}
   let dia=$('pdia').value===''?null:parseInt($('pdia').value);
   // v94: si eligieron "EL CRONISTA COMERCIAL · Ju" de la lista, el día va en el selector, no en el nombre
   // (antes se guardaba como publicación nueva "… · JU" que ninguna suscripción usa).

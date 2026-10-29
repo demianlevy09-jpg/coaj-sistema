@@ -132,10 +132,12 @@ function abrirProd(pid,keep){
   box.innerHTML=`<div style="border-top:1px solid var(--linea);margin-top:10px;padding-top:10px">
     <div class="fchips" style="margin:0 0 8px"><button class="fch" data-pedit="${pid}">✎ Editar</button><button class="fch" data-pajuste="${pid}">± Ajustar stock</button><button class="fch" data-pvender="${pid}">Vender</button>${(p.pubs||[]).length?`<button class="fch" data-prepartir="${pid}">📦 Repartir último número a suscriptores</button>`:''}</div>${(p.pubs||[]).length?`<div class="mini" style="margin-bottom:6px">La reciben: ${p.pubs.join(', ')} · ${suscriptoresDe(p,hoyISO()).length} suscriptores activos</div>`:''}
     <div id="pajbox-${pid}"></div>
-    <div class="mini" style="margin-bottom:4px">Últimos movimientos</div>${movs.map(m=>`<div class="mov"><span class="f">${fecha(m.f)}</span><span class="t">${m.tipo}${m.ed?' '+edTxt(m.ed):''}${m.prop==='consignacion'?' (consig. '+nomProv(m.prov)+')':''}${m.cli?' · '+nomCli(m.cli):''}${m.medio?' · '+m.medio:''}${m.nota?' <span class="mini">· '+m.nota+'</span>':''}</span><span class="m ${m.qty<0?'debe':'favor'}">${m.qty>0?'+':''}${m.qty}</span>${m.tipo==='entrega'?`<button class="del" data-edel="${m.id}">✕</button>`:''}</div>`).join('')||'<div class="mini">Sin movimientos.</div>'}</div>`;
+    <div class="mini" style="margin-bottom:4px">Últimos movimientos</div>${movs.map(m=>`<div class="mov"><span class="f">${fecha(m.f)}</span><span class="t">${m.tipo}${m.ed?' '+edTxt(m.ed):''}${m.prop==='consignacion'?' (consig. '+nomProv(m.prov)+')':''}${m.cli?' · '+nomCli(m.cli):''}${m.medio?' · '+m.medio:''}${m.nota?' <span class="mini">· '+m.nota+'</span>':''}</span><span class="m ${m.qty<0?'debe':'favor'}">${m.qty>0?'+':''}${m.qty}</span>${m.tipo==='entrega'?`<button class="del" data-edel="${m.id}">✕</button>`:(m.tipo==='ajuste'?`<button class="del" data-ajdel="${m.id}" title="Anular este ajuste">✕</button>`:'')}</div>`).join('')||'<div class="mini">Sin movimientos.</div>'}</div>`;
   box.hidden=false;
 }
 function formAjusteHTML(pid){ return `<div class="card" style="margin:6px 0"><b>Ajuste de stock</b><div class="mini" style="margin:2px 0 4px">Conteo, rotura, faltante. Positivo suma, negativo resta.</div><div class="grid2"><div><label>Cantidad (±)</label><input id="paj-q" type="number" inputmode="numeric" placeholder="ej: -2"></div><div><label>De qué stock</label><select id="paj-prop" onchange="$('paj-provbox').hidden=this.value!=='consignacion'"><option value="propio">Propio</option><option value="consignacion">En consignación</option></select></div></div><div id="paj-provbox" hidden><label>Proveedor</label><select id="paj-prov">${optsProv()}</select></div><label>Número / edición (opcional)</label><input id="paj-ed" placeholder="ej: 389"><label>Motivo</label><input id="paj-nota" placeholder="ej: conteo de fin de mes"><button class="btn chico" data-pajok="${pid}">Guardar ajuste</button></div>`; }
+async function anularAjuste(id){ const m=LIVE.stock.find(x=>x.id===id); if(!m)return; if(!confirm('¿Anular este ajuste de '+(m.qty>0?'+':'')+m.qty+'? El stock vuelve a como estaba antes.'))return;
+  try{ await anularFila('stock_mov',id); await cargarTabla('stock'); toast('Ajuste anulado'); pintarStock(); }catch(e){toast('Error: '+((e&&e.message)||e));} }
 async function ajustarStock(pid){
   const q=parseInt($('paj-q').value); if(!q){toast('Poné la cantidad (+ suma, − resta)');return;}
   const prop=$('paj-prop').value; const prov=prop==='consignacion'?parseInt($('paj-prov').value)||null:null;
@@ -168,7 +170,7 @@ function pintarVentas(){
     <button class="btn" id="v-ok">Vender</button>
   </div>
   <div class="sec"><span class="dot"></span>Últimas ventas</div>
-  <div class="card">${ventas.sort((a,b)=>(b.f||'').localeCompare(a.f||'')||(b.ts||'').localeCompare(a.ts||'')).slice(0,40).map(m=>`<div class="mov"><span class="f">${fecha(m.f)}</span><span class="t"><b>${-m.qty}×</b> ${(prodDe(m.prod)||{}).nombre||'?'}${m.ed?' '+edTxt(m.ed):''} <span class="mini">· ${m.cli?'CC '+nomCli(m.cli):m.medio}${m.prop==='consignacion'?' · consig. '+nomProv(m.prov):''}${m.nota?' · '+m.nota:''}</span></span><span class="m">${fmt(-m.qty*(m.precio||0))}</span><button class="del" data-vdel="${m.id}">✕</button></div>`).join('')||'<div class="mini">Ninguna venta todavía.</div>'}</div>`;
+  <div class="card">${ventas.sort((a,b)=>(b.f||'').localeCompare(a.f||'')||(b.ts||'').localeCompare(a.ts||'')).slice(0,lim('ven',40)).map(m=>`<div class="mov"><span class="f">${fecha(m.f)}</span><span class="t"><b>${-m.qty}×</b> ${(prodDe(m.prod)||{}).nombre||'?'}${m.ed?' '+edTxt(m.ed):''} <span class="mini">· ${m.cli?'CC '+nomCli(m.cli):m.medio}${m.prop==='consignacion'?' · consig. '+nomProv(m.prov):''}${m.nota?' · '+m.nota:''}</span></span><span class="m">${fmt(-m.qty*(m.precio||0))}</span><button class="del" data-vdel="${m.id}">✕</button></div>`).join('')||'<div class="mini">Ninguna venta todavía.</div>'}${masBtn('ven',ventas.length,40,'pintarVentas()')}</div>`;
 }
 function ventaProdCambio(){
   const p=prodDe(parseInt($('v-prod').value)); const lb=$('v-lote'); VLOTE='';
@@ -188,7 +190,7 @@ async function vender(){
   const parts=(VLOTE||'propio|').split('|'); const prop=parts[0]; const prov=parts[1]?parseInt(parts[1]):null; const ed=parts[2]||'';
   const disp=edsDe(pid,prop,prop==='propio'?null:(prov||0)).filter(e=>e.ed===ed).reduce((n,e)=>n+e.qty,0);
   if(q>disp&&!confirm('Hay '+disp+' en ese stock y querés vender '+q+'. ¿Seguir igual? (queda en negativo)'))return;
-  const medio=$('v-medio').value, f=$('v-fecha').value, nota=$('v-nota').value.trim();
+  const medio=$('v-medio').value, f=$('v-fecha').value, nota=$('v-nota').value.trim(); if(!f){toast('Poné la fecha');return;}
   let cli=null; if(medio==='CC'){ cli=parseInt($('v-cli').dataset.cli)||null; if(!cli){toast('Elegí el cliente');return;} }
   const det=q+'× '+p.nombre+(ed?' '+edTxt(ed):'');
   try{
@@ -252,8 +254,8 @@ function pintarCForm(){
     <div class="grid2"><div><label>Cantidad</label><input id="c-qty" type="number" inputmode="numeric" min="1" value="1" oninput="compraTotal()"></div><div><label>Costo pactado por unidad $</label><input id="c-costo" type="text" inputmode="decimal" autocomplete="off" placeholder="lo que le vas a deber por cada uno vendido" oninput="compraTotal()"></div></div><div class="mini" id="c-pcthint"></div>
     <div id="c-edbox"><label>Número / edición <span class="mini">(revistas y coleccionables; vacío si no aplica)</span></label><input id="c-ed" placeholder="ej: 389"></div><div class="mini" id="c-total" style="margin-top:6px"></div>${fFecha}<button class="btn" id="c-ok">Registrar recepción</button>`;
   else if(CTIPO==='devolucion') h=`<div class="mini" style="margin:6px 0 2px">Mercadería que vuelve al proveedor. Si era consignación no pasa nada más; si era tuya y a cuenta, podés acreditarla en su CC.</div>${provSelHTML('c-prov')}${prodSelHTML('c-prod',true)}<div id="c-edsel"></div>
-    <div class="grid2"><div><label>Cantidad</label><input id="c-qty" type="number" inputmode="numeric" min="1" value="1"></div><div><label>Sale de</label><select id="c-prop"><option value="consignacion">Stock en consignación</option><option value="propio">Stock propio</option></select></div></div>
-    <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="c-credito" style="width:auto;margin:0">Acreditar en la CC del proveedor (nota de crédito)</label>
+    <div class="grid2"><div><label>Cantidad</label><input id="c-qty" type="number" inputmode="numeric" min="1" value="1"></div><div><label>Sale de</label><select id="c-prop" onchange="const c=$('c-credito');c.disabled=this.value==='consignacion';if(c.disabled)c.checked=false;"><option value="consignacion">Stock en consignación</option><option value="propio">Stock propio</option></select></div></div>
+    <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="c-credito" style="width:auto;margin:0" disabled>Acreditar en la CC del proveedor (nota de crédito)</label>
     <label>Costo unitario a acreditar $</label><input id="c-costo" type="text" inputmode="decimal" autocomplete="off">${fFecha}<button class="btn" id="c-ok">Registrar devolución</button>`;
   else if(CTIPO==='pago') h=`${provSelHTML('c-prov')}<div class="grid2"><div><label>Importe $</label><input id="c-imp" type="text" inputmode="decimal" autocomplete="off"></div><div><label>Medio</label><select id="c-medio">${optsMedios()}</select></div></div>${fFecha}<button class="btn" id="c-ok">Registrar pago</button>`;
   else if(CTIPO==='proveedores') h=`<div class="grid2"><div><label>Nuevo proveedor</label><input id="np-nombre" placeholder="nombre"></div><div><label>Teléfono</label><input id="np-tel"></div></div><label>% de la tapa que le debés por cada unidad vendida <span class="mini">(consignación; ej. 68. Vacío = costo pactado a mano)</span></label><input id="np-pct" type="text" inputmode="decimal" autocomplete="off" placeholder="ej: 68"><button class="btn chico" id="np-ok">Agregar proveedor</button>`;
@@ -261,15 +263,15 @@ function pintarCForm(){
   if(CTIPO==='recepcion') [['c-prov','change'],['c-prod','change'],['c-prod-modo','change'],['c-prod-pv','input']].forEach(([i,ev])=>{ const e=$(i); if(e) e.addEventListener(ev,recepCosto); });
   const L=$('clista');
   if(CTIPO==='proveedores'){
-    L.innerHTML=`<div class="sec"><span class="dot"></span>Proveedores y cuentas corrientes</div>`+(LIVE.prov.length?LIVE.prov.map(p=>{const s=saldoProv(p.id); const movs=LIVE.provmov.filter(m=>m.prov===p.id).sort((a,b)=>(b.f||'').localeCompare(a.f||'')||(b.ts||'').localeCompare(a.ts||'')).slice(0,10);
-      return `<div class="card"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><div style="flex:1"><b style="font-size:16px">${p.nombre}</b>${p.tel?' <span class="mini">· '+p.tel+'</span>':''} <span class="mini lnk" data-pren="${p.id}">✎</span><div class="mini">${p.pct>0?`Le debés el <b>${p.pct}%</b> de la tapa por cada unidad vendida`:'Consignación: costo pactado a mano'} · <span class="lnk" data-ppct="${p.id}">cambiar %</span></div></div><div class="der">${s>0.5?`<span class="monto debe">${fmt(s)}</span><div class="mini">le debés</div>`:(s<-0.5?`<span class="monto favor">${fmt(s)}</span><div class="mini">a tu favor</div>`:'<span class="monto aldia">al día</span>')}</div></div>
-      ${movs.map(m=>`<div class="mov"><span class="f">${fecha(m.f)}</span><span class="t">${m.tipo}${m.d?' · '+m.d:''}</span><span class="m ${m.imp>0?'debe':'favor'}">${m.imp<0?'−':''}${fmt(m.imp)}</span></div>`).join('')||'<div class="mini" style="margin-top:6px">Sin movimientos.</div>'}</div>`;}).join(''):'<div class="card mini">Ningún proveedor todavía.</div>');
+    L.innerHTML=`<div class="sec"><span class="dot"></span>Proveedores y cuentas corrientes</div>`+(LIVE.prov.length?LIVE.prov.map(p=>{const s=saldoProv(p.id); const movsT=LIVE.provmov.filter(m=>m.prov===p.id).sort((a,b)=>(b.f||'').localeCompare(a.f||'')||(b.ts||'').localeCompare(a.ts||'')), movs=movsT.slice(0,lim('pv'+p.id,10));
+      return `<div class="card"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><div style="flex:1"><b style="font-size:16px">${p.nombre}</b>${p.tel?' <span class="mini">· '+p.tel+'</span>':''} <span class="mini lnk" data-pren="${p.id}">✎</span><div class="mini">${p.pct>0?`Le debés el <b>${p.pct}%</b> de la tapa por cada unidad vendida`:'Consignación: costo pactado a mano'} · <span class="lnk" data-ppct="${p.id}">cambiar %</span> · <span class="lnk" data-psal="${p.id}">corregir saldo</span></div></div><div class="der">${s>0.5?`<span class="monto debe">${fmt(s)}</span><div class="mini">le debés</div>`:(s<-0.5?`<span class="monto favor">${fmt(s)}</span><div class="mini">a tu favor</div>`:'<span class="monto aldia">al día</span>')}</div></div>
+      ${movs.map(m=>`<div class="mov"><span class="f">${fecha(m.f)}</span><span class="t">${m.tipo}${m.d?' · '+m.d:''}</span><span class="m ${m.imp>0?'debe':'favor'}">${m.imp<0?'−':''}${fmt(m.imp)}</span>${m.tipo==='ajuste'?`<button class="del" data-pajdel="${m.id}" title="Anular esta corrección">✕</button>`:''}</div>`).join('')||'<div class="mini" style="margin-top:6px">Sin movimientos.</div>'}${masBtn('pv'+p.id,movsT.length,10,'pintarCompras()')}</div>`;}).join(''):'<div class="card mini">Ningún proveedor todavía.</div>');
   } else if(CTIPO==='pago'){
-    const ps=LIVE.provmov.filter(m=>m.tipo==='pago').sort((a,b)=>(b.f||'').localeCompare(a.f||'')).slice(0,30);
-    L.innerHTML=`<div class="sec"><span class="dot"></span>Últimos pagos</div><div class="card">${ps.map(m=>`<div class="mov"><span class="f">${fecha(m.f)}</span><span class="t">${nomProv(m.prov)}${m.d?' · '+m.d:''}</span><span class="m">${fmt(m.imp)}</span><button class="del" data-pdel="${m.id}">✕</button></div>`).join('')||'<div class="mini">Ninguno.</div>'}</div>`;
+    const psT=LIVE.provmov.filter(m=>m.tipo==='pago').sort((a,b)=>(b.f||'').localeCompare(a.f||'')), ps=psT.slice(0,lim('pag',30));
+    L.innerHTML=`<div class="sec"><span class="dot"></span>Últimos pagos</div><div class="card">${ps.map(m=>`<div class="mov"><span class="f">${fecha(m.f)}</span><span class="t">${nomProv(m.prov)}${m.d?' · '+m.d:''}</span><span class="m">${fmt(m.imp)}</span><button class="del" data-pdel="${m.id}">✕</button></div>`).join('')||'<div class="mini">Ninguno.</div>'}${masBtn('pag',psT.length,30,'pintarCompras()')}</div>`;
   } else {
-    const ms=LIVE.stock.filter(m=>m.tipo===CTIPO).sort((a,b)=>(b.f||'').localeCompare(a.f||'')||(b.ts||'').localeCompare(a.ts||'')).slice(0,30);
-    L.innerHTML=`<div class="sec"><span class="dot"></span>Últimos movimientos</div><div class="card">${ms.map(m=>`<div class="mov"><span class="f">${fecha(m.f)}</span><span class="t"><b>${Math.abs(m.qty)}×</b> ${(prodDe(m.prod)||{}).nombre||'?'}${m.ed?' '+edTxt(m.ed):''} <span class="mini">· ${nomProv(m.prov)}${m.medio?' · '+m.medio:''}${m.nota?' · '+m.nota:''}</span></span><span class="m">${fmt(Math.abs(m.qty)*(m.costo||0))}</span><button class="del" data-cdel="${m.id}">✕</button></div>`).join('')||'<div class="mini">Ninguno.</div>'}</div>`;
+    const msT=LIVE.stock.filter(m=>m.tipo===CTIPO).sort((a,b)=>(b.f||'').localeCompare(a.f||'')||(b.ts||'').localeCompare(a.ts||'')), ms=msT.slice(0,lim('c'+CTIPO,30));
+    L.innerHTML=`<div class="sec"><span class="dot"></span>Últimos movimientos</div><div class="card">${ms.map(m=>`<div class="mov"><span class="f">${fecha(m.f)}</span><span class="t"><b>${Math.abs(m.qty)}×</b> ${(prodDe(m.prod)||{}).nombre||'?'}${m.ed?' '+edTxt(m.ed):''} <span class="mini">· ${nomProv(m.prov)}${m.medio?' · '+m.medio:''}${m.nota?' · '+m.nota:''}</span></span><span class="m">${fmt(Math.abs(m.qty)*(m.costo||0))}</span><button class="del" data-cdel="${m.id}">✕</button></div>`).join('')||'<div class="mini">Ninguno.</div>'}${masBtn('c'+CTIPO,msT.length,30,'pintarCompras()')}</div>`;
   }
 }
 // v93: en la recepción en consignación, si el proveedor tiene "% de la tapa", el costo pactado se calcula solo
@@ -287,7 +289,8 @@ async function registrarCompra(){
   const f=$('c-fecha').value, nota=$('c-nota').value.trim();
   try{
     if(CTIPO==='pago'){
-      const prov=await resolverProv('c-prov'); if(!prov)return; const imp=num($('c-imp').value)||0; if(imp<=0){toast('Poné el importe');return;}
+      const imp=num($('c-imp').value)||0; if(imp<=0){toast('Poné el importe');return;} if(!f){toast('Poné la fecha');return;}
+      const prov=await resolverProv('c-prov'); if(!prov)return;
       const medio=$('c-medio').value; const cajaId=await ins('caja',{fecha:f,concepto:'Pago a proveedor',detalle:nomProv(prov)+(nota?' · '+nota:''),ingreso:0,egreso:imp,medio});
       await ins('prov_movimientos',{proveedor_id:prov,fecha:f,tipo:'pago',importe:-imp,detalle:(medio+(nota?' · '+nota:'')),caja_id:cajaId});
       await Promise.all(['caja','provmov'].map(cargarTabla)); toast('Pago registrado ✓'); pintarCompras(); pintarInicio(); return;
@@ -315,7 +318,7 @@ async function registrarCompra(){
       if(p&&p.costo!==costo) await sb.from('productos').update({costo}).eq('id',pid);
     } else if(CTIPO==='devolucion'){
       const prop=$('c-prop').value; let provMovId=null;
-      if($('c-credito').checked&&costo) provMovId=await ins('prov_movimientos',{proveedor_id:prov,fecha:f,tipo:'credito',importe:-q*costo,detalle:'Devolución: '+det});
+      if(prop==='propio'&&$('c-credito').checked&&costo) provMovId=await ins('prov_movimientos',{proveedor_id:prov,fecha:f,tipo:'credito',importe:-q*costo,detalle:'Devolución: '+det});
       await ins('stock_mov',{producto_id:pid,fecha:f,tipo:'devolucion',cantidad:-q,propiedad:prop,proveedor_id:prov,costo_unit:costo,prov_mov_id:provMovId,edicion:ed,nota});
     }
     let msg='Registrado ✓';
@@ -342,3 +345,11 @@ async function pctProv(id){ const p=provDe(id); if(!p)return;
   const t=prompt('% del precio de tapa que le debés a '+unesc(p.nombre)+' por cada unidad vendida en consignación (ej. 68). 0 = costo pactado a mano:',String(p.pct||'')); if(t===null)return;
   const pct=num(t)||0; if(pct<0||pct>100){toast('El % va de 0 a 100');return;}
   try{ const{error}=await sb.from('proveedores').update({pct_tapa:pct}).eq('id',id); if(error)throw new Error(/pct_tapa/.test(error.message)?'falta correr supabase/2026-09-30_proveedor_pct_tapa.sql en Supabase':error.message); await cargarTabla('prov'); toast('Guardado ✓ '+(pct?pct+'% de la tapa':'costo a mano')); pintarCompras(); }catch(e){toast('Error: '+((e&&e.message)||e));} }
+
+// v96: saldo anterior o corrección de la cuenta de un proveedor (movimiento "ajuste" por la diferencia, anulable)
+async function corregirSaldoProv(id){ const p=provDe(id); if(!p)return; const s=saldoProv(id);
+  const t=prompt('Saldo correcto con '+unesc(p.nombre)+' a hoy.\nPositivo = le debés · negativo = a tu favor · 0 = al día.\nHoy el sistema dice: '+(s>0.5?'le debés ':(s<-0.5?'a tu favor ':''))+fmt(s),String(Math.round(s))); if(t===null)return;
+  const v=num(t); if(isNaN(v)){toast('Poné un número');return;} const dif=Math.round((v-s)*100)/100; if(Math.abs(dif)<0.5){toast('Ya está en ese saldo');return;}
+  try{ await ins('prov_movimientos',{proveedor_id:id,fecha:hoyISO(),tipo:'ajuste',importe:dif,detalle:'Corrección de saldo (fijado en '+fmt(v)+')'}); await cargarTabla('provmov'); toast('Saldo corregido ✓'); pintarCompras(); pintarInicio(); }catch(e){toast('Error: '+((e&&e.message)||e));} }
+async function anularAjusteProv(id){ if(!confirm('¿Anular esta corrección de saldo?'))return;
+  try{ await anularFila('prov_movimientos',id); await cargarTabla('provmov'); toast('Anulada'); pintarCompras(); pintarInicio(); }catch(e){toast('Error: '+((e&&e.message)||e));} }

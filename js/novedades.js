@@ -44,7 +44,7 @@ function pintarNovedades(){
   window.pintaN=function(){
     const ft=$('nfil').value,q=norm($('nft').value);
     const rs=rows.filter(n=>(!ft||n.tipo===ft)&&(!q||norm(nomCli(n.cli)+' '+(n.pub||'')+' '+(n.nota||'')).includes(q)));
-    $('nlist').innerHTML=rs.length?rs.slice(0,80).map(n=>`<div class="mov"><span class="f">${fecha(n.desde)}</span><span class="t"><b>${n.tipo}${!n.pub&&(n.tipo==='Baja'||n.tipo==='Reanudación')?' de cliente':''}</b> <a class="lnk" onclick="ficha(${n.cli})">${nomCli(n.cli)}</a> <span class="mini">· ${descNov(n)}${n.nota?' · '+n.nota:''}</span></span>${n.tipo!=='Cambio de precio'?`<button class="del" style="color:var(--azul)" data-nedit="${n.id}" title="Editar">✎</button>`:''}<button class="del" data-nid="${n.id}">✕</button></div>`).join(''):'<div class="mini">Ninguna todavía con ese filtro.</div>';
+    $('nlist').innerHTML=rs.length?rs.slice(0,lim('nov',80)).map(n=>`<div class="mov"><span class="f">${fecha(n.desde)}</span><span class="t"><b>${n.tipo}${!n.pub&&(n.tipo==='Baja'||n.tipo==='Reanudación')?' de cliente':''}</b> <a class="lnk" onclick="ficha(${n.cli})">${nomCli(n.cli)}</a> <span class="mini">· ${descNov(n)}${n.nota?' · '+n.nota:''}</span></span>${n.tipo!=='Cambio de precio'?`<button class="del" style="color:var(--azul)" data-nedit="${n.id}" title="Editar">✎</button>`:''}<button class="del" data-nid="${n.id}">✕</button></div>`).join('')+masBtn('nov',rs.length,80,'pintaN()'):'<div class="mini">Ninguna todavía con ese filtro.</div>';
   }
   pintaN();
 }
@@ -169,6 +169,9 @@ async function addNov(){
     if(NTIPO==='altasub'){
       const sub=leerSub(); if(!sub.pub){toast('Poné la publicación');return;} if(!sub.dias.length){toast('Marcá al menos un día');return;}
       if(!sub.desde){toast('Poné desde cuándo recibe');return;}
+      const choque=choqueAlta(cli,sub.pub,sub.dias,sub.desde,NEDIT);
+      const av=$('novaviso'); if(av) av.remove();
+      if(choque.length){ $('nok').insertAdjacentHTML('beforebegin',`<div class="aviso" id="novaviso" style="background:var(--rojosuave);color:var(--rojo)">⚠ ${textoChoque(sub.pub,choque)} No se puede dar de alta dos veces: para cambiar días o cantidad, primero cargá la Baja de esa suscripción (o usá "Pasar a…" en su ficha para cambiar quién la cobra).</div>`); toast('Ya está suscripto a '+sub.pub+' esos días'); return; }
       r={id:nid(),ts,cli,tipo:'Alta',pub:sub.pub,desde:sub.desde,hasta:'',dias:sub.dias,via:sub.via,qty:sub.qty,nota:'alta desde Novedades'};
     }else if(NTIPO==='susp'){
       r={id:nid(),ts,cli,tipo:'Suspensión',pub:($('npub').value||'').trim(),desde,hasta:$('nhasta').value||'',dias:diasOpc(),nota};

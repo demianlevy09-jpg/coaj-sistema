@@ -169,7 +169,7 @@ function ficha(id,mas){
   if(novs.length){h+=`<h2>Novedades cargadas acá</h2><div class="card">`+novs.map(n=>`<div class="subrow"><b>${n.tipo}</b> <span class="mini">${descNov(n)}${n.nota?' · '+n.nota:''}</span></div>`).join('')+`</div>`;}
   h+=`<h2>Suscripciones vigentes (${vig.length})</h2>`;
   if(vig.length) agruparSubs(vig).forEach((e,ix)=>{const todasDeLaPub=vig.filter(x=>x[0]===e.pub).length===e.rows.length;const dsx=e.dias?diasSuspHoy(id,e.pub,e.dias,altaDe(e.rows[0])):[];h+=`<div class="card subcard"><b>${e.pub}</b>${e.qty>1&&!e.qtyMix?` <span class="mini">×${e.qty}</span>`:''} <span class="pill ${e.via==='S'?'p-susc':'p-cli'}">${e.via==='S'?'vía distribuidora':'le cobrás vos'}</span>${e.app?' <span class="pill p-warn">alta cargada acá</span>':''}${e.dias?diasHTMLArr(e.dias,dsx):(e.txt?`<div class="mini" style="margin-top:6px">${e.txt}</div>`:'')}${dsx.length?(()=>{const todo=dsx.length===e.dias.length, is=infoSusp(id,e.pub,dsx); return `<div class="mini" style="margin-top:4px">${todo?'<b>Suspendida: hoy no recibe ningún día</b> (no se reparte ni se cobra)':'No recibe '+dsx.map(d=>DIAS[d]).join(', ')}${is?' · desde el '+fecha(is.desde)+(is.hasta?', vuelve el '+fecha(sumarDias(is.hasta,1)):' hasta que se reanude'):''}</div>`;})():''}${e.rows.length>1?`<div class="mini" style="margin-top:4px">${e.rows.length} suscripciones agrupadas (una por día)</div>`:''}<div class="mini" style="margin-top:6px">desde ${fecha(e.desde)}</div>
-  <div id="sf-${ix}"><button class="btn chico sec" data-sform="${ix}" data-pub="${e.pub}" data-dias="${(e.dias||[]).join(',')}" ${todasDeLaPub?'data-todas="1"':''} data-cli="${id}" data-acc="Suspensión">Suspender / dar de baja</button>${e.dias&&e.dias.length?` <button class="btn chico sec" data-cvia="${ix}" data-pub="${e.pub}" data-dias="${e.dias.join(',')}" data-via="${e.via}" data-qty="${e.qty}" data-cli="${id}">${e.via==='S'?'Pasar a "le cobrás vos"':'Pasar a "vía distribuidora"'}</button>`:''}</div></div>`;});
+  <div id="sf-${ix}"><button class="btn chico sec" data-sform="${ix}" data-pub="${e.pub}" data-dias="${(e.dias||[]).join(',')}" ${todasDeLaPub?'data-todas="1"':''} data-cli="${id}" data-acc="Suspensión">Suspender</button>${e.dias&&e.dias.length?` <button class="btn chico sec" data-cvia="${ix}" data-pub="${e.pub}" data-dias="${e.dias.join(',')}" data-via="${e.via}" data-qty="${e.qty}" data-cli="${id}">${e.via==='S'?'Pasar a "le cobrás vos"':'Pasar a "vía distribuidora"'}</button>`:''}</div></div>`;});
   else h+='<div class="card mini">Sin publicaciones vigentes.</div>';
   h+=`<div id="altabox"><button class="btn chico sec" id="altabtn" data-cli="${id}">＋ Alta de suscripción</button></div>`;
   const altasTodas=c.subs.filter(x=>x[6]==='app'&&x[3]==='V').map(x=>({pub:x[0],desde:(x[4]||'').slice(0,10),dias:FD(x[1])||[]}));
@@ -320,8 +320,22 @@ function cajaDeCobro(m){
 }
 async function borrarMov(mid,cli){
   const m=LIVE.movs.find(x=>x.id===mid);
+  const st=STOCK_OK&&LIVE.stock.find(s=>s.movId!=null&&String(s.movId)===String(mid));
+  if(st){ toast(st.tipo==='entrega'?'Es una entrega de revista: anulala desde Stock (vuelve al stock y se revierte el cargo)':'Es una venta a cuenta: anulala desde Ventas (vuelve al stock y se revierte el cargo)'); return; }
   const k=m&&m.tipo==='Cobro'?cajaDeCobro(m):null;
   const sinCaja=m&&m.tipo==='Cobro'&&!k;
   if(!confirm('¿Borrar este movimiento?'+(k?' También se saca de la caja ('+fmt(k.ing)+' '+(k.m||'')+').':(sinCaja?' No tiene un ingreso propio en la caja (es un cobro repetido o se cargó sin caja): la caja no se toca.':''))))return;
   try{ await guardar('movs',LIVE.movs.filter(x=>x.id!==mid)); if(k) await guardar('caja',LIVE.caja.filter(x=>x.id!==k.id)); toast('Borrado'); ficha(cli);}catch(e){toast('Error: '+((e&&e.message)||e));}
+}
+
+// Alta de una publicación que el cliente ya recibe esos días (y no está suspendida a esa fecha): se usa en la ficha y en Novedades.
+function choqueAlta(cli,pub,dias,desde,excluirNov){
+  const c=C.find(x=>x.id===cli), out=[]; if(!c) return out;
+  c.subs.filter(x=>x[3]==='V'&&norm(x[0])===norm(pub)&&!(excluirNov&&String(x[7])===String(excluirNov))).forEach(x=>{const dd=FD(x[1])||[]; const com=dd.length?dd.filter(d=>dias.includes(d)):dias; if(!com.length)return; if(suspendida(cli,x[0],desde,com,altaDe(x)))return; out.push({via:x[2],dias:com});});
+  return out;
+}
+function textoChoque(pub,choque){
+  const ds=[...new Set(choque.flatMap(x=>x.dias))].sort().map(d=>DIAS[d]).join(' ');
+  const via=[...new Set(choque.map(x=>x.via==='S'?'vía distribuidora':'le cobrás vos'))].join(' / ');
+  return `Este cliente <b>ya está suscripto a ${esc(pub)}</b> los días ${ds} (${via}).`;
 }

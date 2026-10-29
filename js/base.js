@@ -7,6 +7,14 @@ const CAJAS_FIJAS=['Caja Kiosko','Caja Arribeños','Mercadopago More']; // se mu
 const CAJA_DEF='Caja Kiosko'; // caja por defecto (antes 'Efectivo')
 function saldosCaja(){ const pm={}; CAJAS_FIJAS.filter(m=>LISTAS.medios.includes(m)||m===CAJA_DEF).forEach(m=>pm[m]=0); LIVE.caja.forEach(r=>{pm[r.m||'Sin medio']=(pm[r.m||'Sin medio']||0)+(r.ing||0)-(r.egr||0);}); return Object.entries(pm).filter(([m,v])=>Math.abs(v)>0.5||CAJAS_FIJAS.includes(m)); }
 const CONCEPTOS_CAJA=['Cobro a cliente','Venta mostrador','Venta de stock','Compra de mercadería','Pago a proveedor','Cobro distribuidora','Pago a distribuidora','Pago a empleado','Gasto','Retiro','Cambio inicial','Transferencia entre cuentas','Otro'];
+// v96: lo que se puede cargar desde Caja. El valor es el concepto que se guarda; el texto es lo que se ve.
+const CONCEPTOS_FORM=[['Cobro a cliente','Cobro a cliente'],['Venta mostrador','Venta mostrador'],['Transferencia entre cuentas','Pase entre cajas'],['Gasto','Gasto'],['Retiro','Retiro'],['Pago a empleado','Pago a empleado'],['Cobro distribuidora','Cobro a un distribuidor (te pagó)'],['Pago a distribuidora','Pago a un distribuidor (le pagaste)'],['Cambio inicial','Cambio inicial'],['Otro','Otro'],['Venta de stock','Venta de stock →'],['Compra de mercadería','Compra de mercadería →'],['Pago a proveedor','Pago a proveedor →']];
+// qué importe pide cada concepto: ing = solo entra, egr = solo sale, ambos = Ingreso o Egreso
+const MODO_CONCEPTO={'Cobro a cliente':'ing','Venta mostrador':'ing','Cobro distribuidora':'ing','Cambio inicial':'ing','Transferencia entre cuentas':'ing','Gasto':'egr','Retiro':'egr','Pago a empleado':'egr','Pago a distribuidora':'egr','Otro':'ambos'};
+// estos se cargan en su pantalla para que muevan stock y la cuenta del proveedor (desde Caja quedaban sueltos)
+const IR_A={'Venta de stock':{txt:'Las ventas de stock se cargan en Ventas (así baja el stock).',btn:'Ir a Ventas',go:"irTab('ventas')"},
+  'Compra de mercadería':{txt:'Las compras se cargan en Compras (así entra al stock y, si queda a cuenta, a la cuenta del proveedor).',btn:'Ir a Compras',go:"irTab('compras');setTimeout(()=>{CTIPO='compra';pintarCompras();},30)"},
+  'Pago a proveedor':{txt:'Los pagos a proveedores se cargan en Compras → Pago (así baja lo que le debés).',btn:'Ir a pagar',go:"irTab('compras');setTimeout(()=>{CTIPO='pago';pintarCompras();},30)"}};
 let LIVE={movs:[],caja:[],precios:[],novedades:[],dist:[],feriados:[],devol:[],reparto:[],vueltas:[],prov:[],prod:[],stock:[],provmov:[],pubdist:[],dists:[]};
 let FER=new Set(); // fechas ISO cargadas como feriado
 let FERP={}; // fecha -> lista normalizada de publicaciones que NO salen ese día (vacía/null = no sale nada)
@@ -47,5 +55,8 @@ function FD(fr){
 // ¿Le toca a esta suscripción (days) el día `dia` (weekday wd)? Incluye el caso "Fer": feriado cargado con diario.
 function tocaDia(days,wd,dia){ if(!days) return false; if(days.includes(wd)) return true; return days.includes(7)&&FER.has(dia)&&!feriadoTotal(dia); }
 const FDIAS={'lunes':[0],'martes':[1],'miercoles':[2],'jueves':[3],'viernes':[4],'sabado':[5],'domingo':[6],'feriados':[7],'feriado':[7],'solo feriados':[7],'dias feriados':[7],'todos los dias':[0,1,2,3,4,5,6],'de lunes a viernes':[0,1,2,3,4],'lunes a viernes':[0,1,2,3,4],'de lunes a sabado':[0,1,2,3,4,5],'lunes a sabado':[0,1,2,3,4,5],'sabado y domingo':[5,6],'lunes y jueves':[0,3],'lunes, miercoles y viernes':[0,2,4],'martes y viernes':[1,4],'martes y jueves':[1,3],'jueves y sabado':[3,5]};
+// v96: listas con "Mostrar más" (antes se cortaban y lo viejo no se podía anular)
+const LIM={}; function lim(k,n){ return LIM[k]||n; }
+function masBtn(k,total,n,fn){ const l=lim(k,n); return total>l?`<div style="text-align:center;margin-top:6px"><button class="btn chico sec" onclick="LIM['${k}']=${l+n};${fn}">Mostrar más (${total-l})</button></div>`:''; }
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('ver');setTimeout(()=>t.classList.remove('ver'),2200);}
 const dget=snap=>(snap&&typeof snap.data==='function')?snap.data():snap;

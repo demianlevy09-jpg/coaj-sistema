@@ -8,20 +8,16 @@ function pintarCaja(){
   $('v-caja').innerHTML=`${titulo('Caja','Saldo por medio de pago y movimientos cargados acá')}
   <div class="kpis">${Object.keys(porMedio).length?Object.entries(porMedio).map(([m,v])=>`<div class="kpi ${v<-0.5?'rojo':'ok'}"><i>${m||'Sin medio'}</i><b>${fmt(v)}</b><i>saldo actual</i></div>`).join(''):'<div class="kpi gris"><i>Caja</i><b>—</b><i>sin movimientos aún</i></div>'}<div class="kpi ${deHoy.length?(netoHoy<0?'rojo':''):'gris'}"><i>Hoy</i><b>${deHoy.length?fmt(netoHoy):'—'}</b><i>${deHoy.length?deHoy.length+' movimientos':'sin movimientos hoy'}</i></div></div>
   <div class="card"><b>Cargar movimiento</b>
-    <label>Concepto</label><select id="cc">${CONCEPTOS_CAJA.map(c=>`<option>${c}</option>`).join('')}</select>
+    <label>Qué pasó</label><select id="cc">${CONCEPTOS_FORM.map(([v,t])=>`<option value="${v}">${t}</option>`).join('')}</select>
+    <div id="cotro" class="aviso" hidden></div>
     <div id="ccli-w" class="campo"><label>Quién pagó</label>${acHTML('ccli','Nº, dirección o nombre del cliente')}<div class="mini" id="ccli-i" style="margin-top:6px"></div></div>
-    <div class="grid2" id="cimp-g"><div><label id="cing-l">Ingreso $</label><input id="cing" type="text" inputmode="decimal" autocomplete="off" placeholder="0"></div>
+    <div id="cdist-w" class="campo" hidden><label>Distribuidor</label><select id="cdist">${DISTS.map(x=>`<option value="${x.id}">${x.nombre}</option>`).join('')||'<option value="1">Distribuidora</option>'}</select><div class="mini" style="margin-top:6px">También queda en la cuenta del distribuidor (pestaña Distribuidores).</div></div>
+    <div id="cimp-w"><div class="grid2" id="cimp-g"><div><label id="cing-l">Ingreso $</label><input id="cing" type="text" inputmode="decimal" autocomplete="off" placeholder="0"></div>
     <div id="cegr-w"><label>Egreso $</label><input id="cegr" type="text" inputmode="decimal" autocomplete="off" placeholder="0"></div></div>
-    <div class="grid2"><div><label>Medio</label><select id="cm">${LISTAS.medios.map(m=>`<option>${m}</option>`).join('')}</select></div><div><label>Fecha</label><input id="cf" type="date" value="${hoyISO()}"></div></div>
+    <div class="grid2"><div id="cm-w"><label id="cm-l">Caja</label><select id="cm">${LISTAS.medios.map(m=>`<option${m===CAJA_DEF?' selected':''}>${m}</option>`).join('')}</select></div><div id="cm2-w" hidden><label>Entra a</label><select id="cm2">${LISTAS.medios.map(m=>`<option${m==='Mercadopago More'?' selected':''}>${m}</option>`).join('')}</select></div></div>
+    <div class="grid2"><div><label>Fecha</label><input id="cf" type="date" value="${hoyISO()}"></div><div></div></div>
     <label>Nota</label><input id="cd" placeholder="opcional, ej: pagó agosto y la mitad de septiembre">
-    <div><button class="btn" id="cok">Guardar</button></div></div>
-  <details class="card plegable"><summary>Pasar plata entre cajas <span class="mini">ej: llevaste plata del kiosko a Arribeños</span></summary>
-    <div class="mini" style="margin:12px 0 0">Sale de una caja y entra en la otra; el total no cambia.</div>
-    <div class="grid2"><div><label>Sale de</label><select id="tdesde">${LISTAS.medios.map(m=>`<option${m===CAJA_DEF?' selected':''}>${m}</option>`).join('')}</select></div>
-    <div><label>Entra a</label><select id="thacia">${LISTAS.medios.map(m=>`<option${m==='Mercadopago More'?' selected':''}>${m}</option>`).join('')}</select></div></div>
-    <div class="grid2"><div><label>Importe $</label><input id="timp" type="text" inputmode="decimal" autocomplete="off" placeholder="0"></div><div><label>Fecha</label><input id="tf" type="date" value="${hoyISO()}"></div></div>
-    <label>Nota</label><input id="tnota" placeholder="opcional, ej: depósito en el banco">
-    <div><button class="btn sec" id="tok">Pasar</button></div></details>
+    <div><button class="btn" id="cok">Guardar</button></div></div></div>
   <h2>Movimientos cargados</h2>
   <div class="filtros"><select id="fcc"><option value="">Concepto: todos</option>${[...new Set([...CONCEPTOS_CAJA,...rows.map(r=>r.c).filter(Boolean)])].map(c=>`<option>${c}</option>`).join('')}</select>
   <select id="fcm"><option value="">Medio: todos</option>${LISTAS.medios.map(m=>`<option>${m}</option>`).join('')}</select>
@@ -34,7 +30,14 @@ function pintarCaja(){
   <input id="fch2" type="search" placeholder="Buscar en el histórico…" style="margin-bottom:8px">
   <div class="card" id="chlist"></div>`;
   // Cobro a cliente: se elige quién pagó y el cobro entra a su cuenta y a la caja (mismo camino que la ficha)
-  window.cajaModo=function(){ const cob=$('cc').value==='Cobro a cliente'; $('ccli-w').hidden=!cob; $('cegr-w').hidden=cob; $('cimp-g').classList.toggle('uno',cob); $('cing-l').textContent=cob?'Importe cobrado $':'Ingreso $'; if(cob)$('cegr').value=''; };
+  window.cajaModo=function(){ const c=$('cc').value, m=MODO_CONCEPTO[c]||'ambos', ir=IR_A[c];
+    $('cotro').hidden=!ir; if(ir)$('cotro').innerHTML=ir.txt+' <button class="btn chico" style="margin:0 0 0 8px" onclick="'+ir.go+'">'+ir.btn+'</button>';
+    $('cimp-w').hidden=!!ir; $('cok').hidden=!!ir;
+    $('ccli-w').hidden=c!=='Cobro a cliente'; $('cdist-w').hidden=!(c==='Cobro distribuidora'||c==='Pago a distribuidora');
+    const pase=c==='Transferencia entre cuentas'; $('cm2-w').hidden=!pase; $('cm-l').textContent=pase?'Sale de':'Caja';
+    $('cegr-w').hidden=m!=='ambos'; $('cimp-g').classList.toggle('uno',m!=='ambos');
+    $('cing-l').textContent=m==='ambos'?'Ingreso $':(c==='Cobro a cliente'?'Importe cobrado $':'Importe $');
+    if(m!=='ambos')$('cegr').value=''; };
   window.cajaCliInfo=function(){ const el=$('ccli-i'); if(!el)return; const id=parseInt($('ccli').dataset.cli)||null; const c=id?C.find(x=>x.id===id):null; if(!c){el.textContent='';return;}
     const s=saldoDe(c,hoyISO()); el.innerHTML=(c.n?c.n+' · ':'')+(Math.abs(s)<0.5?'al día':(s>0?'te debe <b>'+fmt(s)+'</b>':'a favor <b>'+fmt(-s)+'</b>'))+' <span class="lnk" onclick="ficha('+id+')">ver ficha</span>'; };
   cajaModo();
@@ -67,23 +70,47 @@ function pintarCaja(){
   pintaC();pintaH();
 }
 async function addCaja(){
-  const c=$('cc').value, f=$('cf').value, m=$('cm').value, nota=$('cd').value.trim();
+  const c=$('cc').value, f=$('cf').value, m=$('cm').value, nota=$('cd').value.trim(), modo=MODO_CONCEPTO[c]||'ambos';
+  if(IR_A[c]){toast(IR_A[c].txt);return;}
   if(!f){toast('Poné la fecha');return;}
   if(c==='Cobro a cliente'){
-    const id=parseInt($('ccli').dataset.cli)||null; if(!id){toast('Elegí qué cliente pagó');$('ccli').focus();return;}
+    let id=parseInt($('ccli').dataset.cli)||null;
+    if(!id){ const q=$('ccli').value.trim(), rs=q?buscarCli(q,2):[]; if(rs.length===1||(rs.length&&/^\d+$/.test(q)))id=rs[0].id; else if(rs.length>1){toast('Hay varios clientes que coinciden: elegí uno de la lista');return;} }
+    if(!id){toast('Elegí qué cliente pagó');$('ccli').focus();return;}
     const imp=num($('cing').value)||0; if(imp<=0){toast('Poné el importe cobrado');return;}
     try{ if(await cobrarCliente(id,imp,m,f,nota)){ toast('Cobro de '+nomCli(id)+' guardado ✓'); pintarCaja(); } }catch(e){toast('No se pudo guardar: '+((e&&e.message)||e));}
     return;
   }
-  const ing=num($('cing').value)||0, egr=num($('cegr').value)||0;
+  if(c==='Transferencia entre cuentas') return transferirCaja(m,$('cm2').value,num($('cing').value)||0,f,nota);
+  let ing=num($('cing').value)||0, egr=num($('cegr').value)||0;
+  if(modo==='egr'){ egr=ing; ing=0; }
+  if(ing<0||egr<0){toast('El importe va sin signo');return;}
   if(!ing&&!egr){toast('Poné un importe');return;}
+  if(ing&&egr){toast('Poné ingreso o egreso, no los dos (si fueron dos cosas, cargalas por separado)');return;}
+  if(c==='Cobro distribuidora'||c==='Pago a distribuidora') return pagoDistCaja(parseInt($('cdist').value)||1,c==='Cobro distribuidora'?ing:-egr,m,f,nota);
   const r={id:nid(),ts:new Date().toISOString(),f,c,d:nota,ing,egr,m};
   try{ await guardar('caja',[...LIVE.caja,r]); toast('Caja guardada ✓'); pintarCaja(); }catch(e){toast('Error: '+((e&&e.message)||e));}
 }
+// Cobro/pago con un distribuidor: va a la caja y a la cuenta del distribuidor a la vez.
+// imp>0 = te pagó (entra plata, te debe menos); imp<0 = le pagaste (sale plata, le debés menos). medio vacío = no pasó por caja.
+async function pagoDistCaja(dist,imp,medio,f,nota,detDist){
+  const nom=unesc(nomDist(dist)), ts=new Date().toISOString(), abs=Math.abs(imp);
+  const rd={id:nid(),ts,f,d:detDist||((imp>0?nom+' te pagó':'Le pagaste a '+nom)+(nota?' · '+nota:'')),imp:imp>0?abs:-abs,dist};
+  try{
+    await guardar('dist',[...LIVE.dist,rd]);
+    if(medio){ const rc={id:nid(),ts,f,c:imp>0?'Cobro distribuidora':'Pago a distribuidora',d:nom+(nota?' · '+nota:''),ing:imp>0?abs:0,egr:imp>0?0:abs,m:medio};
+      try{ await guardar('caja',[...LIVE.caja,rc]); }catch(e){ await guardar('dist',LIVE.dist.filter(x=>x.id!==rd.id)).catch(()=>{}); throw e; } }
+    toast((imp>0?'Cobro':'Pago')+' de '+fmt(abs)+' guardado ✓'+(medio?' · '+medio+' y cuenta de '+nom:' · solo en la cuenta de '+nom));
+    if($('v-caja')&&!$('v-caja').hidden) pintarCaja(); if($('v-dist')&&!$('v-dist').hidden) pintarDist(); pintarInicio();
+  }catch(e){toast('Error: '+((e&&e.message)||e));}
+}
+// pareja caja ↔ cuenta del distribuidor de un cobro/pago cargado junto (misma fecha e importe, guardados con segundos de diferencia)
+function parDist(r){ if(!r||!(r.c==='Cobro distribuidora'||r.c==='Pago a distribuidora'))return null; const imp=r.c==='Cobro distribuidora'?r.ing:-r.egr;
+  const cs=LIVE.dist.filter(x=>x.f===r.f&&Math.abs(x.imp-imp)<0.5&&Math.abs(new Date(x.ts)-new Date(r.ts))<120000); return cs.length===1?cs[0]:null; }
+function cajaDeDist(d){ if(!d)return null; const cs=LIVE.caja.filter(r=>(r.c==='Cobro distribuidora'||r.c==='Pago a distribuidora')&&parDist(r)===d); return cs.length===1?cs[0]:null; }
 let TRANSF_BUSY=false;
-async function transferirCaja(){
-  const de=$('tdesde').value, a=$('thacia').value, imp=num($('timp').value)||0, f=$('tf').value, nota=$('tnota').value.trim();
-  if(de===a){toast('Elegí dos cajas distintas');return;} if(imp<=0){toast('Poné el importe');return;} if(TRANSF_BUSY)return;
+async function transferirCaja(de,a,imp,f,nota){
+  if(de===a){toast('Elegí dos cajas distintas');return;} if(imp<=0){toast('Poné el importe');return;} if(!f){toast('Poné la fecha');return;} if(TRANSF_BUSY)return;
   const d=de+' → '+a+(nota?' · '+nota:''), ts=new Date().toISOString();
   const r1={id:nid(),ts,f,c:'Transferencia entre cuentas',d,ing:0,egr:imp,m:de}, r2={id:nid(),ts,f,c:'Transferencia entre cuentas',d,ing:imp,egr:0,m:a};
   TRANSF_BUSY=true;
@@ -99,6 +126,7 @@ async function borrarCaja(id){
   if(cob){ toast('Es el cobro de '+nomCli(cob.cli)+': borralo desde su ficha y sale de los dos lados'); ficha(cob.cli); return; }
   if(STOCK_OK&&LIVE.stock.some(m=>String(m.cajaId)===String(r.id))){ toast('Viene de una venta o compra de stock: anulala desde Ventas o Compras'); return; }
   if(STOCK_OK&&LIVE.provmov.some(m=>String(m.cajaId)===String(r.id))){ toast('Es un pago a proveedor: anulalo desde Compras → Proveedores'); return; }
-  if(!confirm(p?'¿Borrar esta transferencia entre cajas? Se borran las dos partes ('+(r.egr?r.m+' → '+p.m:p.m+' → '+r.m)+').':'¿Borrar?'))return;
-  try{ await guardar('caja',LIVE.caja.filter(x=>x.id!==id&&(!p||x.id!==p.id))); toast('Borrado'); pintarCaja(); }catch(e){toast('Error: '+((e&&e.message)||e));}
+  const pd=parDist(r);
+  if(!confirm(p?'¿Borrar esta transferencia entre cajas? Se borran las dos partes ('+(r.egr?r.m+' → '+p.m:p.m+' → '+r.m)+').':(pd?'¿Borrar? También se saca de la cuenta de '+unesc(nomDist(pd.dist||1))+'.':'¿Borrar?')))return;
+  try{ await guardar('caja',LIVE.caja.filter(x=>x.id!==id&&(!p||x.id!==p.id))); if(pd) await guardar('dist',LIVE.dist.filter(x=>x.id!==pd.id)); toast('Borrado'); pintarCaja(); }catch(e){toast('Error: '+((e&&e.message)||e));}
 }

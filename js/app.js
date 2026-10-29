@@ -32,9 +32,12 @@ document.addEventListener('click',function(e){
   const dren=e.target.closest('[data-dren]'); if(dren){renombrarDist(parseInt(dren.dataset.dren));return;}
   const pren=e.target.closest('[data-pren]'); if(pren){renombrarProv(parseInt(pren.dataset.pren));return;}
   const ppct=e.target.closest('[data-ppct]'); if(ppct){pctProv(parseInt(ppct.dataset.ppct));return;}
+  const psal=e.target.closest('[data-psal]'); if(psal){corregirSaldoProv(parseInt(psal.dataset.psal));return;}
+  const pajd=e.target.closest('[data-pajdel]'); if(pajd){anularAjusteProv(pajd.dataset.pajdel);return;}
   const pajok=e.target.closest('[data-pajok]'); if(pajok){ajustarStock(parseInt(pajok.dataset.pajok));return;}
   const prep=e.target.closest('[data-prepartir]'); if(prep){repartirUltimo(parseInt(prep.dataset.prepartir));return;}
   const edel=e.target.closest('[data-edel]'); if(edel){anularEntrega(edel.dataset.edel);return;}
+  const ajd=e.target.closest('[data-ajdel]'); if(ajd){anularAjuste(ajd.dataset.ajdel);return;}
   if(e.target.closest('#cmas')){CLIM+=100;pintaC();return;}
   if(e.target.closest('#fclimp')){['fcc','fcm','fcv','fcd','fch','fct','fcli'].forEach(i=>{$(i).value='';});$('fcli').dataset.cli='';$('fcdup').checked=false;CLIM=50;pintaC();return;}
   if(e.target.closest('#pf-ok')){guardarProd(parseInt(e.target.closest('#pf-ok').dataset.pid)||null);return;}
@@ -122,12 +125,10 @@ document.addEventListener('click',function(e){
     const desde=$('adesde').value; if(!desde){toast('Poné desde cuándo recibe');return;}
     const c=C.find(x=>x.id===cli);
     // Bloqueo: si ya recibe esa publicación alguno de esos días (y no está suspendida/dada de baja a esa fecha), no se puede dar de alta otra vez.
-    const choque=[]; if(c) c.subs.filter(x=>x[3]==='V'&&norm(x[0])===norm(pub)).forEach(x=>{const dd=FD(x[1])||[]; const com=dd.length?dd.filter(d=>dias.includes(d)):dias; if(!com.length)return; if(suspendida(cli,x[0],desde,com,altaDe(x)))return; choque.push({via:x[2],dias:com});});
+    const choque=choqueAlta(cli,pub,dias,desde);
     const avisoEl=$('altaaviso'); if(avisoEl) avisoEl.remove();
     if(choque.length){
-      const ds=[...new Set(choque.flatMap(x=>x.dias))].sort().map(d=>DIAS[d]).join(' ');
-      const via=[...new Set(choque.map(x=>x.via==='S'?'vía distribuidora':'le cobrás vos'))].join(' / ');
-      ao.insertAdjacentHTML('beforebegin',`<div class="aviso" id="altaaviso" style="background:var(--rojosuave);color:var(--rojo)">⚠ Este cliente <b>ya está suscripto a ${esc(pub)}</b> los días ${ds} (${via}). No se puede dar de alta dos veces: primero dale de baja o suspendela arriba, o usá el botón "Pasar a…" si lo que querés es cambiar quién la cobra.</div>`);
+      ao.insertAdjacentHTML('beforebegin',`<div class="aviso" id="altaaviso" style="background:var(--rojosuave);color:var(--rojo)">⚠ ${textoChoque(pub,choque)} No se puede dar de alta dos veces: primero dale de baja o suspendela arriba, o usá el botón "Pasar a…" si lo que querés es cambiar quién la cobra.</div>`);
       toast('Ya está suscripto a '+pub+' esos días');
       return;
     }
@@ -206,7 +207,6 @@ document.addEventListener('click',function(e){
     case 'emok': guardarEmisor();break;
     case 'fok': addMov(parseInt(b.dataset.cli),b.dataset.tipo);break;
     case 'cok': addCaja();break;
-    case 'tok': transferirCaja();break;
     case 'pok': addPrecio();break;
     case 'nok': addNov();break;
     case 'dok': addDist();break;
@@ -280,6 +280,6 @@ try{window.matchMedia('(min-width:900px)').addEventListener('change',ubicarBoton
    (pasaba con Caja, Corregir saldo, Vender, Compras, Repartir revista, Distribuidores, Precios, Resumen...). */
 let ULT_BTN=null; document.addEventListener('click',e=>{ULT_BTN=e.target.closest&&e.target.closest('button');},true);
 function bloq(fn){ let ocupado=false; return async function(...a){ if(ocupado){ toast('Guardando…'); return; } ocupado=true; const b=ULT_BTN; if(b) b.disabled=true; try{ return await fn.apply(this,a); } finally{ ocupado=false; if(b) b.disabled=false; } }; }
-['addCaja','transferirCaja','borrarCaja','editarClienteOK','notaOK','borrarNota','corregirSaldo','borrarMov','nuevoDist','addFeriado','borrarFeriado','addDevol','borrarDevol','guardarComision','addDist','borrarDist','addNov','reactivarCliente','borrarNov','addPrecio','borrarPrecio','asignarVuelta','quitarDeVuelta','nuevaVuelta','imprimirResumenes','guardarEmisor','repartirUltimo','anularEntrega','guardarProd','bajaProd','ajustarStock','vender','anularVenta','registrarCompra','anularIngreso','anularPagoProv','nuevoProveedor','guardarPermisos','crearUsuario','cambiarClave','bloquearUsuario','borrarUsuario']
+['addCaja','transferirCaja','pagoDistCaja','anularAjuste','corregirSaldoProv','anularAjusteProv','borrarCaja','editarClienteOK','notaOK','borrarNota','corregirSaldo','borrarMov','nuevoDist','addFeriado','borrarFeriado','addDevol','borrarDevol','guardarComision','addDist','borrarDist','addNov','reactivarCliente','borrarNov','addPrecio','borrarPrecio','asignarVuelta','quitarDeVuelta','nuevaVuelta','imprimirResumenes','guardarEmisor','repartirUltimo','anularEntrega','guardarProd','bajaProd','ajustarStock','vender','anularVenta','registrarCompra','anularIngreso','anularPagoProv','nuevoProveedor','guardarPermisos','crearUsuario','cambiarClave','bloquearUsuario','borrarUsuario']
   .forEach(n=>{ if(typeof window[n]==='function') window[n]=bloq(window[n]); });
 gate();
