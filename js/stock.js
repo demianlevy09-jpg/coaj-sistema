@@ -211,7 +211,7 @@ async function anularVenta(id){
 }
 
 /* ---- COMPRAS / INGRESOS / PROVEEDORES ---- */
-const CTIPOS=[['compra','Compra'],['recepcion','Recepción en consignación'],['devolucion','Devolución a proveedor'],['pago','Pago a proveedor'],['proveedores','Proveedores']];
+const CTIPOS=[['urbanpoint','Entregas de Urban Point'],['compra','Compra'],['recepcion','Recepción en consignación'],['devolucion','Devolución a proveedor'],['pago','Pago a proveedor'],['proveedores','Proveedores']];
 function pintarCompras(){
   const el=$('v-compras'); if(!STOCK_OK){el.innerHTML=faltaSQL('Compras');return;}
   const mes=hoyISO().slice(0,7);
@@ -247,6 +247,7 @@ async function resolverProd(id,costo){
 }
 function pintarCForm(){
   const hoy=hoyISO(); let h='';
+  if(CTIPO==='urbanpoint'){ $('cform').innerHTML=pintarUrbansoft(); const cl=$('clista'); if(cl) cl.innerHTML=''; return; }
   const fFecha=`<div class="grid2"><div><label>Fecha</label><input id="c-fecha" type="date" value="${hoy}"></div><div><label>Nota</label><input id="c-nota" placeholder="opcional"></div></div>`;
   if(CTIPO==='compra') h=`<div class="mini" style="margin:6px 0 2px">La mercadería pasa a ser tuya. Si la pagás ahora sale de caja; si es a cuenta, queda en la CC del proveedor.</div>${provSelHTML('c-prov')}${prodSelHTML('c-prod')}
     <div class="grid2"><div><label>Cantidad</label><input id="c-qty" type="number" inputmode="numeric" min="1" value="1" oninput="compraTotal()"></div><div><label>Costo unitario $</label><input id="c-costo" type="text" inputmode="decimal" autocomplete="off" placeholder="0" oninput="compraTotal()"></div></div>

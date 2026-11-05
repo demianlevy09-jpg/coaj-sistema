@@ -1,8 +1,8 @@
 // COHAJ Sistema — capa de datos: lectura y escritura en las tablas de Supabase
 // Parte del código de la app (antes todo estaba en index.html). Se cargan en orden, como scripts comunes: comparten las variables globales.
 /* ------- capa de datos: tablas de Supabase (v33) ------- */
-const TABLAS={movs:'movimientos',caja:'caja',precios:'precios',novedades:'novedades',dist:'dist_movimientos',feriados:'feriados',devol:'devoluciones',reparto:'reparto',vueltas:'vueltas',prov:'proveedores',prod:'productos',stock:'stock_mov',provmov:'prov_movimientos',pubdist:'publicaciones_dist',dists:'distribuidores'};
-const ORDEN_COL={feriados:'fecha',vueltas:'orden',pubdist:'publicacion'};
+const TABLAS={movs:'movimientos',caja:'caja',precios:'precios',novedades:'novedades',dist:'dist_movimientos',feriados:'feriados',devol:'devoluciones',reparto:'reparto',vueltas:'vueltas',prov:'proveedores',prod:'productos',stock:'stock_mov',provmov:'prov_movimientos',pubdist:'publicaciones_dist',dists:'distribuidores',uslineas:'urbansoft_lineas',ussync:'urbansoft_sync'};
+const ORDEN_COL={feriados:'fecha',vueltas:'orden',pubdist:'publicacion',uslineas:'fecha'};
 const A_DB={
   movs:r=>({cliente_id:r.cli,fecha:r.f,tipo:r.tipo,importe:r.imp,medio:r.medio||'',nota:r.nota||''}),
   caja:r=>({fecha:r.f,concepto:r.c,detalle:r.d||'',ingreso:r.ing||0,egreso:r.egr||0,medio:r.m||cajaDef(),movimiento_id:r.mid||null}),
@@ -25,11 +25,14 @@ const DE_DB={
   reparto:x=>({id:String(x.id),cli:x.cliente_id,dia:x.dia,vuelta:x.vuelta,orden:x.orden||0,org:x.origen||''}),
   vueltas:x=>({id:x.nombre,nombre:x.nombre,repartidor:x.repartidor||'',orden:x.orden||0,activo:x.activo!==false}),
   prov:x=>({id:x.id,nombre:x.nombre,tel:x.telefono||'',nota:x.nota||'',activo:x.activo!==false,pct:Number(x.pct_tapa)||0}),
-  prod:x=>({id:x.id,nombre:x.nombre,cat:x.categoria||'',prov:x.proveedor_id,modo:x.modo_precio||'fijo',precio:Number(x.precio_venta)||0,margen:Number(x.margen)||0,costo:Number(x.costo)||0,activo:x.activo!==false,pubs:x.publicaciones||[]}),
+  prod:x=>({id:x.id,nombre:x.nombre,cat:x.categoria||'',prov:x.proveedor_id,modo:x.modo_precio||'fijo',precio:Number(x.precio_venta)||0,margen:Number(x.margen)||0,costo:Number(x.costo)||0,activo:x.activo!==false,pubs:x.publicaciones||[],sku:x.sku||''}),
   stock:x=>({id:String(x.id),ts:x.creado_en,prod:x.producto_id,f:x.fecha,tipo:x.tipo,qty:x.cantidad,prop:x.propiedad,prov:x.proveedor_id,costo:Number(x.costo_unit)||0,precio:Number(x.precio_unit)||0,medio:x.medio||'',cli:x.cliente_id,cajaId:x.caja_id,provMovId:x.prov_mov_id,movId:x.mov_id,nota:x.nota||'',ed:x.edicion||''}),
   provmov:x=>({id:String(x.id),ts:x.creado_en,prov:x.proveedor_id,f:x.fecha,tipo:x.tipo,imp:Number(x.importe),d:x.detalle||'',cajaId:x.caja_id}),
   pubdist:x=>({id:x.publicacion,pub:x.publicacion,dist:x.distribuidor_id}),
-  dists:x=>({id:x.id,nombre:x.nombre,activo:x.activo!==false,comision:x.comision==null?null:Number(x.comision)})
+  dists:x=>({id:x.id,nombre:x.nombre,activo:x.activo!==false,comision:x.comision==null?null:Number(x.comision)}),
+  // v99: espejo de Urban Soft (lo escribe la Edge Function; la app solo marca recibida/rechazada)
+  uslineas:x=>({id:x.id,tipo:x.tipo,doc:String(x.doc_id),productoUs:String(x.producto_us),sku:x.sku||'',nombre:x.nombre||'',cat:x.categoria||'',foto:x.foto||'',fecha:x.fecha||'',vence:x.vence||'',qty:Number(x.cantidad)||0,estadoUs:x.estado_us||'',costo:Number(x.costo)||0,pvp:Number(x.pvp)||0,estado:x.estado,qtyRec:x.cantidad_recibida==null?null:Number(x.cantidad_recibida),movId:x.stock_mov_id,recibidoEn:x.recibido_en||'',nota:x.nota||'',visto:x.visto_en||''}),
+  ussync:x=>({id:String(x.id),ts:x.en,ok:!!x.ok,d:x.detalle||'',n:x.lineas||0,nuevas:x.nuevas||0,pend:x.pendientes||0})
 };
 async function todo(mk){ // trae todas las filas paginando de a 1000
   let out=[],from=0;
@@ -83,6 +86,7 @@ async function boot(){
     try{ await cargarTabla('vueltas'); await cargarTabla('reparto'); REPARTO_OK=true; }catch(e){ REPARTO_OK=false; console.warn('reparto',e); }
     try{ await cargarTabla('dists'); }catch(e){ console.warn('dists',e); }
     try{ await Promise.all(['prov','prod','stock','provmov','pubdist'].map(cargarTabla)); STOCK_OK=true; }catch(e){ STOCK_OK=false; console.warn('stock',e); }
+    try{ await Promise.all(['uslineas','ussync'].map(cargarTabla)); URBAN_OK=true; }catch(e){ URBAN_OK=false; console.warn('urbansoft',e); }
   }catch(e){
     $('cargando').innerHTML='No pude leer los datos: '+((e&&e.message)||e)+'<br><br><button class="btn" onclick="location.reload()">Recargar</button> <button class="btn sec" id="lsalir">Volver a entrar</button>';
     return;

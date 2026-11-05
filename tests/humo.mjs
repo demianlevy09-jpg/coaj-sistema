@@ -58,6 +58,15 @@ for (const [nombre, vp] of [['escritorio', { width: 1280, height: 900 }], ['tele
     await page.keyboard.type('Revista Inventada'); await page.keyboard.press('Enter'); await page.waitForTimeout(50);
     const r = await page.evaluate(() => [document.getElementById('c-prod').value, document.getElementById('c-prod-nombre').value, document.getElementById('c-prod-nuevo').hidden]);
     if (r[0] !== 'nuevo' || r[1] !== 'Revista Inventada' || r[2]) errores.push(`[${nombre}] buscador: "Nuevo producto" no tomó lo buscado (${r})`); }
+  // v99: entregas de Urban Point: la pantalla lista lo pendiente, "marcar recibida" crea el producto y la recepción, y la línea deja de estar pendiente
+  { const r = await page.evaluate(async () => { ver('compras'); CTIPO = 'urbanpoint'; PINTAR.compras(); scrollTo(0, 0);
+      const docs = document.querySelectorAll('[id^="usdoc-"]').length, pendAntes = usPendientes().length;
+      const i = document.querySelector('[data-usq="S999:1"]'); if (i) i.value = '2';
+      window.confirm = () => true; await usRecibirDoc('S999');
+      const p = prodPorSku('TST-001'); const st = p ? stockDe(p.id) : null;
+      return [docs, pendAntes, usPendientes().length, p ? p.precio : null, st ? st.consig[3] : null, document.querySelectorAll('[id^="usdoc-"]').length]; });
+    if (r[0] !== 2 || r[1] !== 2 || r[2] !== 1 || r[3] !== 1500 || r[4] !== 2 || r[5] !== 1) errores.push(`[${nombre}] urbanpoint: recibir una entrega no funcionó (${r})`);
+    if (capturas) await page.screenshot({ path: `${capturas}/${nombre}-urbanpoint.png`, fullPage: true }); }
   // ficha de un cliente
   await page.evaluate(() => ficha(3));
   await page.waitForTimeout(150);

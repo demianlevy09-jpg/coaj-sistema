@@ -90,8 +90,15 @@
   const config = [{ clave: 'comision', valor: 32 }, { clave: 'medios', valor: ['Caja Kiosko', 'Caja Arribeños', 'Mercadopago More', 'Modo'] }];
   const distribuidores = [fil({ id: 1, nombre: 'Distribuidora principal', activo: true, comision: 32 })];
   const perfiles = [{ id: 'u-test', rol: 'admin', activo: true, nombre: 'Demian' }];
+  // v99: proveedor Urban Point y una entrega pendiente de Urban Soft (ficticia) para que la pantalla tenga algo que mostrar
+  const proveedores = [fil({ id: 3, nombre: 'Urban Point', telefono: '', nota: '', activo: true, pct_tapa: null })];
+  const urbansoft_lineas = [
+    fil({ id: 'S999:1', tipo: 'consignacion', doc_id: '999', producto_us: '1', sku: 'TST-001', nombre: 'Vaso de prueba', categoria: null, foto: null, fecha: '2026-11-04', vence: '2026-12-04', cantidad: 3, estado_us: 'vigente', costo: 1000, pvp: 1500, estado: 'pendiente', cantidad_recibida: null, stock_mov_id: null, recibido_en: null, recibido_por: null, nota: '', visto_en: '2026-11-05T10:00:00Z' }),
+    fil({ id: 'P888:2', tipo: 'pedido', doc_id: '888', producto_us: '2', sku: 'TST-002', nombre: 'Cable de prueba', categoria: null, foto: null, fecha: '2026-11-03', vence: null, cantidad: 5, estado_us: 'pendiente', costo: 400, pvp: 600, estado: 'pendiente', cantidad_recibida: null, stock_mov_id: null, recibido_en: null, recibido_por: null, nota: '', visto_en: '2026-11-05T10:00:00Z' })
+  ];
+  const urbansoft_sync = [fil({ id: 1, en: '2026-11-05T10:00:00Z', ok: true, detalle: 'vendedor 169 · 2 líneas · 2 nuevas', lineas: 2, nuevas: 2, pendientes: 2 })];
 
-  const tablas = { clientes, suscripciones, precios, novedades, feriados, movimientos, caja, dist_movimientos, devoluciones, vueltas, reparto, config, distribuidores, perfiles, publicaciones_dist: [], proveedores: [], productos: [], stock_mov: [], prov_movimientos: [], resumenes: [] };
+  const tablas = { clientes, suscripciones, precios, novedades, feriados, movimientos, caja, dist_movimientos, devoluciones, vueltas, reparto, config, distribuidores, perfiles, publicaciones_dist: [], proveedores, productos: [], stock_mov: [], prov_movimientos: [], resumenes: [], urbansoft_lineas, urbansoft_sync };
   const exp = { tablas };
   if (typeof module !== 'undefined' && module.exports) module.exports = exp;
   root.FIXTURE = exp;

@@ -24,6 +24,10 @@ function pintarInicio(){
      Urban Point (productos) no es la distribuidora de diarios y revistas. */
   const hacer=[], deben=[], tengo=[], debo=[], hoyTxt=[];
   if(sp.size&&puede('precios')) hacer.push(card('Publicaciones sin precio',String(sp.size),[...sp].slice(0,3).join(', ')+(sp.size>3?'…':''),"irTab('precios')",'amb'));
+  if(STOCK_OK&&URBAN_OK&&puede('compras')){ // v99: entregas de Urban Point que hay que revisar y marcar como recibidas
+    const pend=usPendientes(); if(pend.length){ const docs=usDocs(pend); hacer.push(card('Entregas de Urban Point por recibir',String(docs.length),`${pend.length} productos · ${pend.reduce((n,l)=>n+l.qty,0)} unidades · revisá y marcá recibido`,"CTIPO='urbanpoint';irTab('compras')",'amb')); }
+    const venc=usVencen(7); if(venc.length) hacer.push(card('Consignación por devolver',String(venc.length),'vence antes del '+fecha(venc[venc.length-1].vence),"CTIPO='urbanpoint';irTab('compras')",'amb'));
+  }
   if(puede('clientes')){
     deben.push(card('Tus clientes',fmt(sum(deudH,'h')),`${deudH.length} clientes · al cierre ${fmt(sum(deudM,'m'))}`,"irClientes('deudores')"));
     if(fav.length) debo.push(card('A clientes con saldo a favor',fmt(sum(fav,'h')),`${fav.length} ${fav.length===1?'cliente':'clientes'} pagaron de más`,"irClientes('favor')"));
