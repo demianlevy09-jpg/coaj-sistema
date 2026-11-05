@@ -1,7 +1,7 @@
 // COHAJ Sistema — pantalla Inicio
 // Parte del código de la app (antes todo estaba en index.html). Se cargan en orden, como scripts comunes: comparten las variables globales.
-/* ------- INICIO (v82, compacto desde v85) -------
-   Tres respuestas grandes arriba: cuánto te deben, cuánta plata tenés, cómo estás con cada distribuidor.
+/* ------- INICIO (v82, compacto desde v85, cuatro bloques desde v98) -------
+   Cuatro respuestas: quién me debe, qué tengo (plata y mercadería), qué debo (y a quién), y lo último cargado.
    Abajo, solo lo que tiene algo (nada de tarjetas en $0) y las últimas cargas. */
 const signo=v=>(v<-0.5?'−':'')+fmt(v);
 function filaIni(txt,val,extra){ return `<div class="p-fila"><span>${txt}</span><b${extra?' class="'+extra+'"':''}>${val}</b></div>`; }
@@ -19,21 +19,27 @@ function pintarInicio(){
   const ult=[...LIVE.movs.map(r=>({...r,_t:'mov'})),...LIVE.caja.map(r=>({...r,_t:'caja'}))].sort((a,b)=>(b.ts||'').localeCompare(a.ts||'')).slice(0,8);
   const dists=(DISTS.length?DISTS:[{id:1,nombre:'Distribuidora'}]);
   const card=(tit,num,sub,click,cls)=>`<div class="kpi${click?' click':''}${cls?' '+cls:''}"${click?` onclick="${click}"`:''}><i>${tit}</i><b>${num}</b>${sub?`<i>${sub}</i>`:''}</div>`;
-  const hacer=[], tengo=[], debo=[], hoyTxt=[];
+  /* v98: cuatro bloques, cada uno responde una sola pregunta. "Me deben" (clientes y la distribuidora de diarios) se separó de
+     "Tengo" (plata en las cajas y mercadería), y en "Debo" cada proveedor va con su tarjeta y qué es lo que se le debe:
+     Urban Point (productos) no es la distribuidora de diarios y revistas. */
+  const hacer=[], deben=[], tengo=[], debo=[], hoyTxt=[];
   if(sp.size&&puede('precios')) hacer.push(card('Publicaciones sin precio',String(sp.size),[...sp].slice(0,3).join(', ')+(sp.size>3?'…':''),"irTab('precios')",'amb'));
   if(puede('clientes')){
-    tengo.push(card('Te deben tus clientes',fmt(sum(deudH,'h')),`${deudH.length} clientes · al cierre ${fmt(sum(deudM,'m'))}`,"irClientes('deudores')"));
-    if(fav.length) debo.push(card('Saldos a favor de clientes',fmt(sum(fav,'h')),`${fav.length} ${fav.length===1?'cliente':'clientes'}`,"irClientes('favor')"));
+    deben.push(card('Tus clientes',fmt(sum(deudH,'h')),`${deudH.length} clientes · al cierre ${fmt(sum(deudM,'m'))}`,"irClientes('deudores')"));
+    if(fav.length) debo.push(card('A clientes con saldo a favor',fmt(sum(fav,'h')),`${fav.length} ${fav.length===1?'cliente':'clientes'} pagaron de más`,"irClientes('favor')"));
   }
   if(puede('caja')) cajas.forEach(([m,v])=>tengo.push(card(m,signo(v),'',"irTab('caja')",v<-0.5?'rojo':'')));
-  if(puede('dist')) dists.forEach(d=>{ const s=cuentaDist(d.id,hoy).saldo;
-    const c=card(d.nombre,fmt(s),s<-0.5?'te debe':(s>0.5?'le debés':'a mano'),`DSEL=${d.id};irTab('dist')`,s>0.5?'rojo':'');
-    (s>0.5?debo:tengo).push(c); });
+  if(puede('dist')) dists.forEach(d=>{ const s=cuentaDist(d.id,hoy).saldo, nom=/diario/i.test(d.nombre)?d.nombre:d.nombre+' (diarios y revistas)';
+    if(s<-0.5) deben.push(card(nom,fmt(-s),'comisión por repartir a sus suscriptores, menos los diarios que te vende',`DSEL=${d.id};irTab('dist')`));
+    else if(s>0.5) debo.push(card('A '+nom,fmt(s),'liquidaciones de diarios menos tu comisión',`DSEL=${d.id};irTab('dist')`,'rojo'));
+    else tengo.push(card(nom,fmt(0),'cuenta a mano',`DSEL=${d.id};irTab('dist')`)); });
   if(STOCK_OK){
-    const dp=LIVE.prov.map(p=>saldoProv(p.id)).filter(x=>x>0.5);
-    if(dp.length&&puede('compras')) debo.push(card('Proveedores',fmt(dp.reduce((a,b)=>a+b,0)),`${dp.length} con saldo`,"CTIPO='proveedores';irTab('compras')",'rojo'));
-    const val=LIVE.prod.filter(p=>p.activo!==false).reduce((n,p)=>n+stockDe(p.id).propio*(p.costo||0),0);
-    if(val>0.5&&puede('stock')) tengo.push(card('Stock propio',fmt(val),'al costo',"irTab('stock')"));
+    const act=LIVE.prod.filter(p=>p.activo!==false);
+    if(puede('compras')) LIVE.prov.filter(p=>p.activo!==false).forEach(p=>{ const s=saldoProv(p.id); if(s>0.5) debo.push(card('A '+p.nombre,fmt(s),p.pct>0?'revistas y coleccionables vendidos en consignación':'productos vendidos en consignación y compras a cuenta',"CTIPO='proveedores';irTab('compras')",'rojo')); });
+    const val=act.reduce((n,p)=>n+stockDe(p.id).propio*(p.costo||0),0);
+    if(val>0.5&&puede('stock')) tengo.push(card('Mercadería propia',fmt(val),'al costo · ya es tuya',"irTab('stock')"));
+    if(puede('stock')){ const porProv={}; act.forEach(p=>{ const c=stockDe(p.id).consig; Object.keys(c).forEach(k=>{ const q=c[k]; if(q>0){ porProv[k]=porProv[k]||{u:0,v:0}; porProv[k].u+=q; porProv[k].v+=q*((p.costo)||0); } }); });
+      Object.keys(porProv).forEach(k=>{ const pv=provDe(Number(k)); tengo.push(card('En consignación de '+(pv?pv.nombre:'otros'),fmt(porProv[k].v),`${porProv[k].u} unidades al costo · se le paga al vender o se devuelve`,"irTab('stock')")); }); }
     const vh=LIVE.stock.filter(m=>m.tipo==='venta'&&m.f===hoy);
     if(vh.length&&puede('ventas')) hoyTxt.push('ventas '+fmt(vh.reduce((n,m)=>n-m.qty*(m.precio||0),0)));
   }
@@ -44,7 +50,7 @@ function pintarInicio(){
     <div class="hola"><h1>Hola${nombreUsuario()?', '+nombreUsuario():''}</h1><div class="mini">${fechaLarga(hoy)}${hoyTxt.length?' · hoy: '+hoyTxt.join(' · '):''}</div></div>
     <div class="ini-acc">${puede('clientes')?'<button class="btn chico" id="qcobrar">Cobrar a un cliente</button>':''}${puede('caja')?'<button class="btn chico sec" id="qcaja">Movimiento de caja</button>':''}</div>
   </div>
-  ${bloque('Para hacer','s-amb',hacer)}${bloque('Tengo','s-ok',tengo)}${bloque('Debo','s-rojo',debo)}
+  ${bloque('Para hacer','s-amb',hacer)}${bloque('Me deben','s-ok',deben)}${bloque('Tengo','s-ok',tengo)}${bloque('Debo','s-rojo',debo)}
   ${puede('caja')||puede('clientes')?`<h2 class="sec s-neu"><span class="dot"></span>Últimas cargas</h2>
   <div class="card lista-ult">${ult.length?ult.map(r=>`<div class="mov"><span class="f">${fecha(r.f)}</span><span class="t">${r._t==='mov'?(r.tipo+' · '+nomCli(r.cli)):((r.c||'')+(r.d?' · '+r.d:''))}</span>${(()=>{const v=r.imp!=null?r.imp:((r.ing||0)-(r.egr||0));return `<span class="m">${v<0?'−':''}${fmt(v)}</span>`;})()}</div>`).join(''):'<div class="mini" style="padding:6px 0">Todavía no cargaste nada. Los cobros y movimientos de caja van a aparecer acá.</div>'}</div>`:''}`;
 }
