@@ -121,7 +121,7 @@ Deno.serve(async (req) => {
       : { data: [] as any[] };
     const norm = (s: string) => String(s ?? "").replace(/[\s\-]/g, "").toLowerCase();
     const yaCargada = (l: Linea) => (movs ?? []).find((m: any) => {
-      const mm = String(m.nota ?? "").match(/(Salida|Pedido) #(\w+) · SKU ([^\s·]+)/);
+      const mm = String(m.nota ?? "").match(/(Salida|Pedido) #(\w+) · SKU (.+?)(?: · |$)/); // el SKU puede tener espacios ("DMI 6155")
       return mm && mm[2] === l.doc_id && ((mm[1] === "Salida") === (l.tipo === "consignacion")) && norm(mm[3]) === norm(l.sku ?? "");
     });
 
