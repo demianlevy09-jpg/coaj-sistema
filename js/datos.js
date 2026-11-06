@@ -99,6 +99,7 @@ async function boot(){
   $('cargando').hidden=true; $('app').hidden=false; $('tabs').hidden=false;
   $('estado-db').textContent='☁ guardado';
   pintarInicio(); pintarClientes(); pintarCaja(); pintarPrecios(); pintarNovedades(); pintarDist();
+  if(typeof urbansoftAuto==='function') setTimeout(urbansoftAuto,1500); // v100: consulta a Urban Soft en segundo plano
 }
 // guardar(col, filas): compara con lo que hay en memoria → inserta las nuevas y anula las que faltan, fila por fila (sin pisar a otros usuarios)
 async function guardar(col,rows){

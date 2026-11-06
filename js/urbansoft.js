@@ -24,6 +24,15 @@ async function apiUrbansoft(body){
   if(data&&data.error) throw new Error(data.error);
   return data;
 }
+// v100: consulta automática al abrir la app (si la última es de hace más de 4 horas). Nadie tiene que acordarse de apretar el botón.
+async function urbansoftAuto(){
+  if(!STOCK_OK||!URBAN_OK||!puede('compras')) return;
+  const ult=(LIVE.ussync||[]).slice(-1)[0]; if(ult&&ult.ts&&(Date.now()-new Date(ult.ts).getTime())<4*3600*1000) return;
+  try{ const antes=usPendientes().length; const r=await apiUrbansoft({accion:'sync'}); await Promise.all(['uslineas','ussync'].map(cargarTabla));
+    const ahora=usPendientes().length; if(r&&r.nuevas&&ahora>antes) toast(`Llegó una entrega de Urban Point: ${ahora-antes} productos por recibir (Inicio → Para hacer)`);
+    if($('v-inicio')&&!$('v-inicio').hidden) pintarInicio(); if($('v-compras')&&!$('v-compras').hidden&&CTIPO==='urbanpoint') pintarCompras();
+  }catch(e){ console.warn('urbansoft auto',e); /* sin token o sin red: se intenta en la próxima apertura; el botón manual muestra el error */ }
+}
 async function sincronizarUrbansoft(){
   const b=$('us-sync'); if(b){b.disabled=true;b.textContent='Consultando…';}
   try{ const r=await apiUrbansoft({accion:'sync'}); await Promise.all(['uslineas','ussync'].map(cargarTabla)); toast(`Urban Soft: ${r.lineas} líneas, ${r.nuevas} nuevas, ${r.pendientes} por recibir`); }
