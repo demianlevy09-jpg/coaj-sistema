@@ -49,7 +49,8 @@ Deno.serve(async (req) => {
   try {
     const url = Deno.env.get("SUPABASE_URL")!;
     const anon = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const svc = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    // clave de servidor: la nueva (sb_secret_…) si está cargada como secreto, si no la service_role de siempre
+    const svc = Deno.env.get("SUPABASE_SECRET_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const auth = req.headers.get("Authorization") ?? "";
     const jwt = auth.replace(/^Bearer\s+/i, "");
     if (!jwt) return json({ error: "Sin sesión" }, 401);
@@ -57,8 +58,12 @@ Deno.serve(async (req) => {
     const { data: { user }, error: uerr } = await userClient.auth.getUser(jwt);
     if (uerr || !user) return json({ error: "Sesión inválida" }, 401);
     const admin = createClient(url, svc, { auth: { persistSession: false, autoRefreshToken: false } });
-    const { data: perfil } = await admin.from("perfiles").select("rol,activo").eq("id", user.id).maybeSingle();
+    // el perfil se lee con la sesión del usuario (RLS deja leer el propio); el cliente de servidor se prueba aparte para avisar si la clave no sirve
+    const { data: perfil, error: perr } = await userClient.from("perfiles").select("rol,activo").eq("id", user.id).maybeSingle();
+    if (perr) return json({ error: "No pude leer tu perfil: " + perr.message }, 500);
     if (!perfil || perfil.activo === false) return json({ error: "Tu usuario no tiene permisos" }, 403);
+    const { error: aerr } = await admin.from("config").select("clave").limit(1);
+    if (aerr) return json({ error: "La clave de servidor de la función no sirve (" + aerr.message + "). Cargá el secreto SUPABASE_SECRET_KEY con la clave sb_secret_… del proyecto." }, 500);
 
     const body = await req.json().catch(() => ({}));
     const accion = body?.accion ?? "sync";
