@@ -26,7 +26,14 @@ async function pagina(base: string, token: string, path: string, params: Record<
     const u = new URL(base + path);
     Object.entries({ ...params, limit: "100" }).forEach(([k, v]) => u.searchParams.set(k, v));
     if (cursor) u.searchParams.set("cursor", cursor);
-    const r = await fetch(u, { headers: { Authorization: "Bearer " + token, Accept: "application/json" } });
+    let r = await fetch(u, { headers: { Authorization: "Bearer " + token, Accept: "application/json" } });
+    if (r.status === 429) { // la guía de Urban Soft pide esperar lo indicado y no insistir en bucle
+      const espera = Math.min(30, Number(r.headers.get("Retry-After")) || 5);
+      await new Promise((ok) => setTimeout(ok, espera * 1000));
+      r = await fetch(u, { headers: { Authorization: "Bearer " + token, Accept: "application/json" } });
+    }
+    if (r.status === 401) throw new Error("Urban Soft: clave inválida (401). Revisá que URBANSOFT_TOKEN esté completo y vigente y que la aplicación no esté pausada.");
+    if (r.status === 403) throw new Error(`Urban Soft: acceso no autorizado (403) en ${path}. Falta marcar la distribuidora 20 - Belgrano con "Ver vendedores", "Ver pedidos" y "Ver consignaciones", o la API está apagada.`);
     if (!r.ok) throw new Error(`Urban Soft respondió ${r.status} en ${path}: ${(await r.text()).slice(0, 200)}`);
     const j = await r.json();
     out.push(...(j.data ?? []));
